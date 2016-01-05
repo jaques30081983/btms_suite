@@ -131,7 +131,7 @@ class BtmsBackend(ApplicationSession):
                         'MySQLdb',
                         db='btms',
                         user='root',
-                        passwd='sjaq123',
+                        passwd='test',
                         host='127.0.0.1',
                         cp_reconnect=True,
                         cursorclass=MySQLdb.cursors.DictCursor
