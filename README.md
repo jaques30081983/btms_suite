@@ -1,4 +1,4 @@
-# btms
+# btms suite
 Bigwood Ticket Management System/Suite, 
 just reserve, sell and print tickets.
 
