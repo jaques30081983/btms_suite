@@ -1,0 +1,133 @@
+{
+   "controller": {
+   },
+   "workers": [
+      {
+         "type": "router",
+         "options": {
+            "pythonpath": ["/home/jaques5/workspace/btms_async_server"]
+         },
+         "realms": [
+            {
+               "name": "btmsserver",
+               "roles": [
+                  {
+                     "name": "anonymous",
+                     "permissions": [
+                        {
+                           "uri": "io.crossbar.btms.vote.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        },
+                        {
+                           "uri": "io.crossbar.btms.users.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        }
+                     ]
+                  }
+               ]
+            },
+            {
+               "name": "btmsserverauth",
+               "roles": [
+                  {
+                     "name": "authenticator",
+                     "permissions": [
+                        {
+                           "uri": "com.btms.authenticate",
+                           "register": true
+                        }
+                     ]
+                  },
+                  {
+                     "name": "backend",
+                     "permissions": [
+                        {
+                           "uri": "*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        },
+                        {
+                           "uri": "com.example.topic2",
+                           "subscribe": false
+                        }
+                     ]
+                  },
+                  {
+                     "name": "frontend",
+                     "permissions": [
+                        {
+                           "uri": "io.crossbar.btms.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        },
+                        {
+                           "uri": "com.example.*",
+                           "publish": true
+                        },
+                        {
+                           "uri": "com.example.topic2",
+                           "publish": false
+                        },
+                        {
+                           "uri": "com.foobar.topic1",
+                           "publish": true
+                        }
+                     ]
+                  }
+               ]
+            }
+         ],
+         "transports": [
+            {
+               "type": "web",
+               "endpoint": {
+                  "type": "tcp",
+                  "port": 8080
+               },
+               "paths": {
+                  "/": {
+                     "type": "static",
+                     "directory": "../workspace/btms_async_server/web"
+                  },
+                  "ws": {
+                     "type": "websocket",
+                     "auth": {
+                        "wampcra": {
+                           "type": "dynamic",
+                           "authenticator": "com.btms.authenticate"
+                        }
+                     }
+                  },
+                  "lp": {
+                     "type": "longpoll"
+                  }
+               }
+            }
+         ],
+         "components": [
+            {
+               "type": "class",
+               "classname": "authenticator.MyAuthenticator",
+               "realm": "btmsserverauth",
+               "role": "authenticator"
+            },
+            {
+               "type": "class",
+               "classname": "server.BtmsBackend",
+               "realm": "btmsserverauth",
+               "role": "backend"
+            }
+         ]
+      }
+   ]
+}

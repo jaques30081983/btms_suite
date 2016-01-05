@@ -1,0 +1,990 @@
+#:kivy 1.4
+#28f788764eef458d83c7186b8776d328
+<BtmsRoot>:
+	orientation: 'vertical'
+	canvas.before:
+        Color:
+            rgb: .6, .6, .6
+        Rectangle:
+            size: self.size
+            source: 'images/background.png'
+	
+						
+		
+		
+		
+	ScreenManager:
+		id: sm
+		
+		Screen:
+			name: 'server_connect'
+			
+#			AnchorLayout:
+#				anchor_x: "left"
+#				anchor_y: "top"
+#				padding: 0
+#				Label:
+#					size_hint: 0.05, 0.07
+#					
+#					
+#					canvas.before:
+#						Color:
+#							rgb: .6, .6, .6
+#						Rectangle:
+#							size: self.size
+#							pos: self.pos
+#							source: 'images/btms_logo_01.png'
+			
+			
+			AnchorLayout:
+				anchor_x: "center"
+				anchor_y: "center"
+			
+                BoxLayout:
+                    id: kv_login_list
+
+                    size_hint_x: 0.3
+                    size_hint_y: .8
+                    orientation: 'vertical'
+                    spacing: 10
+
+                    TextInput:
+                        id: kv_server_adress
+                        hint_text: "Server Adress: z.B. 192.168.178.1"
+                        multiline: False
+                        font_size: "30dp"
+                        on_text_validate: root.start_wamp_component(kv_server_adress.text)
+
+                    BoxLayout:
+                        id: kv_user_select
+
+                        TextInput:
+                            id: kv_user_input
+                            size_hint_y: 1
+                            size_hint_x: .7
+                            hint_text: "Username"
+                            multiline: False
+                            font_size: "30dp"
+
+                            on_text_validate: root.start_wamp_component_auth(kv_server_adress.text, kv_user_input.text, kv_password_input.text)
+                        Button:
+                            id: kv_user_change
+                            text: 'change'
+                            size_hint_y: 1
+                            size_hint_x: .3
+                            font_size: "15dp"
+                            on_release: sm.current = 'login_user'
+
+                    TextInput:
+                        id: kv_password_input
+                        size_hint_y: 1
+                        text:
+                        password: True
+                        multiline: False
+                        font_size: "50dp"
+
+                        on_text_validate: root.start_wamp_component_auth(kv_server_adress.text, kv_user_input.text, kv_password_input.text)
+
+
+                    GridLayout:
+                        cols: 3
+                        size_hint_y: 3
+
+                        Button:
+                            text: "7"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .53}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "7";
+
+                        Button:
+                            text: "8"
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .53}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "8";
+
+                        Button:
+                            text: "9"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .53}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "9";
+
+                        Button:
+                            text: "4"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .43}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "4";
+
+                        Button:
+                            text: "5"
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .43}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "5";
+
+                        Button:
+                            text: "6"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .43}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "6";
+
+
+                        Button:
+                            text: "1"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .33}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "1";
+
+                        Button:
+                            text: "2"
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .33}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "2";
+
+                        Button:
+                            text: "3"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .33}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "3";
+
+
+                        Button:
+                            text: "0"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .23}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "0";
+
+                        Button:
+                            text: "."
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .23}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += ".";
+
+                        Button:
+                            text: "CL"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .23}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text = "";
+
+
+
+
+
+
+
+                    Button:
+                        id: kv_login_button
+                        size_hint_y: 1
+                        text: 'login'
+                        on_release: root.start_wamp_component_auth(kv_server_adress.text, kv_user_input.text, kv_password_input.text)
+	
+		Screen:
+			name: 'login_user'
+			
+#			AnchorLayout:
+#				anchor_x: "left"
+#				anchor_y: "top"
+#				padding: 0
+#				Label:
+#					size_hint: 0.05, 0.07
+#					
+#					
+#					canvas.before:
+#						Color:
+#							rgb: .6, .6, .6
+#						Rectangle:
+#							size: self.size
+#							pos: self.pos
+#							source: 'images/btms_logo_01.png'
+			
+			
+			
+			
+					
+			GridLayout:
+				id: kv_user_list
+				pos_hint: {'x': .1, 'y': .5}
+				size_hint_x: .8
+				size_hint_y: None
+				cols: 4
+				
+				spacing: 5
+						
+				
+							
+							
+		Screen:
+			name: 'login_auth'
+			
+#			AnchorLayout:
+#				anchor_x: "left"
+#				anchor_y: "top"
+#				padding: 0
+#				Label:
+#					size_hint: 0.05, 0.07
+#					
+#					
+#					canvas.before:
+#						Color:
+#							rgb: .6, .6, .6
+#						Rectangle:
+#							size: self.size
+#							pos: self.pos
+#							source: 'images/btms_logo_01.png'
+			
+			AnchorLayout:
+				anchor_x: "center"
+				anchor_y: "center"
+				
+					
+
+						
+						
+		Screen:
+			name: 'work1'
+			event_title: event_title.__self__
+			event_date: event_date.__self__
+			
+			ScreenManager:     
+				pos_hint: {'x': .0, 'y': .0}
+				size_hint: .34, 1
+				id: item_screen_manager
+						
+				Screen:
+					name: 'first_item_screen'
+					
+					
+					ScrollView:
+						size_hint: 1, .94
+						pos_hint: {'x': 0, 'y': .06}
+						scroll_timeout: 100
+						scroll_distance: 20
+					
+				   
+						GridLayout:
+							id: sale_item_list_box
+							pos_hint: {'x': .0, 'y': .2}
+							size_hint: 1, 1.5
+							padding: 0
+							spacing: 5
+							height: 30
+							cols: 4
+							rows: None
+							do_scroll_x: False
+							row_default_height: (self.width / 3.3)
+							
+							
+				Screen:
+					name: 'second_item_screen'
+					
+					
+					ScrollView:
+						size_hint: 1, .94
+						pos_hint: {'x': 0, 'y': .06}
+						scroll_timeout: 100
+						scroll_distance: 20
+					
+				   
+						BoxLayout:
+							id: sale_item_list_box2
+							pos_hint: {'x': .0, 'y': .2}
+							size_hint: 1, 1.1
+							orientation: 'vertical'
+							spacing: 5
+
+
+							Button:
+								text: "Back"
+								size_hint: 1, 0.05
+								on_release: item_screen_manager.current = "first_item_screen"
+								
+							
+			ScrollView:
+				size_hint: .34, .825
+				pos_hint: {'x': .35, 'y': .173}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+				
+					
+					
+				GridLayout:
+					id: bill_item_list_box
+					pos_hint: {'x': .0, 'y': .2}
+					size_hint: 1, 1.5
+					padding: 0
+					spacing: 5
+					height: 50
+					cols: 1
+					rows: None
+					do_scroll_x: False
+					row_default_height: 100
+					
+					
+					
+
+			Button:
+				id: event_btn
+				pos_hint: {'x': .7, 'y': .94}
+				size_hint: .3, .06
+				text: 'select...'
+				on_release: event_title.open(self)
+				size_hint_y: None
+				height: '40dp'
+				background_normal: 'atlas://data/images/defaulttheme/spinner'
+				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+			
+			DropDown:
+				id: event_title
+				#pos_hint: {'x': .7, 'y': .94}
+				#size_hint: None, None
+				font_size: self.height * .35
+				on_select: event_btn.text = '{}'.format(args[1])
+				#on_select: event_date = '{}'.format(args[1])
+                on_parent: self.dismiss()
+
+
+			Button:
+				id: event_date_btn
+				pos_hint: {'x': .7, 'y': .87}
+				size_hint: .3, .06
+				text: 'select...'
+				on_release: event_date.open(self)
+				size_hint_y: None
+				height: '40dp'
+				background_normal: 'atlas://data/images/defaulttheme/spinner'
+				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+
+			
+			DropDown:
+				id: event_date
+				font_size: self.height * .35
+				on_parent: self.dismiss()
+				on_select: event_date_btn.text = '{}'.format(args[1])
+				on_select: root.set_event_day_times('{}'.format(args[1]))
+			
+						
+			
+			#Spinner:
+				#id: event_date
+				#text: "loading..."
+				#font_size: self.height * .6
+				#pos_hint: {'x': .7, 'y': .87}
+				#size_hint: .3, .06
+				#on_text: number_display_box.text = self.text; 
+
+				
+			
+				
+				
+			
+				
+			Spinner:
+				id: event_time
+				text: 'loading...'
+				pos_hint: {'x': .7, 'y': .80}
+				size_hint: .3, .06
+				font_size: self.height * 0.8
+				#on_text: number_display_box.text = self.text;
+				on_text: root.set_event_time(self.text)
+			
+				
+				
+			Label:
+				id: number_display_box
+				text: ""
+				text_size: self.height * 3.1 + (self.width * 0.2), None
+				font_size: self.height * 0.7
+				halign: "right"
+				multiline: False
+				pos_hint: {'x': .7, 'y': .70}
+				size_hint: .3, .1
+				
+			Label:
+				id: res_number_display_box
+				text: ""
+				text_size: self.height * 3.1 + (self.width * 0.2), None
+				font_size: self.height * 0.7
+				halign: "right"
+				multiline: False
+				pos_hint: {'x': .7, 'y': .70}
+				size_hint: .3, .1
+					
+				
+			Button:
+				id: kv_res_button
+				text: "Reserve"
+				font_size: self.height * 0.6
+				pos_hint: {'x': .7, 'y': .64}
+				size_hint: .15, .05
+				on_release: root.reserve()
+			Button:
+				id: kv_ret_button
+				text: "Retrieve"
+				font_size: self.height * 0.6
+				pos_hint: {'x': .85, 'y': .64}
+				size_hint: .15, .05
+				on_release: root.retrieve()
+
+			 
+				
+			Button:
+				text: "7"
+				font_size: "30dp"
+				pos_hint: {'x': .7, 'y': .53}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "7";
+						
+			Button:
+				text: "8"
+				font_size: "30dp"
+				pos_hint: {'x': .8, 'y': .53}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "8";
+				
+			Button:
+				text: "9"
+				font_size: "30dp"
+				pos_hint: {'x': .9, 'y': .53}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "9";    
+
+			Button:
+				text: "4"
+				font_size: "30dp"
+				pos_hint: {'x': .7, 'y': .43}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "4";
+						
+			Button:
+				text: "5"
+				font_size: "30dp"
+				pos_hint: {'x': .8, 'y': .43}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "5";
+				
+			Button:
+				text: "6"
+				font_size: "30dp"
+				pos_hint: {'x': .9, 'y': .43}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "6"; 
+				
+				
+			Button:
+				text: "1"
+				font_size: "30dp"
+				pos_hint: {'x': .7, 'y': .33}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "1";
+						
+			Button:
+				text: "2"
+				font_size: "30dp"
+				pos_hint: {'x': .8, 'y': .33}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "2";
+				
+			Button:
+				text: "3"
+				font_size: "30dp"
+				pos_hint: {'x': .9, 'y': .33}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "3"; 
+				
+				
+			Button:
+				text: "0"
+				font_size: "30dp"
+				pos_hint: {'x': .7, 'y': .23}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += "0";
+						
+			Button:
+				text: "."
+				font_size: "30dp"
+				pos_hint: {'x': .8, 'y': .23}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text += ".";
+				
+			Button:
+				text: "CL"
+				font_size: "30dp"
+				pos_hint: {'x': .9, 'y': .23}
+				size_hint: .1, .1
+				on_press: res_number_display_box.text = "";
+				on_release: number_display_box.text = "";
+				
+				
+				
+
+			Button:
+				id: kv_bar_button
+				text: "BAR"
+				font_size: self.height * 0.7
+				pos_hint: {'x': .7, 'y': .17}
+				size_hint: .15, .05
+				on_release: root.bar()
+				
+			Button:
+				id: kv_card_button
+				text: "CARD"
+				font_size: self.height * 0.7
+				pos_hint: {'x': .85, 'y': .17}
+				size_hint: .15, .05
+				on_release: root.bar()
+
+								
+			
+			Button:
+				text: "Journal"
+				
+				pos_hint: {'x': .7, 'y': .11}
+				size_hint: .15, .05
+				#on_release: root.print_ticket()
+				on_release: sm.current = "journal"
+				on_release: root.get_journal()
+				
+				
+			Button:
+				text: "Kasse"
+				
+				pos_hint: {'x': .7, 'y': .06}
+				size_hint: .15, .05
+				#on_release: root.print_ticket()
+			
+			
+			Button:
+				text: "Ticket"
+				
+				pos_hint: {'x': .85, 'y': .11}
+				size_hint: .075, .05
+				on_release: root.print_ticket(2)
+
+			Button:
+				id: kv_auto_print_button
+				text: "AP Off"
+				pos_hint: {'x': .925, 'y': .11}
+				size_hint: .075, .05
+				on_release: root.print_ticket(1)
+
+				
+			Button:
+				text: "Bon"
+				
+				pos_hint: {'x': .85, 'y': .06}
+				size_hint: .15, .05
+				on_release: root.print_ticket()
+				
+			#Total, Given, Back
+			Button:
+				id: kv_total_button_text
+				text: "Total"
+				
+				pos_hint: {'x': .35, 'y': .13}
+				size_hint: .11, .03
+
+			Button:
+				id: kv_total_button
+				text: "0" + unichr(8364)
+
+				pos_hint: {'x': .35, 'y': .06}
+				size_hint: .11, .07
+
+			Button:
+				id: kv_given_button_text
+				text: "Given"
+
+				pos_hint: {'x': .465, 'y': .13}
+				size_hint: .11, .03
+
+			Button:
+				id: kv_given_button
+				text: "0" + unichr(8364)
+
+				pos_hint: {'x': .465, 'y': .06}
+				size_hint: .11, .07
+
+			Button:
+				id: kv_back_button_text
+				text: "Back"
+
+				pos_hint: {'x': .58, 'y': .13}
+				size_hint: .11, .03
+
+			Button:
+				id: kv_back_button
+				text: "0" + unichr(8364)
+
+				pos_hint: {'x': .58, 'y': .06}
+				size_hint: .11, .07
+				
+				
+		#Status
+			Button:
+				id: kv_release_res_button
+				text: "Rel. Reserv."
+				on_release: root.release_reservation(0)
+				pos_hint: {'x': .0, 'y': .0}
+				size_hint: .165, .05
+
+			ToggleButton:
+				id: kv_release_con_button
+				text: "Rel. Conti."
+				on_release: root.release_contingent(0)
+
+				pos_hint: {'x': .175, 'y': .0}
+				size_hint: .165, .05
+
+			Button:
+				id: kv_user_button
+				text: "User"
+				
+				pos_hint: {'x': .35, 'y': .0}
+				size_hint: .165, .05
+				on_release: root.logout(1)
+
+			Button:
+				id: kv_server_button
+				text: "Heartbeat"
+				#on_release: root.get_venue_update(2)
+				
+				pos_hint: {'x': .525, 'y': .0}
+				size_hint: .165, .05
+				
+			Button:
+				id: kv_dashboard_button
+				text: "Dashboard"
+				on_release: sm.current = "dashboard"
+				on_press: root.get_dashboard()
+				pos_hint: {'x': .70, 'y': .0}
+				size_hint: .3, .05
+
+		Screen:
+			name: 'journal'
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+				GridLayout:
+					id: journal_list_box
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, 1.5
+					padding: 0
+					spacing: 5
+					#height: 30
+					cols: 6
+					rows: None
+					do_scroll_x: False
+					row_default_height: 10
+
+
+			Button:
+				text: "Back"
+				size_hint: 1, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.current = "work1"
+
+		Screen:
+			name: 'dashboard'
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+				GridLayout:
+					id: dashboard_list_box
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, 1.5
+					padding: 0
+					spacing: 5
+					#height: 30
+					cols: 2
+					rows: None
+					do_scroll_x: False
+					row_default_height: 10
+
+
+			Button:
+				text: "Back"
+				size_hint: 1, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.current = "work1"
+
+<BillItemArtikel>:
+	id: bill_item_artikel
+	size_hint: 1, None
+	Button:
+		text: "1"
+		pos_hint: {'x': .0, 'y': .0}
+		size_hint: .2, .9
+		on_release: app.root.ids.number_display_box.text = ''
+	Button:
+		text: str(self.id)
+		pos_hint: {'x': .2, 'y': .0}
+		size_hint: .4, .9
+		on_release: app.root.ids.number_display_box.text = ''
+	
+	Button:
+		text: "+"
+		pos_hint: {'x': .6, 'y': .0}
+		size_hint: .2, .9
+		on_release: app.root.ids.number_display_box.text = ''	
+							
+	Button:
+		text: "-"
+		pos_hint: {'x': .8, 'y': .0}
+		size_hint: .2, .9
+		on_release: app.root.ids.number_display_box.text = ''
+		
+		
+		
+<BillItemFreiePlaetze>:						
+	size_hint: 1, None
+	orientation: 'horizontal'
+	
+	padding: 0
+	spacing: 5
+	canvas:
+		Color:
+			rgb: .35, .35, .35
+		Rectangle:
+			pos: self.pos
+			size: self.size
+	Label:
+		text: "Freie Plaetze:"
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 0.5, 1
+		canvas.before:
+			PushMatrix
+			Rotate:
+				angle: 90
+				origin: self.center
+		canvas.after:
+			PopMatrix
+	
+	FloatLayout:
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 1, .8
+		Label:
+			text: "Normal"
+			font_size: self.height * 0.6
+			pos_hint: {'x': 0, 'y': 1}
+			size_hint: 1, .2	
+		Button:
+			text: "+"
+			pos_hint: {'x': 0, 'y': .7}
+			size_hint: 1, .3
+			on_release: _numbered_normal.text = str(int(_numbered_normal.text) + 1)
+	   
+		Label:
+			id: _numbered_normal
+			text: "000"
+			font_size: self.height * 0.7
+			halign: "center"
+			multiline: False
+			pos_hint: {'x': .0, 'y': 0.335}
+			size_hint: 1, .35
+		 
+		Button:
+			text: "-"
+			pos_hint: {'x': 0, 'y': 0}
+			size_hint: 1, .3
+			on_release: _numbered_normal.text = str(int(_numbered_normal.text) - 1)
+	 
+	FloatLayout:
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 1, .8
+		Label:
+			text: "Ermäßigt"
+			font_size: self.height * 0.6
+			pos_hint: {'x': 0, 'y': 1}
+			size_hint: 1, .2	
+		Button:
+			text: "+"
+			pos_hint: {'x': 0, 'y': .7}
+			size_hint: 1, .3
+	   
+		Label:
+			text: "000"
+			font_size: self.height * 0.7
+			halign: "center"
+			multiline: False
+			pos_hint: {'x': .0, 'y': 0.335}
+			size_hint: 1, .35
+		 
+		Button:
+			text: "-"
+			pos_hint: {'x': 0, 'y': 0}
+			size_hint: 1, .3
+			
+	FloatLayout:
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 1, .8
+		Label:
+			text: "Gruppe"
+			font_size: self.height * 0.6
+			pos_hint: {'x': 0, 'y': 1}
+			size_hint: 1, .2	
+		Button:
+			text: "+"
+			pos_hint: {'x': 0, 'y': .7}
+			size_hint: 1, .3
+	   
+		Label:
+			text: "000"
+			font_size: self.height * 0.7
+			halign: "center"
+			multiline: False
+			pos_hint: {'x': .0, 'y': 0.335}
+			size_hint: 1, .35
+		 
+		Button:
+			text: "-"
+			pos_hint: {'x': 0, 'y': 0}
+			size_hint: 1, .3
+			
+	FloatLayout:
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 1, .8
+		Label:
+			text: "10 EUR K."
+			font_size: self.height * 0.6
+			pos_hint: {'x': 0, 'y': 1}
+			size_hint: 1, .2	
+		Button:
+			text: "+"
+			pos_hint: {'x': 0, 'y': .7}
+			size_hint: 1, .3
+	   
+		Label:
+			text: "000"
+			font_size: self.height * 0.7
+			halign: "center"
+			multiline: False
+			pos_hint: {'x': .0, 'y': 0.335}
+			size_hint: 1, .35
+		 
+		Button:
+			text: "-"
+			pos_hint: {'x': 0, 'y': 0}
+			size_hint: 1, .3
+			
+	FloatLayout:
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 1, .8
+		Label:
+			text: "Sonder"
+			font_size: self.height * 0.6
+			pos_hint: {'x': 0, 'y': 1}
+			size_hint: 1, .2	
+		Button:
+			text: "+"
+			pos_hint: {'x': 0, 'y': .7}
+			size_hint: 1, .3
+	   
+		Label:
+			text: "000"
+			font_size: self.height * 0.7
+			halign: "center"
+			multiline: False
+			pos_hint: {'x': .0, 'y': 0.335}
+			size_hint: 1, .35
+		 
+		Button:
+			text: "-"
+			pos_hint: {'x': 0, 'y': 0}
+			size_hint: 1, .3
+			
+	FloatLayout:
+		pos_hint: {'x': 0, 'y': 0}
+		size_hint: 1, .8
+		Label:
+			text: "Frei K."
+			font_size: self.height * 0.6
+			pos_hint: {'x': 0, 'y': 1}
+			size_hint: 1, .2	
+		Button:
+			text: "+"
+			pos_hint: {'x': 0, 'y': .7}
+			size_hint: 1, .3
+	   
+		Label:
+			text: "000"
+			font_size: self.height * 0.7
+			halign: "center"
+			multiline: False
+			pos_hint: {'x': .0, 'y': 0.335}
+			size_hint: 1, .35
+		 
+		Button:
+			text: "-"
+			pos_hint: {'x': 0, 'y': 0}
+			size_hint: 1, .3
+
+		
+
+<ImageButton@Button>:
+	source: root.source
+
+	Image:
+		source: root.source
+		pos: root.pos
+		size: root.size
+
+<DropDownButton@Button>:
+	Image:
+		source: 'images/spinner.jpg'
+		align: 'right'
+		pos: root.pos
+		size: root.size
+
+	
+<ItemAmountButton>:
+	on_press: self.text = app.root.ids.number_display_box.text
+	on_release: app.root.ids.number_display_box.text = ''
+	
+	
+<UserSelectButton>:
+	size_hint_y: None
+	height: 50
+	width: 50
+	on_release: app.root.btms_login(self.text,'')
+	
+	
+<LoginButton>:
+	text: 'Login'
+	on_release: app.root.btms_login_auth('test', app.root.ids.kv_password_input.text)
+	
+	
+
+
+
