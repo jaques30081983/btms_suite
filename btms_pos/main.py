@@ -216,9 +216,9 @@ class BtmsRoot(BoxLayout):
             if event_id == 0:
                 event_id = row['id']
                 venue_id = row['venue_id']
-                self.get_venue(event_id, venue_id)
-                self.get_event_days(event_id)
-                self.get_prices(event_id)
+                #self.get_venue(event_id, venue_id)
+                self.get_event_days(event_id,venue_id)
+                #self.get_prices(event_id)
 
                 self.ids.event_btn.text = row['title'] + '\n' + row['date_start'] + ' - ' + row['date_end']
 
@@ -227,8 +227,9 @@ class BtmsRoot(BoxLayout):
                                                                    row['date_end'], size_hint_y=None, height=44)
             event_itm['event_btn_' + str(row['id'])].bind(
                 on_release=lambda event_btn: self.ids.event_title.select(event_btn.text))
+            event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_event_days,row['id'],row['venue_id']))
             #event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_venue, row['id'], row['venue_id']))
-            event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_event_days,row['id']))
+
 
             self.ids.event_title.add_widget(event_itm['event_btn_' + str(row['id'])])
             # Dates
@@ -236,7 +237,7 @@ class BtmsRoot(BoxLayout):
         #self.ids.event_title.values = event_titles_list
 
     @inlineCallbacks
-    def get_event_days(self, event_id, *args):
+    def get_event_days(self, event_id, venue_id, *args):
         def result_event_day(results):
             global event_date
 
@@ -284,7 +285,7 @@ class BtmsRoot(BoxLayout):
 
             self.ids.event_title.dismiss() #ugly work around, cause drop down not react
             self.ids.event_btn.text = event_titles_list[event_id] #ugly work around, cause drop down not react
-
+            self.get_venue(event_id, venue_id)
 
 
 
@@ -329,7 +330,7 @@ class BtmsRoot(BoxLayout):
             bill_itm = {}
             bill_itm_price_amount = {}
             bill_total_price = {}
-
+            print 'bingo'
 
 
             for row in results:
@@ -477,6 +478,9 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
+        finally:
+            self.get_prices(event_id)
+
 
 
             #Init Update Schedule
@@ -484,7 +488,7 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def get_prices(self, event_id, *args):
-
+        self.ids.bill_item_list_box.clear_widgets(children=None)
         try:
             prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
             self.get_categories(event_id,prices)

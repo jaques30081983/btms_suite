@@ -130,7 +130,7 @@ class BtmsBackend(ApplicationSession):
         pool = adbapi.ConnectionPool(
                         'MySQLdb',
                         db='btms',
-                        user='root',
+                        user='btms',
                         passwd='test',
                         host='127.0.0.1',
                         cp_reconnect=True,

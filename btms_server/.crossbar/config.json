@@ -5,7 +5,7 @@
       {
          "type": "router",
          "options": {
-            "pythonpath": ["/home/jaques5/workspace/btms_async_server"]
+            "pythonpath": ["/home/jaques5/workspace/btms_suite/btms_server"]
          },
          "realms": [
             {
@@ -97,7 +97,7 @@
                "paths": {
                   "/": {
                      "type": "static",
-                     "directory": "../workspace/btms_async_server/web"
+                     "directory": "../workspace/btms_suite/btms_server/web"
                   },
                   "ws": {
                      "type": "websocket",

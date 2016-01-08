@@ -67,8 +67,8 @@ class MyAuthenticator(ApplicationSession):
       authpool = adbapi.ConnectionPool(
                      'MySQLdb',
                      db='btms',
-                     user='root',
-                     passwd='sjaq123',
+                     user='btms',
+                     passwd='test',
                      host='127.0.0.1',
                      cp_reconnect=True,
                      cursorclass=MySQLdb.cursors.DictCursor
