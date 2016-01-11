@@ -35,7 +35,7 @@ from datetime import datetime
 
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
-
+import json
 
 
 
@@ -44,6 +44,7 @@ class BtmsBackend(ApplicationSession):
     def __init__(self, config):
         ApplicationSession.__init__(self, config)
         self.init()
+        #self.getVenueInit()
 
     def init(self):
         self._votes = {
@@ -51,7 +52,6 @@ class BtmsBackend(ApplicationSession):
             'Chocolate': 0,
             'Lemon': 0
         }
-
 
     @wamp.register(u'io.crossbar.btms.vote.get')
     def getVotes(self):
@@ -116,6 +116,111 @@ class BtmsBackend(ApplicationSession):
         return self.db.runQuery("SELECT name, price, cat_id FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
 
 
+    @inlineCallbacks
+    def getVenueInit(self,venue_id,event_id,date,time,*args):
+        try:
+
+            result_venues = yield self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '1' ORDER by id")
+            event_id = str(event_id)
+
+            eventdatetime_id = "%s_%s_%s" % (event_id,date,time)
+            self.block_list = {eventdatetime_id:{}}
+
+
+
+
+            for row in result_venues:
+
+                self.block_list[eventdatetime_id][row['id']] = {'seats':{}}
+
+                if row['art'] == 1:
+
+                    for i in range(0, (row['seats'])):
+                            j= i + 1
+                            self.block_list[eventdatetime_id][row['id']]['seats'][j] = 0
+
+
+                if row['art'] == 2:
+                    self.block_list[eventdatetime_id][row['id']]['amount'] = row['seats']
+
+        except Exception as err:
+            print "Error", err
+
+        finally:
+
+            try:
+
+                result_transactions = yield self.db.runQuery("SELECT item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE event_id = '"+str(event_id)+"' AND date = '"+date+"' AND time = '"+time+"'")
+
+                for row in result_transactions:
+                    #Numbered Seats
+                    json_string = row['seats'].replace(';',':')
+                    json_string = json_string.replace('\\','')
+                    json_string = '[' + json_string + ']'
+
+
+                    item_ov = json.loads(json_string)
+
+
+                    try:
+                        item_ov[0]
+                    except IndexError:
+                        item_ov = None
+
+                    if item_ov == None:
+                        pass
+                    else:
+
+                        for block, seat_list in item_ov[0].iteritems():
+
+                            for seat, status in seat_list.iteritems():
+
+                                self.block_list[eventdatetime_id][int(block)]['seats'][int(seat)] = status
+
+                    #Free Seats
+                    if row['art'] == 2:
+                        json_string = row['amount'].replace(';',':')
+                        json_string = json_string.replace('\\','')
+                        json_string = '[' + json_string + ']'
+
+
+                        item_ov = json.loads(json_string)
+
+
+                        try:
+                            item_ov[0]
+                        except IndexError:
+                            item_ov = None
+
+                        if item_ov == None:
+                            pass
+                        else:
+
+
+                            for key, value in item_ov[0].iteritems():
+
+                                self.block_list[eventdatetime_id][int(row['item_id'])]['amount'] = self.block_list[eventdatetime_id][int(row['item_id'])]['amount'] - value
+
+
+            except Exception as err:
+                print "Error", err
+            finally:
+                print self.block_list
+                returnValue(self.block_list)
+
+
+
+    @wamp.register(u'io.crossbar.btms.venue.get.update')
+    def getVenueUpdate(self,venue_id,event_id,date,time):
+        #print venue_id, event_id, date, time
+        self.getVenueInit(venue_id,event_id,date,time)
+        #return self.block_list
+
+
+
+
+
+
 
     @inlineCallbacks
     def onJoin(self, details):
@@ -123,9 +228,6 @@ class BtmsBackend(ApplicationSession):
         ## see: https://twistedmatrix.com/documents/current/api/twisted.enterprise.adbapi.ConnectionPool.html
         ##
         # Connect to the DB
-        #Registry.DBPOOL = adbapi.ConnectionPool('MySQLdb',host="127.0.0.1", user="root", passwd="sjaq123", db="btms")
-        #pool = Registry.getConfig()
-        #pool = adbapi.ConnectionPool("MySQLdb", host="127.0.0.1", user="root", passwd="sjaq123", db="btms")
 
         pool = adbapi.ConnectionPool(
                         'MySQLdb',
@@ -149,6 +251,6 @@ class BtmsBackend(ApplicationSession):
         ## decorated to register them for remoting.
         ##
         res = yield self.register(self)
-        print("VotesBackend: {} procedures registered!".format(len(res)))
+        print("BtmsBackend: {} procedures registered!".format(len(res)))
 
 

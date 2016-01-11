@@ -12,8 +12,8 @@ from kivy.support import install_twisted_reactor
 install_twisted_reactor()
 
 from kivy.app import App
-from kivy.factory import Factory
-from kivy.properties import ObjectProperty
+#from kivy.factory import Factory
+#from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -180,9 +180,9 @@ class BtmsRoot(BoxLayout):
         for row in result:
             print row['user']
             self.ids.box_with_vote_widgets.add_widget(Button(text='User: \n' + str(row['user'])
-+ '\n ' + str(row['first_name'])
-+ '\n ' + unicode(row['second_name'], 'iso-8859-15')
-))
+            + '\n ' + str(row['first_name'])
+            + '\n ' + unicode(row['second_name'], 'iso-8859-15')
+            ))
 
     def logout(self,op):
         self.logout_op = op
@@ -314,10 +314,11 @@ class BtmsRoot(BoxLayout):
 
 
 
-        #self.get_categories(event_id)
-
         def result_venue(results):
+            #Clear item box
             self.ids.sale_item_list_box.clear_widgets(children=None)
+
+            #Init
             global itm
             global bill_itm
             global bill_itm_price_amount
@@ -330,19 +331,17 @@ class BtmsRoot(BoxLayout):
             bill_itm = {}
             bill_itm_price_amount = {}
             bill_total_price = {}
-            print 'bingo'
 
 
+            #Iterate over items
             for row in results:
-                print row['id']
-                print row['title']
-                # print row['login_status']
-                # self.number_display.text = row['title']
 
+                row_id = str(row['id'])
                 seat_list[str(row['id'])] = {}
 
+                #Numbered seats
                 if row['art'] == 1:
-                    # Nummerrierte Plaetze  (. )( .)
+
 
 
                     def switching_function(com, cols, rows, item_id, cat_id, seats, title, *args):
@@ -424,10 +423,10 @@ class BtmsRoot(BoxLayout):
                             self.ids.item_screen_manager.current = 'first_item_screen'
 
 
-                    #Button fuer nummerierte Plaetz
+                    #Button for numbered seats
                     float_layout2 = FloatLayout(size_hint=[0.325, .003])
-                    itm['venue_item_' + str(row['id'])] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], on_release=partial(switching_function, 0, row['col'], row['row'], row['id'], row['cat_id'], row['seats'], row['title']))
-                    float_layout2.add_widget(itm['venue_item_' + str(row['id'])])
+                    itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], on_release=partial(switching_function, 0, row['col'], row['row'], row['id'], row['cat_id'], row['seats'], row['title']))
+                    float_layout2.add_widget(itm['venue_item_'+row_id])
 
                     float_layout2.add_widget(Label(text=row['title'], pos_hint={'x': .0, 'y': .35}, size_hint=[1, 1]))
 
@@ -440,8 +439,8 @@ class BtmsRoot(BoxLayout):
 
                     for i in range(0, (row['seats'])):
                         j= i + 1
-                        itm['venue_item_ov' + str(row['id']) + '_' + str(j)] = Image(size_hint=[0.2, .3], source=seat_stat_img[0])
-                        grid_layout1.add_widget(itm['venue_item_ov' + str(row['id']) + '_' + str(j)])
+                        itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[0.2, .3], source=seat_stat_img[0])
+                        grid_layout1.add_widget(itm['venue_item_ov'+row_id+'_'+str(j)])
 
 
                     float_layout2.add_widget(grid_layout1)
@@ -453,18 +452,22 @@ class BtmsRoot(BoxLayout):
                     free_seat_list[row['id']] = row['seats']
 
                     float_layout1 = FloatLayout(size_hint=[0.325, .003])
-                    itm['venue_item_' + str(row['id'])] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], text=row['title'],
+                    itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], text=row['title'],
                                                     on_release=partial(self.add_to_bill, row['id'], 0,
                                                                        row['cat_id'],2, event_id))
-                    float_layout1.add_widget(itm['venue_item_' + str(row['id'])])
-                    itm['venue_item_seats_' + str(row['id'])] = row['seats']
 
-                    itm['venue_itm_pbar_' + str(row['id'])] = ProgressBar(pos_hint={'x': .01, 'y': -0.20}, size_hint=[.98, 1],
+                    float_layout1.add_widget(itm['venue_item_'+row_id])
+                    itm['venue_item_seats_'+row_id] = row['seats']
+
+                    itm['venue_itm_pbar_'+row_id] = ProgressBar(pos_hint={'x': .01, 'y': -0.20}, size_hint=[.98, 1],
                                     value=0, max=row['seats'])
-                    float_layout1.add_widget(itm['venue_itm_pbar_' + str(row['id'])])
+                    float_layout1.add_widget(itm['venue_itm_pbar_'+row_id])
 
-                    itm['venue_itm_label_' + str(row['id'])] = Label(text=str(row['seats']), pos_hint={'x': .0, 'y': -.35}, size_hint=[1, 1])
-                    float_layout1.add_widget(itm['venue_itm_label_' + str(row['id'])])
+                    itm['venue_itm_label_'+row_id] = Label(text=str(row['seats']), pos_hint={'x': .0, 'y': -.35}, size_hint=[1, 1])
+                    float_layout1.add_widget(itm['venue_itm_label_'+row_id])
+
+                    itm['venue_itm_label_amount'+row_id] = Label(text='0', pos_hint={'x': .0, 'y': .30}, size_hint=[1, 1], font_size=self.width * 0.03)
+                    float_layout1.add_widget(itm['venue_itm_label_amount'+row_id])
                     self.ids.sale_item_list_box.add_widget(float_layout1)
 
 
@@ -480,6 +483,8 @@ class BtmsRoot(BoxLayout):
 
         finally:
             self.get_prices(event_id)
+            results = yield self.session.call(u'io.crossbar.btms.venue.get.update',venue_id,event_id,u'2016-05-01','16:00')
+            print results
 
 
 
@@ -548,6 +553,12 @@ class BtmsRoot(BoxLayout):
 
         except Exception as err:
             print "Error", err
+
+
+    def on_venue_update(self,result):
+        global seat_list
+        for row in result:
+            print row['user']
 
 
 
