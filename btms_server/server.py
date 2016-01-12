@@ -115,7 +115,7 @@ class BtmsBackend(ApplicationSession):
 
         return self.db.runQuery("SELECT name, price, cat_id FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
 
-
+    @wamp.register(u'io.crossbar.btms.venue.get.init')
     @inlineCallbacks
     def getVenueInit(self,venue_id,event_id,date,time,*args):
         try:
@@ -130,18 +130,19 @@ class BtmsBackend(ApplicationSession):
 
 
             for row in result_venues:
-
-                self.block_list[eventdatetime_id][row['id']] = {'seats':{}}
+                block = str(row['id'])
+                self.block_list[eventdatetime_id][block] = {'seats':{}}
 
                 if row['art'] == 1:
 
                     for i in range(0, (row['seats'])):
                             j= i + 1
-                            self.block_list[eventdatetime_id][row['id']]['seats'][j] = 0
+                            seat = str(j)
+                            self.block_list[eventdatetime_id][block]['seats'][seat] = 0
 
 
                 if row['art'] == 2:
-                    self.block_list[eventdatetime_id][row['id']]['amount'] = row['seats']
+                    self.block_list[eventdatetime_id][block]['amount'] = row['seats']
 
         except Exception as err:
             print "Error", err
@@ -175,7 +176,7 @@ class BtmsBackend(ApplicationSession):
 
                             for seat, status in seat_list.iteritems():
 
-                                self.block_list[eventdatetime_id][int(block)]['seats'][int(seat)] = status
+                                self.block_list[eventdatetime_id][block]['seats'][seat] = status
 
                     #Free Seats
                     if row['art'] == 2:
@@ -199,22 +200,44 @@ class BtmsBackend(ApplicationSession):
 
                             for key, value in item_ov[0].iteritems():
 
-                                self.block_list[eventdatetime_id][int(row['item_id'])]['amount'] = self.block_list[eventdatetime_id][int(row['item_id'])]['amount'] - value
+                                self.block_list[eventdatetime_id][row['item_id']]['amount'] = self.block_list[eventdatetime_id][row['item_id']]['amount'] - value
 
 
             except Exception as err:
                 print "Error", err
             finally:
-                print self.block_list
-                returnValue(self.block_list)
+                pass
+                #print self.block_list
+                #test = 'test123'
+                #returnValue(test)
+                returnValue(self.block_list[eventdatetime_id])
 
 
 
-    @wamp.register(u'io.crossbar.btms.venue.get.update')
-    def getVenueUpdate(self,venue_id,event_id,date,time):
+
+
+    #@wamp.register(u'io.crossbar.btms.venue.get.update')
+    #def getVenueUpdate(self,venue_id,event_id,date,time):
         #print venue_id, event_id, date, time
-        self.getVenueInit(venue_id,event_id,date,time)
-        #return self.block_list
+
+        #p = self.getVenueInit(venue_id,event_id,date,time)
+
+        #print self.block_list
+
+
+    @wamp.register(u'io.crossbar.btms.bill.add')
+    def addtoBill(self, eventdatetime_id, blocks):
+
+        #for block, seat_list in blocks[0].iteritems():
+
+            #for seat, status in seat_list.iteritems():
+
+                #self.block_list[eventdatetime_id][block]['seats'][seat] = 1
+
+        #result = {'subject': subject, 'votes': self._votes[subject]}
+        self.publish('io.crossbar.btms.venue.update', blocks)
+
+
 
 
 

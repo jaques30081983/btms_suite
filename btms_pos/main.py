@@ -94,6 +94,7 @@ class BtmsWampComponentAuth(ApplicationSession):
         # subscribe to WAMP PubSub events and call the Kivy UI component's
         # function when such an event is received
         #self.subscribe(ui.on_users_message, u'io.crossbar.btms.users.result')
+        self.subscribe(ui.on_venue_update, u'io.crossbar.btms.venue.update')
 
 
     def onLeave(self, details):
@@ -216,9 +217,11 @@ class BtmsRoot(BoxLayout):
             if event_id == 0:
                 event_id = row['id']
                 venue_id = row['venue_id']
-                #self.get_venue(event_id, venue_id)
+                self.event_id = row['id']
+                self.venue_id = row['venue_id']
+
                 self.get_event_days(event_id,venue_id)
-                #self.get_prices(event_id)
+
 
                 self.ids.event_btn.text = row['title'] + '\n' + row['date_start'] + ' - ' + row['date_end']
 
@@ -239,7 +242,7 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def get_event_days(self, event_id, venue_id, *args):
         def result_event_day(results):
-            global event_date
+
 
             event_date_match = 0
             date_id = 0
@@ -260,7 +263,7 @@ class BtmsRoot(BoxLayout):
                 if date_id == 0:
                     date_id = row['id']
                     self.ids.event_date_btn.text = row['date_day']
-                    event_date = row['date_day']
+                    #self.event_date = row['date_day']
                     self.set_event_day_times(row['date_day'])
 
 
@@ -293,19 +296,26 @@ class BtmsRoot(BoxLayout):
 
 
     def set_event_day_times(self, day, *args):
-        event_times_list = []
+        #Set Date
+        self.event_date = day
 
+        #Set Time List
+        event_times_list = []
         for kv in self.event_date_time_dict[day].split(","):
             key, value = kv.split(";")
             event_times_list.append(value)
 
             if key == '1':
+                #Set Init Time
                 self.ids.event_time.text = value
+                self.set_event_time(value)
 
         self.ids.event_time.values = event_times_list
 
     def set_event_time(self, time, *args):
-        pass
+        self.event_time = time
+        self.get_venue_status(self.venue_id,self.event_id)
+
 
     @inlineCallbacks
     def get_venue(self, event_id1, venue_id, *args):
@@ -483,8 +493,29 @@ class BtmsRoot(BoxLayout):
 
         finally:
             self.get_prices(event_id)
-            results = yield self.session.call(u'io.crossbar.btms.venue.get.update',venue_id,event_id,u'2016-05-01','16:00')
-            print results
+            self.get_venue_status(venue_id,event_id)
+
+
+
+
+    @inlineCallbacks
+    def get_venue_status(self,venue_id,event_id):
+        results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time)
+
+        for key, value in results.iteritems():
+
+            for key1, value1 in value['seats'].iteritems():
+                seat_list[str(key)][int(key1)] = value1
+                itm['venue_item_ov' + str(key) + '_' + str(key1)].source = seat_stat_img[int(value1)]
+
+
+            try:
+                value1 = value['amount']
+                itm['venue_itm_label_' + str(key)].text = str(value1)
+            except KeyError:
+                # Key is not present
+                pass
+
 
 
 
@@ -556,14 +587,16 @@ class BtmsRoot(BoxLayout):
 
 
     def on_venue_update(self,result):
-        global seat_list
-        for row in result:
-            print row['user']
+        self.ids.number_display_box.text = result
+        print result
 
 
 
     def add_to_bill(self, item_id, seat, cat_id, art, event_id, *args):
-        pass
+        if self.session:
+            block = 'test_'+str(item_id)+'_'+str(seat)
+            eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+            self.session.call(u'io.crossbar.btms.bill.add', eventdatetime_id, block)
 
 # Buttons
 class ImageButton(Button):
