@@ -95,6 +95,7 @@ class BtmsWampComponentAuth(ApplicationSession):
         # function when such an event is received
         #self.subscribe(ui.on_users_message, u'io.crossbar.btms.users.result')
         self.subscribe(ui.on_venue_update, u'io.crossbar.btms.venue.update')
+        self.subscribe(ui.on_block_item, u'io.crossbar.btms.item.block.action')
 
 
     def onLeave(self, details):
@@ -147,7 +148,12 @@ class BtmsRoot(BoxLayout):
        #self.ids.kv_user_list.clear_widgets(children=None)
         results = yield self.session.call(u'io.crossbar.btms.users.get')
         self.get_users(results)
+
         self.ids.kv_user_button.text = btms_user
+        for row in results:
+            if row['user'] == btms_user: #TODO simply btms_user to user
+                self.user_id = row['id']
+                self.user = btms_user
 
         results = yield self.session.call(u'io.crossbar.btms.events.get')
         self.get_events(results)
@@ -156,14 +162,16 @@ class BtmsRoot(BoxLayout):
         #self.session.leave()
 
     def get_users(self,results):
-        user_list = []
+        user_list1 = []
+        self.user_list = {}
         self.ids.kv_user_list.clear_widgets(children=None)
         for row in results:
             print row['user']
-            user_list.append(row['user'])
+            self.user_list[row['id']] = row['user']
+            user_list1.append(row['user'])
             self.ids.kv_user_list.add_widget(Button(text=str(row['user']),on_release=partial(self.change_user,str(row['user']))))
 
-        store.put('userlist', user_list=user_list)
+        store.put('userlist', user_list=user_list1)
 
 
     def change_user(self,user,*args):
@@ -315,6 +323,7 @@ class BtmsRoot(BoxLayout):
     def set_event_time(self, time, *args):
         self.event_time = time
         self.get_venue_status(self.venue_id,self.event_id)
+        self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
 
 
     @inlineCallbacks
@@ -356,6 +365,7 @@ class BtmsRoot(BoxLayout):
 
                     def switching_function(com, cols, rows, item_id, cat_id, seats, title, *args):
                         self.ids.sale_item_list_box2.clear_widgets(children=None)
+                        self.block_item(item_id)
                         if com == 0:
 
                             #Add additional row if its nessesary
@@ -415,12 +425,12 @@ class BtmsRoot(BoxLayout):
                                 itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
                                     size_hint=[1, 1], on_release=partial(self.add_to_bill, item_id, j, cat_id, 1, event_id))
                                 grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
-                            self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(switching_function,1,row['col'], row['row'], row['id'], cat_id, row['seats'], row['title'])))
+                            self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(switching_function,1,row['col'], row['row'], item_id, cat_id, row['seats'], row['title'])))
 
                             self.ids.sale_item_list_box2.add_widget(grid_layout2)
 
 
-                            self.ids.sale_item_list_box2.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(switching_function,1,row['col'], row['row'], row['id'], cat_id, row['seats'], row['title'])))
+                            self.ids.sale_item_list_box2.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(switching_function,1,row['col'], row['row'], item_id, cat_id, row['seats'], row['title'])))
 
 
                             self.ids.item_screen_manager.current = 'second_item_screen'
@@ -454,6 +464,9 @@ class BtmsRoot(BoxLayout):
 
 
                     float_layout2.add_widget(grid_layout1)
+                    itm['venue_item_user'+row_id] = Label(text='', pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], font_size=self.width * 0.025, markup=True)
+
+                    float_layout2.add_widget(itm['venue_item_user'+row_id])
 
                     self.ids.sale_item_list_box.add_widget(float_layout2)
 
@@ -501,7 +514,7 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def get_venue_status(self,venue_id,event_id):
         results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time)
-
+        #TODO Result is None
         for key, value in results.iteritems():
 
             for key1, value1 in value['seats'].iteritems():
@@ -513,9 +526,14 @@ class BtmsRoot(BoxLayout):
                 value1 = value['amount']
                 itm['venue_itm_label_' + str(key)].text = str(value1)
             except KeyError:
-                # Key is not present
                 pass
 
+            try:
+                value2 = value['blocked_by']
+                print 'print blocked:', value2
+                self.on_block_item(self.eventdatetime_id, key, value2, 1)
+            except KeyError:
+                pass
 
 
 
@@ -585,6 +603,26 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
+    def block_item(self,item_id):
+        eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+        self.session.call(u'io.crossbar.btms.item.block', eventdatetime_id, item_id, self.user_id)
+
+    def on_block_item(self,eventdatetime_id, block_id, user_id, block):
+        if eventdatetime_id == "%s_%s_%s" % (self.event_id,self.event_date,self.event_time):
+            if user_id == self.user_id:
+                pass
+            else:
+                itm['venue_item_' + str(block_id)].disabled = True
+                itm['venue_item_user'+str(block_id)].text = '[color=ffcc00]'+self.user_list[user_id]+'[/color]'
+
+
+            if block == 0:
+                itm['venue_item_' + str(block_id)].disabled = False
+                itm['venue_item_user'+str(block_id)].text = ''
+
+    def select_seats(self,item_id,seat):
+        eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+        self.session.call(u'io.crossbar.btms.seats.select', eventdatetime_id, item_id, seat, self.user_id)
 
     def on_venue_update(self,result):
         self.ids.number_display_box.text = result
@@ -605,7 +643,7 @@ class ImageButton(Button):
 class BtmsApp(App):
 
     def build(self):
-        self.title = 'BTMS 15.11a'
+        self.title = 'BTMS 16.01a'
         self.root = BtmsRoot()
         self.root.ids.kv_user_change.disabled = True
         if store.exists('settings'):

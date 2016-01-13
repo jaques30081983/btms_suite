@@ -118,69 +118,57 @@ class BtmsBackend(ApplicationSession):
     @wamp.register(u'io.crossbar.btms.venue.get.init')
     @inlineCallbacks
     def getVenueInit(self,venue_id,event_id,date,time,*args):
+        eventdatetime_id = "%s_%s_%s" % (event_id,date,time)
         try:
+            self.item_list
+        except AttributeError:
+            self.item_list = {}
 
-            result_venues = yield self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '1' ORDER by id")
-            event_id = str(event_id)
+        try:
+            #value = self.item_list[eventdatetime_id]
+            returnValue(self.item_list[eventdatetime_id])
 
-            eventdatetime_id = "%s_%s_%s" % (event_id,date,time)
-            self.block_list = {eventdatetime_id:{}}
+        except KeyError:
 
-
-
-
-            for row in result_venues:
-                block = str(row['id'])
-                self.block_list[eventdatetime_id][block] = {'seats':{}}
-
-                if row['art'] == 1:
-
-                    for i in range(0, (row['seats'])):
-                            j= i + 1
-                            seat = str(j)
-                            self.block_list[eventdatetime_id][block]['seats'][seat] = 0
-
-
-                if row['art'] == 2:
-                    self.block_list[eventdatetime_id][block]['amount'] = row['seats']
-
-        except Exception as err:
-            print "Error", err
-
-        finally:
 
             try:
 
-                result_transactions = yield self.db.runQuery("SELECT item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE event_id = '"+str(event_id)+"' AND date = '"+date+"' AND time = '"+time+"'")
-
-                for row in result_transactions:
-                    #Numbered Seats
-                    json_string = row['seats'].replace(';',':')
-                    json_string = json_string.replace('\\','')
-                    json_string = '[' + json_string + ']'
+                result_venues = yield self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '1' ORDER by id")
+                event_id = str(event_id)
 
 
-                    item_ov = json.loads(json_string)
+                self.item_list = {eventdatetime_id:{}}
 
 
-                    try:
-                        item_ov[0]
-                    except IndexError:
-                        item_ov = None
 
-                    if item_ov == None:
-                        pass
-                    else:
 
-                        for block, seat_list in item_ov[0].iteritems():
+                for row in result_venues:
+                    block = str(row['id'])
+                    self.item_list[eventdatetime_id][block] = {'seats':{}}
 
-                            for seat, status in seat_list.iteritems():
+                    if row['art'] == 1:
 
-                                self.block_list[eventdatetime_id][block]['seats'][seat] = status
+                        for i in range(0, (row['seats'])):
+                                j= i + 1
+                                seat = str(j)
+                                self.item_list[eventdatetime_id][block]['seats'][seat] = 0
 
-                    #Free Seats
+
                     if row['art'] == 2:
-                        json_string = row['amount'].replace(';',':')
+                        self.item_list[eventdatetime_id][block]['amount'] = row['seats']
+
+            except Exception as err:
+                print "Error", err
+
+            finally:
+
+                try:
+
+                    result_transactions = yield self.db.runQuery("SELECT item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE event_id = '"+str(event_id)+"' AND date = '"+date+"' AND time = '"+time+"'")
+
+                    for row in result_transactions:
+                        #Numbered Seats
+                        json_string = row['seats'].replace(';',':')
                         json_string = json_string.replace('\\','')
                         json_string = '[' + json_string + ']'
 
@@ -197,24 +185,65 @@ class BtmsBackend(ApplicationSession):
                             pass
                         else:
 
+                            for block, seat_list in item_ov[0].iteritems():
 
-                            for key, value in item_ov[0].iteritems():
+                                for seat, status in seat_list.iteritems():
 
-                                self.block_list[eventdatetime_id][row['item_id']]['amount'] = self.block_list[eventdatetime_id][row['item_id']]['amount'] - value
+                                    self.item_list[eventdatetime_id][block]['seats'][seat] = status
 
-
-            except Exception as err:
-                print "Error", err
-            finally:
-                pass
-                #print self.block_list
-                #test = 'test123'
-                #returnValue(test)
-                returnValue(self.block_list[eventdatetime_id])
+                        #Free Seats
+                        if row['art'] == 2:
+                            json_string = row['amount'].replace(';',':')
+                            json_string = json_string.replace('\\','')
+                            json_string = '[' + json_string + ']'
 
 
+                            item_ov = json.loads(json_string)
 
 
+                            try:
+                                item_ov[0]
+                            except IndexError:
+                                item_ov = None
+
+                            if item_ov == None:
+                                pass
+                            else:
+
+
+                                for key, value in item_ov[0].iteritems():
+
+                                    self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - value
+
+
+                except Exception as err:
+                    print "Error", err
+                finally:
+                    pass
+                    #print self.item_list
+                    #test = 'test123'
+                    #returnValue(test)
+                    returnValue(self.item_list[eventdatetime_id])
+
+
+    @wamp.register(u'io.crossbar.btms.item.block')
+    def blockItem(self, eventdatetime_id, item_id, user_id):
+
+        try:
+            if user_id == self.item_list[eventdatetime_id][str(item_id)]['blocked_by']:
+                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = 0
+                block = 0
+            else:
+                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
+                block = 1
+        except KeyError:
+            self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
+            block = 1
+
+
+
+
+        self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, block)
 
     #@wamp.register(u'io.crossbar.btms.venue.get.update')
     #def getVenueUpdate(self,venue_id,event_id,date,time):
@@ -222,7 +251,7 @@ class BtmsBackend(ApplicationSession):
 
         #p = self.getVenueInit(venue_id,event_id,date,time)
 
-        #print self.block_list
+        #print self.item_list
 
 
     @wamp.register(u'io.crossbar.btms.bill.add')
@@ -232,7 +261,7 @@ class BtmsBackend(ApplicationSession):
 
             #for seat, status in seat_list.iteritems():
 
-                #self.block_list[eventdatetime_id][block]['seats'][seat] = 1
+                #self.item_list[eventdatetime_id][block]['seats'][seat] = 1
 
         #result = {'subject': subject, 'votes': self._votes[subject]}
         self.publish('io.crossbar.btms.venue.update', blocks)
