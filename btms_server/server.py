@@ -123,23 +123,23 @@ class BtmsBackend(ApplicationSession):
             self.item_list
         except AttributeError:
             self.item_list = {}
+            print 'new item_list created'
 
-        try:
-            #value = self.item_list[eventdatetime_id]
+        if eventdatetime_id in self.item_list:
+            print 'return existing item_list'
             returnValue(self.item_list[eventdatetime_id])
 
-        except KeyError:
 
+        else:
+            print 'return new item_list'
 
             try:
 
-                result_venues = yield self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '1' ORDER by id")
+                result_venues = yield self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
                 event_id = str(event_id)
 
 
-                self.item_list = {eventdatetime_id:{}}
-
-
+                self.item_list[eventdatetime_id] = {}
 
 
                 for row in result_venues:

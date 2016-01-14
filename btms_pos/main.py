@@ -225,8 +225,7 @@ class BtmsRoot(BoxLayout):
             if event_id == 0:
                 event_id = row['id']
                 venue_id = row['venue_id']
-                self.event_id = row['id']
-                self.venue_id = row['venue_id']
+
 
                 self.get_event_days(event_id,venue_id)
 
@@ -249,6 +248,8 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def get_event_days(self, event_id, venue_id, *args):
+        self.event_id = event_id
+        self.venue_id = venue_id
         def result_event_day(results):
 
 
@@ -322,8 +323,9 @@ class BtmsRoot(BoxLayout):
 
     def set_event_time(self, time, *args):
         self.event_time = time
-        self.get_venue_status(self.venue_id,self.event_id)
         self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+
+        #self.get_venue_status(self.venue_id,self.event_id)
 
 
     @inlineCallbacks
@@ -514,6 +516,9 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def get_venue_status(self,venue_id,event_id):
         results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time)
+
+        #print results
+
         #TODO Result is None
         for key, value in results.iteritems():
 
@@ -578,7 +583,7 @@ class BtmsRoot(BoxLayout):
 
                         itm_price[row['id']]['box'].add_widget(pbox)
 
-                #CL and Total Area
+                #CL and Total    Area
                 itm_price[row['id']]['tbox'] = BoxLayout(size_hint=[0.15, 1],
                                                                   pos_hint={'x': 0.85, 'y': 0},
                                                                   orientation='horizontal')
@@ -604,21 +609,21 @@ class BtmsRoot(BoxLayout):
             print "Error", err
 
     def block_item(self,item_id):
-        eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
-        self.session.call(u'io.crossbar.btms.item.block', eventdatetime_id, item_id, self.user_id)
 
-    def on_block_item(self,eventdatetime_id, block_id, user_id, block):
-        if eventdatetime_id == "%s_%s_%s" % (self.event_id,self.event_date,self.event_time):
-            if user_id == self.user_id:
-                pass
+        self.session.call(u'io.crossbar.btms.item.block', self.eventdatetime_id, item_id, self.user_id)
+
+    def on_block_item(self,eventdatetime_id, item_id, user_id, block):
+        if eventdatetime_id == self.eventdatetime_id:
+            if block == 1:
+                if user_id == self.user_id or user_id == 0:
+                    pass
+                else:
+                    itm['venue_item_' + str(item_id)].disabled = True
+                    itm['venue_item_user'+str(item_id)].text = '[color=ffcc00]'+self.user_list[user_id]+'[/color]'
+
             else:
-                itm['venue_item_' + str(block_id)].disabled = True
-                itm['venue_item_user'+str(block_id)].text = '[color=ffcc00]'+self.user_list[user_id]+'[/color]'
-
-
-            if block == 0:
-                itm['venue_item_' + str(block_id)].disabled = False
-                itm['venue_item_user'+str(block_id)].text = ''
+                itm['venue_item_' + str(item_id)].disabled = False
+                itm['venue_item_user'+str(item_id)].text = ''
 
     def select_seats(self,item_id,seat):
         eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
