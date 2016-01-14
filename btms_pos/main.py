@@ -96,6 +96,8 @@ class BtmsWampComponentAuth(ApplicationSession):
         #self.subscribe(ui.on_users_message, u'io.crossbar.btms.users.result')
         self.subscribe(ui.on_venue_update, u'io.crossbar.btms.venue.update')
         self.subscribe(ui.on_block_item, u'io.crossbar.btms.item.block.action')
+        self.subscribe(ui.on_select_seats, u'io.crossbar.btms.seats.select.action')
+
 
 
     def onLeave(self, details):
@@ -344,10 +346,10 @@ class BtmsRoot(BoxLayout):
             global bill_itm
             global bill_itm_price_amount
             global bill_total_price
-            global seat_list
+            #global seat_list
             global free_seat_list
             itm = {}
-            seat_list = {}
+            self.seat_list = {}
             free_seat_list = {}
             bill_itm = {}
             bill_itm_price_amount = {}
@@ -358,7 +360,7 @@ class BtmsRoot(BoxLayout):
             for row in results:
 
                 row_id = str(row['id'])
-                seat_list[str(row['id'])] = {}
+                self.seat_list[str(row['id'])] = {}
 
                 #Numbered seats
                 if row['art'] == 1:
@@ -377,7 +379,7 @@ class BtmsRoot(BoxLayout):
 
                             #Check for free Seats
                             #free_seats = 0
-                            #for key, value in seat_list[str(item_id)].items():
+                            #for key, value in self.seat_list[str(item_id)].items():
                             #    if value == 0:
                             #        free_seats = free_seats + 1
 
@@ -403,13 +405,13 @@ class BtmsRoot(BoxLayout):
 
 
                                 try:
-                                    seat_list[str(item_id)][j]
+                                    self.seat_list[str(item_id)][j]
                                 except KeyError:
-                                    seat_list[str(item_id)][j] = 0
+                                    self.seat_list[str(item_id)][j] = 0
 
                                 if amount > 0:
-                                    if seat_list[str(item_id)][j] == 0:
-                                        seat_list[str(item_id)][j] = 3
+                                    if self.seat_list[str(item_id)][j] == 0:
+                                        self.seat_list[str(item_id)][j] = 3
 
                                         amount = amount - 1
 
@@ -424,7 +426,7 @@ class BtmsRoot(BoxLayout):
 
 
 
-                                itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
+                                itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
                                     size_hint=[1, 1], on_release=partial(self.add_to_bill, item_id, j, cat_id, 1, event_id))
                                 grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
                             self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(switching_function,1,row['col'], row['row'], item_id, cat_id, row['seats'], row['title'])))
@@ -523,7 +525,7 @@ class BtmsRoot(BoxLayout):
         for key, value in results.iteritems():
 
             for key1, value1 in value['seats'].iteritems():
-                seat_list[str(key)][int(key1)] = value1
+                self.seat_list[str(key)][int(key1)] = value1
                 itm['venue_item_ov' + str(key) + '_' + str(key1)].source = seat_stat_img[int(value1)]
 
 
@@ -625,9 +627,30 @@ class BtmsRoot(BoxLayout):
                 itm['venue_item_' + str(item_id)].disabled = False
                 itm['venue_item_user'+str(item_id)].text = ''
 
-    def select_seats(self,item_id,seat):
-        eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
-        self.session.call(u'io.crossbar.btms.seats.select', eventdatetime_id, item_id, seat, self.user_id)
+    def select_seats(self,seat_select_list):
+
+        self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, self.user_id)
+
+    def on_select_seats(self,edt_id, seat_select_list, user_id):
+        print 'on_select_seats',edt_id, seat_select_list, user_id
+
+        if edt_id == self.eventdatetime_id:
+            if user_id == self.user_id:
+                for item_id, seat_list in seat_select_list.iteritems():
+                    for seat, status in seat_list.iteritems():
+                        print item_id, seat, status
+
+                        if status == 1:
+                            status = 3
+                        itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                        itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                        self.seat_list[str(item_id)][int(seat)] = status
+            else:
+                for item_id, seat_list in seat_select_list.iteritems():
+                    for seat, status in seat_list.iteritems():
+                        print item_id, seat, status
+                        self.seat_list[str(item_id)][int(seat)] = status
+                        itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
     def on_venue_update(self,result):
         self.ids.number_display_box.text = result
@@ -636,8 +659,11 @@ class BtmsRoot(BoxLayout):
 
 
     def add_to_bill(self, item_id, seat, cat_id, art, event_id, *args):
+        self.seat_select_list = {str(item_id):{str(seat):1}}
+        self.select_seats(self.seat_select_list)
+
         if self.session:
-            block = 'test_'+str(item_id)+'_'+str(seat)
+            block = ''
             eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
             self.session.call(u'io.crossbar.btms.bill.add', eventdatetime_id, block)
 

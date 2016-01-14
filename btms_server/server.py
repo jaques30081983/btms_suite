@@ -144,7 +144,8 @@ class BtmsBackend(ApplicationSession):
 
                 for row in result_venues:
                     block = str(row['id'])
-                    self.item_list[eventdatetime_id][block] = {'seats':{}}
+                    self.item_list[eventdatetime_id][block] = {'seats':{},'seats_user':{}}
+
 
                     if row['art'] == 1:
 
@@ -152,6 +153,7 @@ class BtmsBackend(ApplicationSession):
                                 j= i + 1
                                 seat = str(j)
                                 self.item_list[eventdatetime_id][block]['seats'][seat] = 0
+                                self.item_list[eventdatetime_id][block]['seats_user'][seat] = 0
 
 
                     if row['art'] == 2:
@@ -190,6 +192,7 @@ class BtmsBackend(ApplicationSession):
                                 for seat, status in seat_list.iteritems():
 
                                     self.item_list[eventdatetime_id][block]['seats'][seat] = status
+                                    self.item_list[eventdatetime_id][block]['seats_user'][seat] = row['user']
 
                         #Free Seats
                         if row['art'] == 2:
@@ -245,13 +248,31 @@ class BtmsBackend(ApplicationSession):
 
         self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, block)
 
-    #@wamp.register(u'io.crossbar.btms.venue.get.update')
-    #def getVenueUpdate(self,venue_id,event_id,date,time):
-        #print venue_id, event_id, date, time
+    @wamp.register(u'io.crossbar.btms.seats.select')
+    def selectSeats(self,edt_id, seat_select_list, user_id):
+        print seat_select_list
+        new_seat_select_list = {}
+        for item_id, seat_list in seat_select_list.iteritems():
+            new_seat_select_list = {item_id:{}}
+            for seat, status in seat_list.iteritems():
 
-        #p = self.getVenueInit(venue_id,event_id,date,time)
+                if self.item_list[edt_id][item_id]['seats'][seat] == 0:
+                    self.item_list[edt_id][item_id]['seats'][seat] = 1
+                    self.item_list[edt_id][item_id]['seats_user'][seat] = user_id
+                    new_seat_select_list[item_id][seat] = 1
 
-        #print self.item_list
+                    print 'seat reserved', item_id, seat, status
+                else:
+                    if self.item_list[edt_id][item_id]['seats_user'][seat] == user_id:
+                        self.item_list[edt_id][item_id]['seats'][seat] = 0
+                        self.item_list[edt_id][item_id]['seats_user'][seat] = 0
+                        new_seat_select_list[item_id][seat] = 0
+                        print 'seat is now free', item_id, seat, status
+                    else:
+                        print 'seat is occupied', item_id, seat, status
+
+        self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, user_id)
+
 
 
     @wamp.register(u'io.crossbar.btms.bill.add')
