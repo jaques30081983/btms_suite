@@ -362,94 +362,11 @@ class BtmsRoot(BoxLayout):
                 row_id = str(row['id'])
                 self.seat_list[str(row['id'])] = {}
 
-                #Numbered seats
+
                 if row['art'] == 1:
-
-
-
-                    def switching_function(com, cols, rows, item_id, cat_id, seats, title, *args):
-                        self.ids.sale_item_list_box2.clear_widgets(children=None)
-                        self.block_item(item_id)
-                        if com == 0:
-
-                            #Add additional row if its nessesary
-                            if cols * rows < seats:
-                                rows = rows + 1
-
-
-                            #Check for free Seats
-                            #free_seats = 0
-                            #for key, value in self.seat_list[str(item_id)].items():
-                            #    if value == 0:
-                            #        free_seats = free_seats + 1
-
-                            #Check if Numberbox are full
-                            selected_seats = 0
-                            if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
-                                amount = 0
-                                add_to_bill_toggle = 0
-                            else:
-                                amount = int(self.ids.number_display_box.text)
-                                #if amount > seats:
-                                #    amount= seats
-
-                                add_to_bill_toggle = 0
-
-                            #Create Item with Seats
-                            grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
-
-                            for i in range(0, seats):
-                                j= i + 1
-
-                                preload= ImageButton(source=seat_stat_img[0])
-
-
-                                try:
-                                    self.seat_list[str(item_id)][j]
-                                except KeyError:
-                                    self.seat_list[str(item_id)][j] = 0
-
-                                if amount > 0:
-                                    if self.seat_list[str(item_id)][j] == 0:
-                                        self.seat_list[str(item_id)][j] = 3
-
-                                        amount = amount - 1
-
-
-                                        selected_seats = selected_seats + 1
-                                        if add_to_bill_toggle == 0:
-                                            first_seat = j
-                                            add_to_bill_toggle = 1
-
-
-
-
-
-
-                                itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
-                                    size_hint=[1, 1], on_release=partial(self.add_to_bill, item_id, j, cat_id, 1, event_id))
-                                grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
-                            self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(switching_function,1,row['col'], row['row'], item_id, cat_id, row['seats'], row['title'])))
-
-                            self.ids.sale_item_list_box2.add_widget(grid_layout2)
-
-
-                            self.ids.sale_item_list_box2.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(switching_function,1,row['col'], row['row'], item_id, cat_id, row['seats'], row['title'])))
-
-
-                            self.ids.item_screen_manager.current = 'second_item_screen'
-
-                            if add_to_bill_toggle == 1:
-                                self.ids.number_display_box.text = str(selected_seats)
-                                self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
-
-                        elif com == 1:
-                            self.ids.item_screen_manager.current = 'first_item_screen'
-
-
-                    #Button for numbered seats
+                    #Numbered seats
                     float_layout2 = FloatLayout(size_hint=[0.325, .003])
-                    itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], on_release=partial(switching_function, 0, row['col'], row['row'], row['id'], row['cat_id'], row['seats'], row['title']))
+                    itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], on_release=partial(self.switch_item, 0, row['col'], row['row'], row['id'], row['cat_id'], row['seats'], row['title']))
                     float_layout2.add_widget(itm['venue_item_'+row_id])
 
                     float_layout2.add_widget(Label(text=row['title'], pos_hint={'x': .0, 'y': .35}, size_hint=[1, 1]))
@@ -475,13 +392,12 @@ class BtmsRoot(BoxLayout):
                     self.ids.sale_item_list_box.add_widget(float_layout2)
 
                 if row['art'] == 2:
-                    # Freie Plaetze
+                    # Free Plaetze
                     free_seat_list[row['id']] = row['seats']
 
                     float_layout1 = FloatLayout(size_hint=[0.325, .003])
                     itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], text=row['title'],
-                                                    on_release=partial(self.add_to_bill, row['id'], 0,
-                                                                       row['cat_id'],2, event_id))
+                                                    on_release=partial(self.add_to_bill, row['id'], row['cat_id'],2))
 
                     float_layout1.add_widget(itm['venue_item_'+row_id])
                     itm['venue_item_seats_'+row_id] = row['seats']
@@ -513,7 +429,73 @@ class BtmsRoot(BoxLayout):
             self.get_venue_status(venue_id,event_id)
 
 
+    def switch_item(self, com, cols, rows, item_id, cat_id, seats, title, *args):
+        self.block_item(item_id)
+        self.ids.sale_item_list_box2.clear_widgets(children=None)
+        if com == 0:
+            #Create 2nd View
 
+            #Add additional row if its nessesary
+            if cols * rows < seats:
+                rows = rows + 1
+
+
+            #Check if Numberbox are full
+            selected_seats = 0
+            if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
+                amount = 0
+                add_to_bill_toggle = 0
+            else:
+                amount = int(self.ids.number_display_box.text)
+                add_to_bill_toggle = 0
+
+            #Create Item with Seats
+            grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
+
+            preload= ImageButton(source=seat_stat_img[0]) #Workaround Kivy dont load directly
+
+            seat_select_list = {str(item_id):{}}
+
+            for i in range(0, seats):
+                j= i + 1
+
+                #try:
+                #    self.seat_list[str(item_id)][j]
+                #except KeyError:
+                #    self.seat_list[str(item_id)][j] = 0
+                seat_select_item = {str(item_id):{str(j):1}}
+                if amount > 0:
+                    if self.seat_list[str(item_id)][j] == 0:
+                        #self.seat_list[str(item_id)][j] = 3
+                        seat_select_list[str(item_id)][str(j)] = 1
+
+                        amount = amount - 1
+
+
+                        selected_seats = selected_seats + 1
+                        if add_to_bill_toggle == 0:
+                            #first_seat = j
+                            add_to_bill_toggle = 1
+
+                itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
+                    size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item))
+                grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
+
+
+            self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(self.switch_item,1,'', '', item_id, cat_id, '', '')))
+            self.ids.sale_item_list_box2.add_widget(grid_layout2)
+            self.ids.sale_item_list_box2.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(self.switch_item,1,'', '', item_id, cat_id,'', '')))
+            self.ids.item_screen_manager.current = 'second_item_screen'
+
+            if add_to_bill_toggle == 1:
+
+                self.select_seats(seat_select_list)
+                self.ids.number_display_box.text = ''
+                #self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
+
+        elif com == 1:
+            #Switch back to overview
+            self.ids.item_screen_manager.current = 'first_item_screen'
 
     @inlineCallbacks
     def get_venue_status(self,venue_id,event_id):
@@ -524,9 +506,12 @@ class BtmsRoot(BoxLayout):
         #TODO Result is None
         for key, value in results.iteritems():
 
-            for key1, value1 in value['seats'].iteritems():
-                self.seat_list[str(key)][int(key1)] = value1
-                itm['venue_item_ov' + str(key) + '_' + str(key1)].source = seat_stat_img[int(value1)]
+            for seat, status in value['seats'].iteritems():
+
+                #if status == 1 and self.user_id == value['seats_user'][seat]:
+                #    status = 3
+                self.seat_list[str(key)][int(seat)] = status
+                itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
 
             try:
@@ -627,7 +612,7 @@ class BtmsRoot(BoxLayout):
                 itm['venue_item_' + str(item_id)].disabled = False
                 itm['venue_item_user'+str(item_id)].text = ''
 
-    def select_seats(self,seat_select_list):
+    def select_seats(self,seat_select_list, *args):
 
         self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, self.user_id)
 
@@ -645,6 +630,7 @@ class BtmsRoot(BoxLayout):
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         self.seat_list[str(item_id)][int(seat)] = status
+                        self.add_to_bill(item_id, 1, 1) #TODO cat_id missing
             else:
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
@@ -658,14 +644,28 @@ class BtmsRoot(BoxLayout):
 
 
 
-    def add_to_bill(self, item_id, seat, cat_id, art, event_id, *args):
-        self.seat_select_list = {str(item_id):{str(seat):1}}
-        self.select_seats(self.seat_select_list)
+    def add_to_bill(self, item_id, cat_id, art, *args):
+        print'addtobill:', item_id, cat_id, art
 
-        if self.session:
-            block = ''
-            eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
-            self.session.call(u'io.crossbar.btms.bill.add', eventdatetime_id, block)
+        #self.seat_select_list = {str(item_id):{str(seat):1}}
+        #self.select_seats(self.seat_select_list)
+
+        #if self.session:
+            #block = ''
+            #eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+            #self.session.call(u'io.crossbar.btms.bill.add', eventdatetime_id, block)
+
+    @inlineCallbacks
+    def bar(self, *args):
+        try:
+            results = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id, self.event_date, self.event_time)
+            transaction_id = results
+            self.ids.number_display_box.text = transaction_id
+
+
+        except Exception as err:
+            print "Error", err
+
 
 # Buttons
 class ImageButton(Button):
@@ -680,7 +680,7 @@ class BtmsApp(App):
         if store.exists('settings'):
             self.root.ids.kv_server_adress.text = store.get('settings')['server_adress']
             self.root.ids.kv_user_input.text = store.get('settings')['user']
-            L = store.get('userlist')['user_list']
+            L = store.get('userlist')['user_list'] #TODO Proplem on Android with store
             self.root.ids.kv_user_change.disabled = False
             for user in L:
                 self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))

@@ -32,6 +32,7 @@ from twisted.enterprise import adbapi
 from twisted.internet.defer import inlineCallbacks, returnValue
 import MySQLdb.cursors
 from datetime import datetime
+from baluhn import generate, verify
 
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
@@ -114,6 +115,42 @@ class BtmsBackend(ApplicationSession):
     def getPrices(self,event_id):
 
         return self.db.runQuery("SELECT name, price, cat_id FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
+
+    @wamp.register(u'io.crossbar.btms.transaction_id.get')
+    @inlineCallbacks
+    def getTransactionId(self,event_id,event_date,event_time,*args):
+        #Check if a counter for EventDateTime exists
+        result_venues = yield self.db.runQuery("SELECT * FROM btms_counter WHERE event_id = '"+str(event_id)+"' AND"
+                                               " date = '"+str(event_date)+"' AND time = '"+str(event_time)+"'")
+        for row in result_venues:
+            #print row
+            counter_id = row['id']
+            counter_amount = row['amount']
+
+        #Update counter if exists or create new counter
+        try:
+            counter_amount = counter_amount + 1
+            sql = "UPDATE btms_counter SET btms_counter.amount='%s' WHERE btms_counter.id='%s'" % (counter_amount, counter_id)
+            d = self.db.runOperation(sql)
+            print 'updated'
+        except NameError:
+            print 'not exists'
+            counter_amount = 1000
+            sql = "insert into btms_counter(event_id, date, time, amount ) values('%s','%s','%s','%s')" % (event_id, event_date, event_time, counter_amount)
+            d = self.db.runOperation(sql)
+
+        #Generate Transaction Id
+        transaction_id = str(event_id)+event_date+event_time+str(counter_amount)
+        transaction_id = filter(str.isalnum, transaction_id)
+
+        luhn = generate(transaction_id)
+
+
+
+        transaction_id = str(transaction_id)+luhn
+
+        returnValue(transaction_id)
+
 
     @wamp.register(u'io.crossbar.btms.venue.get.init')
     @inlineCallbacks
