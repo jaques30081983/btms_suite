@@ -114,7 +114,7 @@ class BtmsBackend(ApplicationSession):
     @wamp.register(u'io.crossbar.btms.prices.get')
     def getPrices(self,event_id):
 
-        return self.db.runQuery("SELECT name, price, cat_id FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
+        return self.db.runQuery("SELECT id, name, price, cat_id FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
 
     @wamp.register(u'io.crossbar.btms.transaction_id.get')
     @inlineCallbacks

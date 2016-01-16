@@ -397,7 +397,7 @@ class BtmsRoot(BoxLayout):
 
                     float_layout1 = FloatLayout(size_hint=[0.325, .003])
                     itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], text=row['title'],
-                                                    on_release=partial(self.add_to_bill, row['id'], row['cat_id'],2))
+                                                    on_release=partial(self.update_bill, row['id'], row['cat_id'],0,2))
 
                     float_layout1.add_widget(itm['venue_item_'+row_id])
                     itm['venue_item_seats_'+row_id] = row['seats']
@@ -536,8 +536,9 @@ class BtmsRoot(BoxLayout):
     def get_prices(self, event_id, *args):
         self.ids.bill_item_list_box.clear_widgets(children=None)
         try:
-            prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
-            self.get_categories(event_id,prices)
+            self.prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
+
+            self.get_categories(event_id,self.prices)
 
         except Exception as err:
             print "Error", err
@@ -545,44 +546,61 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def get_categories(self, event_id, prices, *args):
         def result_categories(results):
-            itm_price = {}
+            self.itm_price = {}
+            self.itm_cat_price_amount = {}
+            self.itm_cat_first_price = {}
             for row in results:
-                itm_price[row['id']] = {}
+                self.itm_cat_price_amount[row['id']] = {}
+                self.itm_price[row['id']] = {}
 
-                itm_price[row['id']]['float'] = FloatLayout(size_hint=[1, None])
+                self.itm_price[row['id']]['float'] = FloatLayout(size_hint=[1, None])
 
-                itm_price[row['id']]['float'].add_widget(Label(text='-[b]' + row['name']
+                self.itm_price[row['id']]['float'].add_widget(Label(text='-[b]' + row['name']
                     + '[/b]', markup=True, pos_hint={'x': -0.34, 'y': 0.42},
                     font_size=self.width * 0.015))
                 #Price Area
-                itm_price[row['id']]['box'] = BoxLayout(size_hint=[0.85, 1],
+                self.itm_price[row['id']]['box'] = BoxLayout(size_hint=[0.85, 1],
                                                                   pos_hint={'x': 0, 'y': 0},
                                                                   orientation='horizontal')
 
 
                 #Iterate over Prices
+                first_price_toggle = 0
                 for prow in prices:
                     if prow['cat_id'] == row['id']:
+                        self.itm_cat_price_amount[row['id']][prow['id']] = {}
+                        self.itm_cat_price_amount[row['id']][prow['id']]['price'] = prow['price']
+                        self.itm_cat_price_amount[row['id']][prow['id']]['amount'] = 0
+
+                        if first_price_toggle == 0:
+                            first_price_toggle = 1
+                            self.itm_cat_first_price[row['id']] = prow['id']
+
+
                         pbox = BoxLayout(size_hint=[1, 1], orientation='vertical')
                         pbox.add_widget(Label(text=prow['name'], font_size=self.width * 0.015))
-                        pbox.add_widget(Button(text='0'))
+
+                        self.itm_cat_price_amount[row['id']][prow['id']]['button'] = Button(text='0', on_release=partial(self.update_bill,0,row['id'],prow['id'],0))
+                        pbox.add_widget(self.itm_cat_price_amount[row['id']][prow['id']]['button'])
 
 
-                        itm_price[row['id']]['box'].add_widget(pbox)
+                        self.itm_price[row['id']]['box'].add_widget(pbox)
 
                 #CL and Total    Area
-                itm_price[row['id']]['tbox'] = BoxLayout(size_hint=[0.15, 1],
+                self.itm_price[row['id']]['tbox'] = BoxLayout(size_hint=[0.15, 1],
                                                                   pos_hint={'x': 0.85, 'y': 0},
                                                                   orientation='horizontal')
                 tbox = BoxLayout(size_hint=[1, 1], orientation='vertical')
                 tbox.add_widget(Button(text='CL'))
-                tbox.add_widget(Button(text='0'))
-                itm_price[row['id']]['tbox'].add_widget(tbox)
+                self.itm_price[row['id']]['tbutton'] = Button(text='0')
+                tbox.add_widget(self.itm_price[row['id']]['tbutton'])
+
+                self.itm_price[row['id']]['tbox'].add_widget(tbox)
 
                 #Add in Cat Area
-                itm_price[row['id']]['float'].add_widget(itm_price[row['id']]['box'])
-                itm_price[row['id']]['float'].add_widget(itm_price[row['id']]['tbox'])
-                self.ids.bill_item_list_box.add_widget(itm_price[row['id']]['float'])
+                self.itm_price[row['id']]['float'].add_widget(self.itm_price[row['id']]['box'])
+                self.itm_price[row['id']]['float'].add_widget(self.itm_price[row['id']]['tbox'])
+                self.ids.bill_item_list_box.add_widget(self.itm_price[row['id']]['float'])
 
 
 
@@ -630,7 +648,7 @@ class BtmsRoot(BoxLayout):
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         self.seat_list[str(item_id)][int(seat)] = status
-                        self.add_to_bill(item_id, 1, 1) #TODO cat_id missing
+                        self.update_bill(item_id, 1, 0, 1) #TODO cat_id missing
             else:
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
@@ -644,8 +662,91 @@ class BtmsRoot(BoxLayout):
 
 
 
-    def add_to_bill(self, item_id, cat_id, art, *args):
-        print'addtobill:', item_id, cat_id, art
+    def update_bill(self, item_id, cat_id, price_id, art, *args):
+        print'update_bill:', item_id, cat_id, art
+        self.ids.kv_given_button.text = '0' + unichr(8364)
+        self.ids.kv_back_button.text = '0' + unichr(8364)
+
+
+        seat_amount = 0
+        if art == 0:
+            if self.ids.number_display_box.text == '0' or self.ids.number_display_box.text == '':
+                for key, value in self.itm_cat_price_amount[cat_id].iteritems():
+                    self.itm_cat_price_amount[cat_id][key]['button'].text = '0'
+                    seat_amount = seat_amount + value['amount']
+                    self.itm_cat_price_amount[cat_id][key]['amount'] = 0
+
+                self.itm_cat_price_amount[cat_id][price_id]['amount']  = seat_amount
+                self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(seat_amount)
+
+                total_cat_price = seat_amount * float(self.itm_cat_price_amount[cat_id][price_id]['price'])
+            else:
+                #Count total amount of Categorie
+                for key, value in self.itm_cat_price_amount[cat_id].iteritems():
+                    seat_amount = seat_amount + value['amount']
+
+                #Check if given bigger than seat_amount
+                if  int(self.ids.number_display_box.text) >= seat_amount:
+                    given_number = seat_amount
+                else:
+                    given_number =  int(self.ids.number_display_box.text)
+
+                #Substract from other prices in Categorie
+                for key, value in self.itm_cat_price_amount[cat_id].iteritems():
+                    left = self.itm_cat_price_amount[cat_id][key]['amount'] - given_number
+                    if left <= 0:
+                        left = 0
+                    self.itm_cat_price_amount[cat_id][key]['amount'] = left
+
+                    self.itm_cat_price_amount[cat_id][key]['button'].text = str(left)
+
+                seat_amount = given_number
+
+
+
+                self.itm_cat_price_amount[cat_id][price_id]['amount']  = seat_amount
+                self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(seat_amount)
+                total_cat_price = seat_amount * float(self.itm_cat_price_amount[cat_id][price_id]['price'])
+
+
+
+
+            self.itm_price[cat_id]['tbutton'].text = str(total_cat_price) + unichr(8364)
+
+
+        elif art == 1:
+            #Get Selected Seats
+
+            for item_id, seats in self.seat_list.items():
+                for seat, status in seats.items():
+                    if status == 3:
+                        seat_amount = seat_amount + 1
+            #Set all to 0
+
+            for key, value in self.itm_cat_price_amount[cat_id].iteritems():
+                self.itm_cat_price_amount[cat_id][key]['button'].text = '0'
+                self.itm_cat_price_amount[cat_id][key]['amount'] = 0
+
+
+            #Set Amount to first price
+            price_id = self.itm_cat_first_price[cat_id]
+            self.itm_cat_price_amount[cat_id][price_id]['amount'] = seat_amount
+            self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(seat_amount)
+
+            total_cat_price = seat_amount * float(self.itm_cat_price_amount[cat_id][price_id]['price'])
+            self.itm_price[cat_id]['tbutton'].text = str(total_cat_price) + unichr(8364)
+
+
+        elif art == 2:
+            pass
+        elif art == 3:
+            pass
+
+        #Iterate over all Categories
+        total_bill_price = total_cat_price
+
+        self.ids.kv_total_button.text = str(total_bill_price) + unichr(8364)
+
 
         #self.seat_select_list = {str(item_id):{str(seat):1}}
         #self.select_seats(self.seat_select_list)
