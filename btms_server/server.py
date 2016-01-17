@@ -203,7 +203,7 @@ class BtmsBackend(ApplicationSession):
 
                 try:
 
-                    result_transactions = yield self.db.runQuery("SELECT item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE event_id = '"+str(event_id)+"' AND date = '"+date+"' AND time = '"+time+"'")
+                    result_transactions = yield self.db.runQuery("SELECT tid, item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE event_id = '"+str(event_id)+"' AND date = '"+date+"' AND time = '"+time+"'")
 
                     for row in result_transactions:
                         #Numbered Seats
@@ -250,11 +250,12 @@ class BtmsBackend(ApplicationSession):
                                 pass
                             else:
 
-
+                                self.item_list[eventdatetime_id][row['item_id']]['tid_amount'] = {}
                                 for key, value in item_ov[0].iteritems():
 
+                                    self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
                                     self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - value
-
+                                print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['tid_amount']
 
                 except Exception as err:
                     print "Error", err
@@ -263,6 +264,7 @@ class BtmsBackend(ApplicationSession):
                     #print self.item_list
                     #test = 'test123'
                     #returnValue(test)
+
                     returnValue(self.item_list[eventdatetime_id])
 
 

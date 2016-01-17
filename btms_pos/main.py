@@ -548,9 +548,12 @@ class BtmsRoot(BoxLayout):
         def result_categories(results):
             self.itm_price = {}
             self.itm_cat_price_amount = {}
+            self.itm_price_amount = {}
             self.itm_cat_first_price = {}
+            self.total_cat_price_list = {}
             for row in results:
                 self.itm_cat_price_amount[row['id']] = {}
+                self.itm_price_amount[row['id']] = {}
                 self.itm_price[row['id']] = {}
 
                 self.itm_price[row['id']]['float'] = FloatLayout(size_hint=[1, None])
@@ -669,8 +672,11 @@ class BtmsRoot(BoxLayout):
 
 
         seat_amount = 0
+
+
         if art == 0:
-            if self.ids.number_display_box.text == '0' or self.ids.number_display_box.text == '':
+            first_price_id = self.itm_cat_first_price[cat_id]
+            if self.ids.number_display_box.text == '':
                 for key, value in self.itm_cat_price_amount[cat_id].iteritems():
                     self.itm_cat_price_amount[cat_id][key]['button'].text = '0'
                     seat_amount = seat_amount + value['amount']
@@ -679,7 +685,7 @@ class BtmsRoot(BoxLayout):
                 self.itm_cat_price_amount[cat_id][price_id]['amount']  = seat_amount
                 self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(seat_amount)
 
-                total_cat_price = seat_amount * float(self.itm_cat_price_amount[cat_id][price_id]['price'])
+
             else:
                 #Count total amount of Categorie
                 for key, value in self.itm_cat_price_amount[cat_id].iteritems():
@@ -691,27 +697,27 @@ class BtmsRoot(BoxLayout):
                 else:
                     given_number =  int(self.ids.number_display_box.text)
 
-                #Substract from other prices in Categorie
+
+                if given_number >= self.itm_cat_price_amount[cat_id][first_price_id]['amount']:
+                    given_number = self.itm_cat_price_amount[cat_id][first_price_id]['amount']
+
+                self.itm_cat_price_amount[cat_id][price_id]['amount']  = given_number
+                self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(given_number)
+
+                self.ids.number_display_box.text = ''
+
+                #Hold balance
+                amount = 0
                 for key, value in self.itm_cat_price_amount[cat_id].iteritems():
-                    left = self.itm_cat_price_amount[cat_id][key]['amount'] - given_number
-                    if left <= 0:
-                        left = 0
-                    self.itm_cat_price_amount[cat_id][key]['amount'] = left
+                    if first_price_id == key:
+                        pass
+                    else:
+                        amount = amount + value['amount']
+                amount1 = seat_amount - amount
 
-                    self.itm_cat_price_amount[cat_id][key]['button'].text = str(left)
+                self.itm_cat_price_amount[cat_id][first_price_id]['amount'] = amount1
+                self.itm_cat_price_amount[cat_id][first_price_id]['button'].text = str(amount1)
 
-                seat_amount = given_number
-
-
-
-                self.itm_cat_price_amount[cat_id][price_id]['amount']  = seat_amount
-                self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(seat_amount)
-                total_cat_price = seat_amount * float(self.itm_cat_price_amount[cat_id][price_id]['price'])
-
-
-
-
-            self.itm_price[cat_id]['tbutton'].text = str(total_cat_price) + unichr(8364)
 
 
         elif art == 1:
@@ -738,12 +744,56 @@ class BtmsRoot(BoxLayout):
 
 
         elif art == 2:
-            pass
+            price_id = self.itm_cat_first_price[cat_id]
+            if self.ids.number_display_box.text == '':
+                try:
+                    amount = self.itm_price_amount[cat_id][item_id] + 1
+                except KeyError:
+                    amount = 1
+                    self.itm_price_amount[cat_id][item_id] = amount
+
+            else:
+                amount = int(self.ids.number_display_box.text)
+
+            #Set amount for item
+            self.itm_price_amount[cat_id][item_id] = amount
+            itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
+
+            #Set amount for categorie from same items
+            amount = 0
+
+            for key, value in self.itm_cat_price_amount[cat_id].iteritems():
+                    self.itm_cat_price_amount[cat_id][key]['button'].text = '0'
+                    self.itm_cat_price_amount[cat_id][key]['amount'] = 0
+
+
+            for key, value in self.itm_price_amount[cat_id].iteritems():
+                amount = amount + value
+
+            self.itm_cat_price_amount[cat_id][price_id]['amount'] = amount
+            self.itm_cat_price_amount[cat_id][price_id]['button'].text = str(amount)
+
+
+
+            self.ids.number_display_box.text = ''
         elif art == 3:
             pass
 
+
+        #Compute Total Price of Categorie
+        total_cat_price = 0
+        for key, value in self.itm_cat_price_amount[cat_id].iteritems():
+            summ = value['amount'] * float(self.itm_cat_price_amount[cat_id][key]['price'])
+            total_cat_price = total_cat_price + summ
+
+        self.itm_price[cat_id]['tbutton'].text = str(total_cat_price) + unichr(8364)
+        self.total_cat_price_list[cat_id] = total_cat_price
+
         #Iterate over all Categories
-        total_bill_price = total_cat_price
+        total_bill_price = 0
+        for key, value in self.total_cat_price_list.iteritems():
+            print 'total', key, value
+            total_bill_price = total_bill_price + value
 
         self.ids.kv_total_button.text = str(total_bill_price) + unichr(8364)
 
