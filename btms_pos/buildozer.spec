@@ -10,7 +10,7 @@ package.name = btms
 package.domain = org.kivy
 
 # (str) Source code where the main.py live
-source.dir = /home/jaques5/workspace/btms_async
+source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas
@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas
 #version.filename = %(source.dir)s/main.py
 
 # (str) Application versioning (method 2)
-version = 15.12.04
+version = 16.01.18
 
 # (list) Application requirements
 requirements = kivy,autobahn,twisted
@@ -143,7 +143,7 @@ android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 1
+log_level = 2
 
 # (int) Display warning if buildozer is run as root (0 = False, 1 = True)
 warn_on_root = 1

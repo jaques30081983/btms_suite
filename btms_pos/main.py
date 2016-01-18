@@ -22,6 +22,7 @@ from autobahn.twisted.wamp import ApplicationRunner
 from autobahn.wamp import auth
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet import defer
+#import msgpack
 from kivy.storage.jsonstore import JsonStore
 store = JsonStore('btms_config.json')
 from kivy.uix.button import Button
@@ -35,37 +36,15 @@ from kivy.uix.progressbar import ProgressBar
 from functools import partial
 import hashlib
 
-class BtmsWampComponent(ApplicationSession):
-    """
-    A WAMP application component which is run from the Kivy UI.
-    """
-
-    def onJoin(self, details):
-        print("session ready", self.config.extra)
-
-        # get the Kivy UI component this session was started from
-        ui = self.config.extra['ui']
-        ui.on_session(self)
-
-        # subscribe to WAMP PubSub events and call the Kivy UI component's
-        # function when such an event is received
-        self.subscribe(ui.on_users_message, u'io.crossbar.btms.users.result')
-
-
-    def onLeave(self, details):
-        print("onLeave: {}".format(details))
-        self.disconnect()
-
 
 class BtmsWampComponentAuth(ApplicationSession):
     """
     A WAMP application component which is run from the Kivy UI.
     """
 
-
-
     def onConnect(self):
         print("connected. joining realm {} as user {} ...".format(self.config.realm, btms_user))
+
         self.join(self.config.realm, [u"wampcra"], btms_user)
 
     def onChallenge(self, challenge):
@@ -91,12 +70,16 @@ class BtmsWampComponentAuth(ApplicationSession):
         ui = self.config.extra['ui']
         ui.on_session(self)
 
+
+
         # subscribe to WAMP PubSub events and call the Kivy UI component's
         # function when such an event is received
         #self.subscribe(ui.on_users_message, u'io.crossbar.btms.users.result')
         self.subscribe(ui.on_venue_update, u'io.crossbar.btms.venue.update')
         self.subscribe(ui.on_block_item, u'io.crossbar.btms.item.block.action')
         self.subscribe(ui.on_select_seats, u'io.crossbar.btms.seats.select.action')
+        self.subscribe(ui.on_set_freeseats, u'io.crossbar.btms.freeseats.set.action')
+
 
 
 
@@ -104,6 +87,7 @@ class BtmsWampComponentAuth(ApplicationSession):
         print("onLeave: {}".format(details))
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
+            ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeave: {}".format(details))
         elif ui.logout_op == 1:
             ui.ids.sm.current = 'login_user'
 
@@ -148,6 +132,7 @@ class BtmsRoot(BoxLayout):
         self.session = session
         self.ids.sm.current = 'work1'
        #self.ids.kv_user_list.clear_widgets(children=None)
+
         results = yield self.session.call(u'io.crossbar.btms.users.get')
         self.get_users(results)
 
@@ -156,6 +141,8 @@ class BtmsRoot(BoxLayout):
             if row['user'] == btms_user: #TODO simply btms_user to user
                 self.user_id = row['id']
                 self.user = btms_user
+
+
 
         results = yield self.session.call(u'io.crossbar.btms.events.get')
         self.get_events(results)
@@ -327,7 +314,7 @@ class BtmsRoot(BoxLayout):
         self.event_time = time
         self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
 
-        #self.get_venue_status(self.venue_id,self.event_id)
+        self.get_venue_status(self.venue_id,self.event_id)
 
 
     @inlineCallbacks
@@ -354,6 +341,7 @@ class BtmsRoot(BoxLayout):
             bill_itm = {}
             bill_itm_price_amount = {}
             bill_total_price = {}
+            self.transaction_id = 0
 
 
             #Iterate over items
@@ -430,7 +418,7 @@ class BtmsRoot(BoxLayout):
 
 
     def switch_item(self, com, cols, rows, item_id, cat_id, seats, title, *args):
-        self.block_item(item_id)
+        self.block_item(item_id, com)
         self.ids.sale_item_list_box2.clear_widgets(children=None)
         if com == 0:
             #Create 2nd View
@@ -505,7 +493,7 @@ class BtmsRoot(BoxLayout):
 
         #TODO Result is None
         for key, value in results.iteritems():
-
+            #Numbered Seats
             for seat, status in value['seats'].iteritems():
 
                 #if status == 1 and self.user_id == value['seats_user'][seat]:
@@ -513,13 +501,16 @@ class BtmsRoot(BoxLayout):
                 self.seat_list[str(key)][int(seat)] = status
                 itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
-
+            #Free Seats
             try:
-                value1 = value['amount']
-                itm['venue_itm_label_' + str(key)].text = str(value1)
+
+                itm['venue_itm_label_' + str(key)].text = str(value['amount'])
+                itm['venue_itm_pbar_'+str(key)].value = value['amount']
+
             except KeyError:
                 pass
 
+            #Blocked Items
             try:
                 value2 = value['blocked_by']
                 print 'print blocked:', value2
@@ -529,8 +520,6 @@ class BtmsRoot(BoxLayout):
 
 
 
-            #Init Update Schedule
-            #Clock.schedule_interval(self.get_venue_update,1)
 
     @inlineCallbacks
     def get_prices(self, event_id, *args):
@@ -583,7 +572,7 @@ class BtmsRoot(BoxLayout):
                         pbox = BoxLayout(size_hint=[1, 1], orientation='vertical')
                         pbox.add_widget(Label(text=prow['name'], font_size=self.width * 0.015))
 
-                        self.itm_cat_price_amount[row['id']][prow['id']]['button'] = Button(text='0', on_release=partial(self.update_bill,0,row['id'],prow['id'],0))
+                        self.itm_cat_price_amount[row['id']][prow['id']]['button'] = Button(text='0', font_size=self.width * 0.020, on_release=partial(self.update_bill,0,row['id'],prow['id'],0))
                         pbox.add_widget(self.itm_cat_price_amount[row['id']][prow['id']]['button'])
 
 
@@ -616,9 +605,9 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
-    def block_item(self,item_id):
+    def block_item(self,item_id, cmd):
 
-        self.session.call(u'io.crossbar.btms.item.block', self.eventdatetime_id, item_id, self.user_id)
+        self.session.call(u'io.crossbar.btms.item.block', self.eventdatetime_id, item_id, self.user_id, cmd)
 
     def on_block_item(self,eventdatetime_id, item_id, user_id, block):
         if eventdatetime_id == self.eventdatetime_id:
@@ -659,13 +648,41 @@ class BtmsRoot(BoxLayout):
                         self.seat_list[str(item_id)][int(seat)] = status
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
+    def set_freeseats(self, item_id, amount):
+        self.session.call(u'io.crossbar.btms.freeseats.set', self.eventdatetime_id, self.transaction_id, item_id, amount)
+
+
+    def on_set_freeseats(self,edt_id, item_id, amount):
+        if edt_id == self.eventdatetime_id:
+            itm['venue_itm_pbar_'+str(item_id)].value = amount
+            itm['venue_itm_label_'+str(item_id)].text = str(amount)
+
+
     def on_venue_update(self,result):
         self.ids.number_display_box.text = result
         print result
 
+    @inlineCallbacks
+    def get_transaction_id(self, *args):
+        self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,)
 
 
+
+    @inlineCallbacks
     def update_bill(self, item_id, cat_id, price_id, art, *args):
+
+
+        try:
+            if self.transaction_id == 0:
+                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,)
+
+        except Exception as err:
+            print "Error", err
+
+        print self.transaction_id
+
+
+
         print'update_bill:', item_id, cat_id, art
         self.ids.kv_given_button.text = '0' + unichr(8364)
         self.ids.kv_back_button.text = '0' + unichr(8364)
@@ -759,6 +776,8 @@ class BtmsRoot(BoxLayout):
             self.itm_price_amount[cat_id][item_id] = amount
             itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
 
+            self.set_freeseats(item_id, amount)
+
             #Set amount for categorie from same items
             amount = 0
 
@@ -828,10 +847,11 @@ class BtmsApp(App):
         self.title = 'BTMS 16.01a'
         self.root = BtmsRoot()
         self.root.ids.kv_user_change.disabled = True
+
         if store.exists('settings'):
             self.root.ids.kv_server_adress.text = store.get('settings')['server_adress']
             self.root.ids.kv_user_input.text = store.get('settings')['user']
-            L = store.get('userlist')['user_list'] #TODO Proplem on Android with store
+            L = store.get('userlist')['user_list']
             self.root.ids.kv_user_change.disabled = False
             for user in L:
                 self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))

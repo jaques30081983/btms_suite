@@ -73,14 +73,14 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.users.get')
     def getUser(self):
-        
+        '''
         def get_result(user):
             return self.db.runQuery("SELECT * FROM btms_users ORDER by user")
 
         def printResult(result):
             pass
             #self.publish('io.crossbar.btms.users.result', result)
-            
+        '''
 
         #get_result("jaques").addCallback(printResult)
         #print get_result("jaques").callback(result)
@@ -156,11 +156,19 @@ class BtmsBackend(ApplicationSession):
     @inlineCallbacks
     def getVenueInit(self,venue_id,event_id,date,time,*args):
         eventdatetime_id = "%s_%s_%s" % (event_id,date,time)
+
         try:
             self.item_list
         except AttributeError:
             self.item_list = {}
             print 'new item_list created'
+            try:
+                self.freeseat_list
+            except AttributeError:
+                self.freeseat_list = {}
+                print 'new freeseat_list created'
+
+
 
         if eventdatetime_id in self.item_list:
             print 'return existing item_list'
@@ -177,6 +185,7 @@ class BtmsBackend(ApplicationSession):
 
 
                 self.item_list[eventdatetime_id] = {}
+                self.freeseat_list[eventdatetime_id] = {}
 
 
                 for row in result_venues:
@@ -194,7 +203,10 @@ class BtmsBackend(ApplicationSession):
 
 
                     if row['art'] == 2:
+                        self.freeseat_list[eventdatetime_id][block] = {}
                         self.item_list[eventdatetime_id][block]['amount'] = row['seats']
+                        self.freeseat_list[eventdatetime_id][block]['amount'] = row['seats']
+                        self.freeseat_list[eventdatetime_id][block]['tid_amount'] = {}
 
             except Exception as err:
                 print "Error", err
@@ -250,12 +262,15 @@ class BtmsBackend(ApplicationSession):
                                 pass
                             else:
 
-                                self.item_list[eventdatetime_id][row['item_id']]['tid_amount'] = {}
+                                #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'] = {} #TODO Create own list, only in server, less traffic
+                                amount = 0
                                 for key, value in item_ov[0].iteritems():
+                                    #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
+                                    self.freeseat_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']] = value
+                                    amount = amount + value
 
-                                    self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
-                                    self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - value
-                                print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['tid_amount']
+                                self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.freeseat_list[eventdatetime_id][row['item_id']]['amount'] - amount
+                                print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                 except Exception as err:
                     print "Error", err
@@ -269,23 +284,27 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.item.block')
-    def blockItem(self, eventdatetime_id, item_id, user_id):
-
-        try:
-            if user_id == self.item_list[eventdatetime_id][str(item_id)]['blocked_by']:
-                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = 0
-                block = 0
-            else:
+    def blockItem(self, eventdatetime_id, item_id, user_id, cmd):
+        if cmd == 0:
+            try:
                 self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
                 block = 1
-        except KeyError:
-            self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
-            block = 1
+            except KeyError:
+                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
+                block = 1
+
+            self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, block)
+
+        elif cmd == 1:
+            for key, value in self.item_list[eventdatetime_id].iteritems():
+                try:
+                    if value['blocked_by'] == user_id:
+                        self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, key, user_id, 0)
+                        self.item_list[eventdatetime_id][str(key)]['blocked_by'] = 0
+                except KeyError:
+                    pass
 
 
-
-
-        self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, block)
 
     @wamp.register(u'io.crossbar.btms.seats.select')
     def selectSeats(self,edt_id, seat_select_list, user_id):
@@ -312,6 +331,26 @@ class BtmsBackend(ApplicationSession):
 
         self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, user_id)
 
+
+    @wamp.register(u'io.crossbar.btms.freeseats.set')
+    def setFreeseats(self,edt_id, t_id, item_id, amount):
+        try:
+            #self.item_list[edt_id][str(item_id)]['tid_amount'][t_id]= amount
+            self.freeseat_list[edt_id][str(item_id)]['tid_amount'][t_id] = amount
+        except KeyError:
+            self.freeseat_list[edt_id][str(item_id)]['tid_amount'] = {}
+            self.freeseat_list[edt_id][str(item_id)]['tid_amount'][t_id] = amount
+
+        amount1 = 0
+        for key, value in self.freeseat_list[edt_id][str(item_id)]['tid_amount'].iteritems():
+            amount1 = amount1 + value
+
+        amount1 = self.freeseat_list[edt_id][str(item_id)]['amount'] - amount1
+
+        self.item_list[edt_id][str(item_id)]['amount'] = amount1
+        print amount1
+
+        self.publish('io.crossbar.btms.freeseats.set.action', edt_id, item_id, amount1)
 
 
     @wamp.register(u'io.crossbar.btms.bill.add')

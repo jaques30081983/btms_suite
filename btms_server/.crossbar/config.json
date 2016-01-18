@@ -20,13 +20,6 @@
                            "subscribe": true,
                            "call": true,
                            "register": true
-                        },
-                        {
-                           "uri": "io.crossbar.btms.users.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
                         }
                      ]
                   }
