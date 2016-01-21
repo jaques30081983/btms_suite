@@ -564,7 +564,7 @@
 				font_size: self.height * 0.7
 				pos_hint: {'x': .85, 'y': .17}
 				size_hint: .15, .05
-				on_release: root.bar()
+				on_release: root.card()
 
 								
 			
@@ -687,8 +687,9 @@
 			Button:
 				id: kv_dashboard_button
 				text: "Dashboard"
+				on_release: sm.transition.direction = 'left'
 				on_release: sm.current = "dashboard"
-				on_press: root.get_dashboard()
+				#on_press: root.get_dashboard()
 				pos_hint: {'x': .70, 'y': .0}
 				size_hint: .3, .05
 
@@ -735,18 +736,202 @@
 					size_hint: 1, 1.5
 					padding: 0
 					spacing: 5
-					#height: 30
+					height: 30
+					cols: 3
+					rows: None
+					do_scroll_x: False
+					row_default_height: 30
+
+					Button:
+                        id: kv_create_event
+                        text: "Create Event"
+                        on_release: sm.transition.direction = 'left'
+                        on_release: sm.current = "create_event"
+                        on_press: root.get_venues()
+                        pos_hint: {'x': .70, 'y': .0}
+                        size_hint: .3, .05
+
+                    Button:
+                        id: kv_edit_events
+                        text: "Edit Events"
+                        on_release: sm.current = "edit_events"
+                        #on_press: root.get_dashboard()
+                        pos_hint: {'x': .70, 'y': .0}
+                        size_hint: .3, .05
+
+                    Button:
+                        id: kv_select_printer
+                        text: "Select Printers"
+                        on_release: sm.current = "select_printers"
+                        #on_press: root.get_dashboard()
+                        pos_hint: {'x': .70, 'y': .0}
+                        size_hint: .3, .05
+
+                    Button:
+                        id: kv_reports
+                        text: "Reports"
+                        on_release: sm.current = "reports"
+                        #on_press: root.get_dashboard()
+                        pos_hint: {'x': .70, 'y': .0}
+                        size_hint: .3, .05
+
+			Button:
+				text: "Back"
+				size_hint: 1, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "work1"
+
+
+		Screen:
+			name: 'create_event'
+			venue_title: venue_title.__self__
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+
+				GridLayout:
+					id: dashboard_list_box
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, 1.0
+					padding: 0
+					spacing: 5
 					cols: 2
 					rows: None
 					do_scroll_x: False
 					row_default_height: 10
 
 
-			Button:
+				    Label:
+				        text: "Title"
+
+				    TextInput:
+				        id: kv_create_event_title
+				        hint_text: "Short Title: ZDH Berlin"
+
+				    Label:
+
+				        text: "Description"
+
+				    TextInput:
+				        id: kv_create_event_description
+				        hint_text: "Zirkus des Horrors in Berlin"
+
+                    Label:
+				        text: "Venue"
+
+                    Button:
+                        id: venue_btn
+                        text: 'select...'
+                        on_release: venue_title.open(self)
+
+                        background_normal: 'atlas://data/images/defaulttheme/spinner'
+                        background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+                        background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+
+                    DropDown:
+                        id: venue_title
+                        on_select: venue_btn.text = '{}'.format(args[1])
+                        on_parent: self.dismiss()
+
+
+				    Label:
+				        text: "Start/End Date"
+
+				    BoxLayout:
+				        #orientation: 'vertical'
+
+				        TextInput:
+				            id: kv_create_event_date_start
+				            hint_text: "2016-03-10"
+                        TextInput:
+                            id: kv_create_event_date_end
+                            hint_text: "2016-04-24"
+
+				    Label:
+				        text: "Admission, hours before start"
+
+                    TextInput:
+                        id: kv_create_event_admission_hours
+                        hint_text: "1:00"
+
+                    Label:
+				        text: "Start times of weekdays"
+
+				    Label:
+				        text: "-"
+
+
+				    Label:
+				        text: "Mon."
+
+                    TextInput:
+                        id: kv_create_event_mon_times
+                        hint_text: ""
+
+				    Label:
+				        text: "Tue."
+
+                    TextInput:
+                        id: kv_create_event_tue_times
+                        hint_text: "19:00"
+
+				    Label:
+				        text: "Wed."
+
+                    TextInput:
+                        id: kv_create_event_wed_times
+                        hint_text: "19:00"
+
+				    Label:
+				        text: "Thu."
+
+                    TextInput:
+                        id: kv_create_event_thu_times
+                        hint_text: "19:00"
+
+				    Label:
+				        text: "Fri. "
+
+                    TextInput:
+                        id: kv_create_event_fri_times
+                        hint_text: "19:00, 23:00"
+
+				    Label:
+				        text: "Sat."
+
+                    TextInput:
+                        id: kv_create_event_sat_times
+                        hint_text: "19:00, 23:00"
+
+                    Label:
+				        text: "Sun."
+
+                    TextInput:
+                        id: kv_create_event_sun_times
+                        hint_text: "19:00"
+
+		    Button:
 				text: "Back"
-				size_hint: 1, 0.1
+				size_hint: 0.5, 0.1
 				pos_hint: {'x': 0, 'y': 0}
-				on_release: sm.current = "work1"
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "dashboard"
+
+		    Button:
+				text: "Create"
+				size_hint: 0.5, 0.1
+				pos_hint: {'x': .5, 'y': 0}
+				on_release: root.create_events()
+				#on_release: sm.transition.direction = 'left'
+				#on_release: sm.current = "dashboard"
+
+
+
 
 <BillItemArtikel>:
 	id: bill_item_artikel

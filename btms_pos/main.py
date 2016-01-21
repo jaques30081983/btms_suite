@@ -12,6 +12,7 @@ from kivy.support import install_twisted_reactor
 install_twisted_reactor()
 
 from kivy.app import App
+from kivy.clock import Clock
 #from kivy.factory import Factory
 #from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
@@ -192,10 +193,46 @@ class BtmsRoot(BoxLayout):
 
     #Programm
 
+    @inlineCallbacks
+    def get_venues(self, *args):
+
+        def result_venues(results):
+
+            venue_titles_list = {}
+            venue_itm = {}
+            venue_id = 0
+
+            for row in results:
+                #venue_titles_list[row['id']] = row['title'] + '\n' + row['description']
+                if venue_id == 0:
+                    self.ids.venue_btn.text = str(row['id']) +', '+ row['title'] +' ('+ row['description'] +')'
+                    self.set_venue(row['id'])
+                venue_id = row['id']
+
+                venue_itm['venue_btn_' + str(row['id'])] = Button(id=str(row['id']),
+                                                                  text=str(row['id']) +', '+ row['title'] +' ('+  row['description'] +')',
+                                                                  size_hint_y=None, height=44)
+                venue_itm['venue_btn_' + str(row['id'])].bind(
+                    on_release=lambda venue_btn: self.ids.venue_title.select(venue_btn.text))
+
+                venue_itm['venue_btn_' + str(row['id'])].bind(
+                    on_release=partial(self.set_venue,row['id']))
+
+                self.ids.venue_title.add_widget(venue_itm['venue_btn_' + str(row['id'])])
+
+
+        results = yield self.session.call(u'io.crossbar.btms.venues.get')
+        result_venues(results)
+
+    def set_venue(self,id, *args):
+        self.selected_venue_id = id
+
+
     def get_events(self,results):
         global event_titles_list
         event_titles_list = {}
         event_itm = {}
+
 
         self.ids.event_title.clear_widgets()
         global event_id
@@ -239,6 +276,7 @@ class BtmsRoot(BoxLayout):
     def get_event_days(self, event_id, venue_id, *args):
         self.event_id = event_id
         self.venue_id = venue_id
+        self.load_new_venue = 0 #toggle for get_venue_update in set_event_time
         def result_event_day(results):
 
 
@@ -314,7 +352,10 @@ class BtmsRoot(BoxLayout):
         self.event_time = time
         self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
 
-        self.get_venue_status(self.venue_id,self.event_id)
+        if self.load_new_venue == 1:
+            self.get_venue_status(self.venue_id,self.event_id)
+
+
 
 
     @inlineCallbacks
@@ -401,8 +442,12 @@ class BtmsRoot(BoxLayout):
                     float_layout1.add_widget(itm['venue_itm_label_amount'+row_id])
                     self.ids.sale_item_list_box.add_widget(float_layout1)
 
-
             #self.get_items(event_id)
+            self.load_new_venue = 1 #loading of venue finished
+            self.get_venue_status(venue_id,event_id)
+            self.get_prices(event_id)
+
+
 
         try:
             results = yield self.session.call(u'io.crossbar.btms.venue.get',venue_id)
@@ -412,9 +457,7 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
-        finally:
-            self.get_prices(event_id)
-            self.get_venue_status(venue_id,event_id)
+
 
 
     def switch_item(self, com, cols, rows, item_id, cat_id, seats, title, *args):
@@ -498,8 +541,10 @@ class BtmsRoot(BoxLayout):
 
                 #if status == 1 and self.user_id == value['seats_user'][seat]:
                 #    status = 3
+
                 self.seat_list[str(key)][int(seat)] = status
                 itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
+
 
             #Free Seats
             try:
@@ -676,6 +721,11 @@ class BtmsRoot(BoxLayout):
             if self.transaction_id == 0:
                 self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,)
 
+                #Disable Event, Date, Time Selection
+                self.ids.event_btn.disabled = True
+                self.ids.event_date_btn.disabled = True
+                self.ids.event_time.disabled = True
+                self.ids.res_number_display_box.text = ''
         except Exception as err:
             print "Error", err
 
@@ -809,12 +859,12 @@ class BtmsRoot(BoxLayout):
         self.total_cat_price_list[cat_id] = total_cat_price
 
         #Iterate over all Categories
-        total_bill_price = 0
+        self.total_bill_price = 0
         for key, value in self.total_cat_price_list.iteritems():
             print 'total', key, value
-            total_bill_price = total_bill_price + value
+            self.total_bill_price = self.total_bill_price + value
 
-        self.ids.kv_total_button.text = str(total_bill_price) + unichr(8364)
+        self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
 
 
         #self.seat_select_list = {str(item_id):{str(seat):1}}
@@ -825,16 +875,123 @@ class BtmsRoot(BoxLayout):
             #eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
             #self.session.call(u'io.crossbar.btms.bill.add', eventdatetime_id, block)
 
-    @inlineCallbacks
+    #@inlineCallbacks
     def bar(self, *args):
-        try:
-            results = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id, self.event_date, self.event_time)
-            transaction_id = results
-            self.ids.number_display_box.text = transaction_id
 
+        if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
+            self.ids.kv_given_button.text = str(self.total_bill_price) + unichr(8364)
+            self.ids.kv_back_button.text =  '0'
+            self.complete_transaction(2)
+        else:
+            self.ids.kv_given_button.text = self.ids.number_display_box.text + unichr(8364)
+
+            back_price = float(self.ids.number_display_box.text) - self.total_bill_price
+            if back_price <= 0:
+                self.ids.kv_given_button.text =  '!!!'
+                self.ids.kv_back_button.text =  '0' + unichr(8364)
+            else:
+                self.ids.kv_back_button.text = str(back_price) + unichr(8364)
+                self.complete_transaction(2)
+
+            self.ids.number_display_box.text = ''
+
+
+
+
+
+
+
+    def card(self, *args):
+        #call ext api, like payleven, sumup, etc...
+        self.ids.kv_card_button.text = 'not available'
+        def my_callback(dt):
+            self.ids.kv_card_button.text = 'CARD'
+        Clock.schedule_once(my_callback, 2)
+
+
+    #@inlineCallbacks
+    def complete_transaction(self, cmd, *args):
+        '''
+        try:
+            results = yield self.session.call(u'io.crossbar.btms.transaction.complete',self.event_id, self.event_date, self.event_time)
+
+            self.ids.number_display_box.text = results
 
         except Exception as err:
             print "Error", err
+
+        '''
+
+        if cmd == 0:
+            pass
+        elif cmd == 1:
+            pass
+
+        elif cmd == 2:
+            #Bar
+            self.ids.kv_total_button.text = '0' + unichr(8364)
+            self.ids.kv_given_button.text = '0' + unichr(8364)
+            self.ids.kv_back_button.text =  '0' + unichr(8364)
+            self.ids.item_screen_manager.current = 'first_item_screen'
+            self.ids.event_btn.disabled = False
+            self.ids.event_date_btn.disabled = False
+            self.ids.event_time.disabled = False
+
+            self.transaction_id = 0
+            seat_bar_list = {}
+            for item_id, seats in self.seat_list.items():
+                seat_bar_list[str(item_id)] = {}
+                for seat, status in seats.items():
+                    if status == 3:
+                        seat_bar_list[str(item_id)][str(seat)] = 2
+
+    @inlineCallbacks
+    def print_ticket(self, *args):
+
+        #Get Printers
+        try:
+            results = yield self.session.call(u'io.crossbar.btms.ticket.print', 'CITIZEN-Barcode', self.transaction_id)
+
+            print results
+
+        except Exception as err:
+            print "Error", err
+
+
+
+    @inlineCallbacks
+    def get_printers(self, *args):
+
+        #Get Printers
+        try:
+            printers = yield self.session.call(u'io.crossbar.btms.printers.get')
+
+            for printer in printers:
+                print printer, printers[printer]["device-uri"]
+
+        except Exception as err:
+            print "Error", err
+
+
+
+
+    def create_events(self):
+        print self.ids.kv_create_event_title.text
+        print self.ids.kv_create_event_description.text
+        print self.selected_venue_id
+        print self.ids.kv_create_event_date_start.text
+        print self.ids.kv_create_event_date_end.text
+        print self.ids.kv_create_event_admission_hours.text
+
+        print self.ids.kv_create_event_mon_times.text
+        print self.ids.kv_create_event_tue_times.text
+        print self.ids.kv_create_event_wed_times.text
+        print self.ids.kv_create_event_thu_times.text
+        print self.ids.kv_create_event_fri_times.text
+        print self.ids.kv_create_event_sat_times.text
+        print self.ids.kv_create_event_sun_times.text
+
+
 
 
 # Buttons

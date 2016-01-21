@@ -38,6 +38,8 @@ from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
 import json
 
+import cups
+conn = cups.Connection ()
 
 
 class BtmsBackend(ApplicationSession):
@@ -100,6 +102,11 @@ class BtmsBackend(ApplicationSession):
 
         return self.db.runQuery("SELECT id, date_day, start_times FROM btms_events WHERE ref = '"+str(event_id)+"'")
 
+    @wamp.register(u'io.crossbar.btms.venues.get')
+    def getVenues(self):
+
+        return self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '0' ORDER by id")
+
     @wamp.register(u'io.crossbar.btms.venue.get')
     def getVenue(self,venue_id):
 
@@ -141,7 +148,7 @@ class BtmsBackend(ApplicationSession):
 
         #Generate Transaction Id
         transaction_id = str(event_id)+event_date+event_time+str(counter_amount)
-        transaction_id = filter(str.isalnum, transaction_id)
+        transaction_id = filter(str.isalnum, str(transaction_id))
 
         luhn = generate(transaction_id)
 
@@ -369,8 +376,38 @@ class BtmsBackend(ApplicationSession):
 
 
 
+    @wamp.register(u'io.crossbar.btms.printers.get')
+    def getPrinters(self):
+        printers = conn.getPrinters ()
+        for printer in printers:
+            print printer, printers[printer]["device-uri"]
+
+        return printers
+
+    @wamp.register(u'io.crossbar.btms.ticket.print')
+    def printTicket(self,printer,transaction_id):
+
+        #Print Ticket
+        printer_returns = conn.printFile(printer, '/home/jaques5/workspace/btms_suite/btms_server/spool/ticket.pdf', transaction_id, {})
+
+        print 'printer returns:', printer_returns
 
 
+        #Check for ticket is printed
+        print 'printed status:', conn.getJobAttributes(printer_returns)["job-state"]
+
+        '''
+        equals 9 (IPP_JOB_COMPLETED) pysical printed
+        IPP_JOB_ABORTED = 8
+        IPP_JOB_CANCELED = 7
+        IPP_JOB_COMPLETED = 9
+        IPP_JOB_HELD = 4
+        IPP_JOB_PENDING = 3
+        IPP_JOB_PROCESSING = 5
+        IPP_JOB_STOPPED = 6
+        '''
+
+        return printer_returns
 
 
     @inlineCallbacks
