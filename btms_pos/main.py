@@ -36,6 +36,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.progressbar import ProgressBar
 from functools import partial
 import hashlib
+import datetime as dt
 
 
 class BtmsWampComponentAuth(ApplicationSession):
@@ -335,18 +336,25 @@ class BtmsRoot(BoxLayout):
         #Set Date
         self.event_date = day
 
+
         #Set Time List
         event_times_list = []
+        i=0
         for kv in self.event_date_time_dict[day].split(","):
-            key, value = kv.split(";")
-            event_times_list.append(value)
+            #key, value = kv.split(";")
 
-            if key == '1':
+            event_times_list.append(kv)
+
+            if i == 0:
                 #Set Init Time
-                self.ids.event_time.text = value
-                self.set_event_time(value)
+                self.ids.event_time.text = kv
+                self.set_event_time(kv)
+            i = i+1
 
         self.ids.event_time.values = event_times_list
+
+
+
 
     def set_event_time(self, time, *args):
         self.event_time = time
@@ -974,22 +982,38 @@ class BtmsRoot(BoxLayout):
 
 
 
-
+    @inlineCallbacks
     def create_events(self):
-        print self.ids.kv_create_event_title.text
-        print self.ids.kv_create_event_description.text
-        print self.selected_venue_id
-        print self.ids.kv_create_event_date_start.text
-        print self.ids.kv_create_event_date_end.text
-        print self.ids.kv_create_event_admission_hours.text
+        title = self.ids.kv_create_event_title.text
+        description = self.ids.kv_create_event_description.text
+        venue_id = self.selected_venue_id
 
-        print self.ids.kv_create_event_mon_times.text
-        print self.ids.kv_create_event_tue_times.text
-        print self.ids.kv_create_event_wed_times.text
-        print self.ids.kv_create_event_thu_times.text
-        print self.ids.kv_create_event_fri_times.text
-        print self.ids.kv_create_event_sat_times.text
-        print self.ids.kv_create_event_sun_times.text
+        start_date = self.ids.kv_create_event_date_start.text
+        end_date = self.ids.kv_create_event_date_end.text
+        admission_hours = self.ids.kv_create_event_admission_hours.text
+
+        mon_times = self.ids.kv_create_event_mon_times.text
+        tue_times = self.ids.kv_create_event_tue_times.text
+        wed_times = self.ids.kv_create_event_wed_times.text
+        thu_times = self.ids.kv_create_event_thu_times.text
+        fri_times = self.ids.kv_create_event_fri_times.text
+        sat_times = self.ids.kv_create_event_sat_times.text
+        sun_times = self.ids.kv_create_event_sun_times.text
+
+        weekday_times = {'0':mon_times, '1':tue_times, '2':wed_times, '3':thu_times, '4':fri_times, '5':sat_times, '6':sun_times}
+
+
+        try:
+            result = yield self.session.call(u'io.crossbar.btms.event.create', title, description, venue_id, start_date, end_date, admission_hours, weekday_times, str(self.user_id))
+
+        except Exception as err:
+            print "Error", err
+
+
+        finally:
+            print result
+
+
 
 
 

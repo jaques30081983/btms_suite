@@ -37,6 +37,7 @@ from baluhn import generate, verify
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
 import json
+import datetime as dt
 
 import cups
 conn = cups.Connection ()
@@ -100,7 +101,7 @@ class BtmsBackend(ApplicationSession):
     @wamp.register(u'io.crossbar.btms.events.day')
     def getEventsDay(self,event_id):
 
-        return self.db.runQuery("SELECT id, date_day, start_times FROM btms_events WHERE ref = '"+str(event_id)+"'")
+        return self.db.runQuery("SELECT id, date_day, start_times FROM btms_events WHERE ref = '"+str(event_id)+"' ORDER by date_day")
 
     @wamp.register(u'io.crossbar.btms.venues.get')
     def getVenues(self):
@@ -408,6 +409,62 @@ class BtmsBackend(ApplicationSession):
         '''
 
         return printer_returns
+
+
+
+    @wamp.register(u'io.crossbar.btms.event.create')
+    #@inlineCallbacks
+    def createEvent(self, title, description, venue_id, start_date, end_date, admission_hours, weekday_times, user_id):
+
+        def execute(sql): #TODO not beautiful should be in a pool class ....
+            return self.db.runInteraction(_execute, sql)
+
+        def _execute(trans, sql):
+            trans.execute(sql)
+            return trans.lastrowid
+
+        def insert_days(id, start_date, end_date, admission_hours, weekday_times): #last insert id
+            start_date = dt.datetime.strptime(start_date, "%Y-%m-%d")
+            end_date = dt.datetime.strptime(end_date, "%Y-%m-%d")
+
+            total_days = (end_date - start_date).days + 1
+
+            week = ['Monday',
+              'Tuesday',
+              'Wednesday',
+              'Thursday',
+              'Friday',
+              'Saturday',
+            'Sunday',]
+
+            for day_number in range(total_days):
+                current_date = (start_date + dt.timedelta(days = day_number)).date()
+
+                #dt.datetime.today().weekday()
+                weekday = current_date.weekday()
+
+                if weekday_times[str(weekday)] == '':
+                    pass
+                    print 'droped:', week[weekday]
+                else:
+                    pass
+                    print id, weekday, week[weekday], current_date, weekday_times[str(weekday)]
+
+                    sql2 = "insert into btms_events(ref, date_day, start_times, admission, user_id) values('%s','%s','%s','%s','%s')" % (id, current_date, weekday_times[str(weekday)], admission_hours, user_id)
+                    d2 = self.db.runOperation(sql2)
+
+
+
+        sql = "insert into btms_events(title, description, venue_id, date_start, date_end, admission, user_id) values('%s','%s','%s','%s','%s','%s','%s')" % (title, description, venue_id, start_date, end_date, admission_hours, user_id)
+
+        d = execute(sql)
+        d.addCallback(insert_days, start_date, end_date, admission_hours, weekday_times)
+
+        return 'event created'
+
+
+
+
 
 
     @inlineCallbacks
