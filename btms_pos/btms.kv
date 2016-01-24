@@ -553,59 +553,44 @@
 			Button:
 				id: kv_bar_button
 				text: "BAR"
-				font_size: self.height * 0.7
-				pos_hint: {'x': .7, 'y': .17}
-				size_hint: .15, .05
+				font_size: self.height * 0.5
+				pos_hint: {'x': .7, 'y': .12}
+				size_hint: .15, .10
 				on_release: root.bar()
 				
 			Button:
 				id: kv_card_button
 				text: "CARD"
-				font_size: self.height * 0.7
-				pos_hint: {'x': .85, 'y': .17}
-				size_hint: .15, .05
+				font_size: self.height * 0.5
+				pos_hint: {'x': .85, 'y': .12}
+				size_hint: .15, .10
 				on_release: root.card()
 
 								
-			
+
 			Button:
+			    id: kv_journal_button
 				text: "Journal"
-				
-				pos_hint: {'x': .7, 'y': .11}
-				size_hint: .15, .05
-				#on_release: root.print_ticket()
-				on_release: sm.current = "journal"
-				on_release: root.get_journal()
-				
-				
-			Button:
-				text: "Kasse"
 				
 				pos_hint: {'x': .7, 'y': .06}
 				size_hint: .15, .05
-				#on_release: root.print_ticket()
+				#on_release: root.get_journal()
 			
-			
-			Button:
-				text: "Ticket"
-				
-				pos_hint: {'x': .85, 'y': .11}
-				size_hint: .075, .05
-				on_release: root.print_ticket(2)
 
 			Button:
-				id: kv_auto_print_button
-				text: "AP Off"
-				pos_hint: {'x': .925, 'y': .11}
-				size_hint: .075, .05
-				on_release: root.print_ticket(1)
-
-				
-			Button:
+			    id: kv_bon_button
 				text: "Bon"
-				
+				#on_release: root.bon()
 				pos_hint: {'x': .85, 'y': .06}
 				size_hint: .15, .05
+
+
+
+			Button:
+			    id: kv_printer_button
+			    text: "Printer / Status"
+				pos_hint: {'x': .70, 'y': .0}
+				size_hint: .3, .05
 				on_release: root.print_ticket()
 				
 			#Total, Given, Back
@@ -677,21 +662,15 @@
 				on_release: root.logout(1)
 
 			Button:
-				id: kv_server_button
-				text: "Heartbeat"
-				#on_release: root.get_venue_update(2)
-				
-				pos_hint: {'x': .525, 'y': .0}
-				size_hint: .165, .05
-				
-			Button:
 				id: kv_dashboard_button
 				text: "Dashboard"
 				on_release: sm.transition.direction = 'left'
 				on_release: sm.current = "dashboard"
-				#on_press: root.get_dashboard()
-				pos_hint: {'x': .70, 'y': .0}
-				size_hint: .3, .05
+
+				pos_hint: {'x': .525, 'y': .0}
+				size_hint: .165, .05
+				
+
 
 		Screen:
 			name: 'journal'
@@ -760,10 +739,10 @@
                         size_hint: .3, .05
 
                     Button:
-                        id: kv_select_printer
-                        text: "Select Printers"
-                        on_release: sm.current = "select_printers"
-                        #on_press: root.get_dashboard()
+                        id: kv_printers
+                        text: "Printers"
+                        on_release: sm.current = "printers"
+                        on_press: root.get_printers()
                         pos_hint: {'x': .70, 'y': .0}
                         size_hint: .3, .05
 
@@ -782,6 +761,57 @@
 				on_release: sm.transition.direction = 'right'
 				on_release: sm.current = "work1"
 
+		Screen:
+			name: 'printers'
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+				GridLayout:
+					id: printers_list_box
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, 1
+					padding: 0
+					spacing: 5
+					height: 10
+					cols: 2
+					rows: None
+					do_scroll_x: False
+					row_default_height: 30
+
+                    Label:
+				        text: "Ticket Printer"
+
+				    Spinner:
+				        text: "select"
+				        id: kv_ticket_printer_spinner
+                        on_text: root.set_printer('ticket',self.text)
+				    Label:
+				        text: "Bon Printer"
+
+				    Spinner:
+				        text: "select"
+				        id: kv_bon_printer_spinner
+				        on_text: root.set_printer('bon',self.text)
+
+				    Label:
+				        text: "Report Printer"
+
+				    Spinner:
+				        text: "select"
+				        id: kv_report_printer_spinner
+				        on_text: root.set_printer('report',self.text)
+
+
+			Button:
+				text: "Back"
+				size_hint: 1, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "dashboard"
 
 		Screen:
 			name: 'create_event'

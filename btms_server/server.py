@@ -114,9 +114,9 @@ class BtmsBackend(ApplicationSession):
         return self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
 
     @wamp.register(u'io.crossbar.btms.categories.get')
-    def getCategories(self,event_id):
+    def getCategories(self,venue_id):
 
-        return self.db.runQuery("SELECT * FROM btms_categories WHERE event_id = '"+str(event_id)+"'")
+        return self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
 
 
     @wamp.register(u'io.crossbar.btms.prices.get')
@@ -315,7 +315,7 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.seats.select')
-    def selectSeats(self,edt_id, seat_select_list, user_id):
+    def selectSeats(self,edt_id, seat_select_list, cat_id, user_id):
         print seat_select_list
         new_seat_select_list = {}
         for item_id, seat_list in seat_select_list.iteritems():
@@ -337,7 +337,7 @@ class BtmsBackend(ApplicationSession):
                     else:
                         print 'seat is occupied', item_id, seat, status
 
-        self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, user_id)
+        self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, user_id)
 
 
     @wamp.register(u'io.crossbar.btms.freeseats.set')

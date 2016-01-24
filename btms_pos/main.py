@@ -4,7 +4,7 @@ This is BTMS, Bigwood Ticket Management System,
 just reserve, sell and print tickets....
 """
 
-# copyright Jakob Laemmle, the Apache 2.0 license applies
+# copyright Jakob Laemmle, the GNU GENERAL PUBLIC LICENSE Version 2 license applies
 
 # Kivy's install_twisted_reactor MUST be called early on!
 
@@ -296,15 +296,18 @@ class BtmsRoot(BoxLayout):
                 print row['start_times']
                 self.event_date_time_dict[row['date_day']]= row['start_times']
                 # Dates
+                date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                date_day_name = date_day.strftime("%a")
+
 
                 if date_id == 0:
                     date_id = row['id']
-                    self.ids.event_date_btn.text = row['date_day']
+                    self.ids.event_date_btn.text = date_day_name +' '+ row['date_day']
                     #self.event_date = row['date_day']
                     self.set_event_day_times(row['date_day'])
 
 
-                event_date_itm['event_date_btn_' + str(row['id'])] = Button(id=str(row['id']), text=row['date_day'],
+                event_date_itm['event_date_btn_' + str(row['id'])] = Button(id=str(row['id']), text=date_day_name +' '+ row['date_day'],
                                                                             size_hint_y=None, height=44)
                 event_date_itm['event_date_btn_' + str(row['id'])].bind(
                     on_release=lambda event_date_btn: self.ids.event_date.select(event_date_btn.text))
@@ -334,13 +337,13 @@ class BtmsRoot(BoxLayout):
 
     def set_event_day_times(self, day, *args):
         #Set Date
-        self.event_date = day
+        self.event_date = day[-10:]
 
 
         #Set Time List
         event_times_list = []
         i=0
-        for kv in self.event_date_time_dict[day].split(","):
+        for kv in self.event_date_time_dict[self.event_date].split(","):
             #key, value = kv.split(";")
 
             event_times_list.append(kv)
@@ -453,7 +456,7 @@ class BtmsRoot(BoxLayout):
             #self.get_items(event_id)
             self.load_new_venue = 1 #loading of venue finished
             self.get_venue_status(venue_id,event_id)
-            self.get_prices(event_id)
+            self.get_prices(venue_id, event_id)
 
 
 
@@ -517,7 +520,7 @@ class BtmsRoot(BoxLayout):
                             add_to_bill_toggle = 1
 
                 itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
-                    size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item))
+                    size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, cat_id))
                 grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
 
 
@@ -528,7 +531,7 @@ class BtmsRoot(BoxLayout):
 
             if add_to_bill_toggle == 1:
 
-                self.select_seats(seat_select_list)
+                self.select_seats(seat_select_list, cat_id)
                 self.ids.number_display_box.text = ''
                 #self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
 
@@ -575,18 +578,18 @@ class BtmsRoot(BoxLayout):
 
 
     @inlineCallbacks
-    def get_prices(self, event_id, *args):
+    def get_prices(self, venue_id, event_id, *args):
         self.ids.bill_item_list_box.clear_widgets(children=None)
         try:
             self.prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
 
-            self.get_categories(event_id,self.prices)
+            self.get_categories(venue_id,self.prices)
 
         except Exception as err:
             print "Error", err
 
     @inlineCallbacks
-    def get_categories(self, event_id, prices, *args):
+    def get_categories(self, venue_id, prices, *args):
         def result_categories(results):
             self.itm_price = {}
             self.itm_cat_price_amount = {}
@@ -651,7 +654,7 @@ class BtmsRoot(BoxLayout):
 
 
         try:
-            results = yield self.session.call(u'io.crossbar.btms.categories.get',event_id)
+            results = yield self.session.call(u'io.crossbar.btms.categories.get',venue_id)
             result_categories(results)
 
 
@@ -675,11 +678,11 @@ class BtmsRoot(BoxLayout):
                 itm['venue_item_' + str(item_id)].disabled = False
                 itm['venue_item_user'+str(item_id)].text = ''
 
-    def select_seats(self,seat_select_list, *args):
+    def select_seats(self,seat_select_list, cat_id, *args):
 
-        self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, self.user_id)
+        self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, self.user_id)
 
-    def on_select_seats(self,edt_id, seat_select_list, user_id):
+    def on_select_seats(self,edt_id, seat_select_list, cat_id, user_id):
         print 'on_select_seats',edt_id, seat_select_list, user_id
 
         if edt_id == self.eventdatetime_id:
@@ -693,7 +696,7 @@ class BtmsRoot(BoxLayout):
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         self.seat_list[str(item_id)][int(seat)] = status
-                        self.update_bill(item_id, 1, 0, 1) #TODO cat_id missing
+                        self.update_bill(item_id, cat_id, 0, 1)
             else:
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
@@ -888,7 +891,7 @@ class BtmsRoot(BoxLayout):
 
         if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
             self.ids.kv_given_button.text = str(self.total_bill_price) + unichr(8364)
-            self.ids.kv_back_button.text =  '0'
+            self.ids.kv_back_button.text =  '0' + unichr(8364)
             self.complete_transaction(2)
         else:
             self.ids.kv_given_button.text = self.ids.number_display_box.text + unichr(8364)
@@ -904,14 +907,9 @@ class BtmsRoot(BoxLayout):
             self.ids.number_display_box.text = ''
 
 
-
-
-
-
-
     def card(self, *args):
         #call ext api, like payleven, sumup, etc...
-        self.ids.kv_card_button.text = 'not available'
+        self.ids.kv_card_button.text = 'n. a.'
         def my_callback(dt):
             self.ids.kv_card_button.text = 'CARD'
         Clock.schedule_once(my_callback, 2)
@@ -937,9 +935,9 @@ class BtmsRoot(BoxLayout):
 
         elif cmd == 2:
             #Bar
-            self.ids.kv_total_button.text = '0' + unichr(8364)
-            self.ids.kv_given_button.text = '0' + unichr(8364)
-            self.ids.kv_back_button.text =  '0' + unichr(8364)
+            #self.ids.kv_total_button.text = '0' + unichr(8364)
+            #self.ids.kv_given_button.text = '0' + unichr(8364)
+            #self.ids.kv_back_button.text =  '0' + unichr(8364)
             self.ids.item_screen_manager.current = 'first_item_screen'
             self.ids.event_btn.disabled = False
             self.ids.event_date_btn.disabled = False
@@ -956,9 +954,9 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def print_ticket(self, *args):
 
-        #Get Printers
+        #Print
         try:
-            results = yield self.session.call(u'io.crossbar.btms.ticket.print', 'CITIZEN-Barcode', self.transaction_id)
+            results = yield self.session.call(u'io.crossbar.btms.ticket.print', self.ticket_printer, self.transaction_id)
 
             print results
 
@@ -973,13 +971,46 @@ class BtmsRoot(BoxLayout):
         #Get Printers
         try:
             printers = yield self.session.call(u'io.crossbar.btms.printers.get')
-
+            printers_list = []
             for printer in printers:
                 print printer, printers[printer]["device-uri"]
+                printers_list.append(printer)
+
+            self.ids.kv_ticket_printer_spinner.values = printers_list
+            self.ids.kv_bon_printer_spinner.values = printers_list
+            self.ids.kv_report_printer_spinner.values = printers_list
+            self.printer_set = True
 
         except Exception as err:
             print "Error", err
 
+    def set_printer(self, option, printer, *args):
+        print option, printer
+
+        try:
+            self.printer_set
+        except AttributeError:
+            self.printer_set = False
+
+        if self.printer_set == True:
+            try:
+                self.ticket_printer
+            except AttributeError:
+                self.ticket_printer = ''
+                self.bon_printer = ''
+                self.report_printer = ''
+
+
+            if option == 'ticket':
+                self.ticket_printer = printer
+                self.ids.kv_printer_button.text = 'Printer: ' + printer
+                store.put('printers',ticket=printer, bon=self.bon_printer, report=self.report_printer)
+            elif option == 'bon':
+                self.bon_printer = printer
+                store.put('printers',ticket=self.ticket_printer, bon=printer,  report=self.report_printer)
+            elif option == 'report':
+                self.report_printer = printer
+                store.put('printers',ticket=self.ticket_printer, bon=self.bon_printer, report=printer)
 
 
     @inlineCallbacks
@@ -1037,6 +1068,15 @@ class BtmsApp(App):
             for user in L:
                 self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))
 
+        if store.exists('printers'):
+            self.ticket_printer = store.get('printers')['ticket']
+            self.bon_printer = store.get('printers')['bon']
+            self.report_printer = store.get('printers')['report']
+
+            self.root.ids.kv_printer_button.text = 'Printer: ' + store.get('printers')['ticket']
+            self.root.ids.kv_ticket_printer_spinner.text = self.ticket_printer
+            self.root.ids.kv_bon_printer_spinner.text = store.get('printers')['bon']
+            self.root.ids.kv_report_printer_spinner.text = store.get('printers')['report']
 
         #self.start_wamp_component()
 
