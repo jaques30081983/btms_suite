@@ -171,10 +171,10 @@ class BtmsBackend(ApplicationSession):
             self.item_list = {}
             print 'new item_list created'
             try:
-                self.freeseat_list
+                self.unnumbered_seat_list
             except AttributeError:
-                self.freeseat_list = {}
-                print 'new freeseat_list created'
+                self.unnumbered_seat_list = {}
+                print 'new unnumbered_seat_list created'
 
 
 
@@ -193,12 +193,13 @@ class BtmsBackend(ApplicationSession):
 
 
                 self.item_list[eventdatetime_id] = {}
-                self.freeseat_list[eventdatetime_id] = {}
+                self.unnumbered_seat_list[eventdatetime_id] = {}
 
 
                 for row in result_venues:
                     block = str(row['id'])
                     self.item_list[eventdatetime_id][block] = {'seats':{},'seats_user':{}}
+                    self.item_list[eventdatetime_id][block]['cat_id'] = row['cat_id']
 
 
                     if row['art'] == 1:
@@ -211,10 +212,10 @@ class BtmsBackend(ApplicationSession):
 
 
                     if row['art'] == 2:
-                        self.freeseat_list[eventdatetime_id][block] = {}
+                        self.unnumbered_seat_list[eventdatetime_id][block] = {}
                         self.item_list[eventdatetime_id][block]['amount'] = row['seats']
-                        self.freeseat_list[eventdatetime_id][block]['amount'] = row['seats']
-                        self.freeseat_list[eventdatetime_id][block]['tid_amount'] = {}
+                        self.unnumbered_seat_list[eventdatetime_id][block]['amount'] = row['seats']
+                        self.unnumbered_seat_list[eventdatetime_id][block]['tid_amount'] = {}
 
             except Exception as err:
                 print "Error", err
@@ -229,6 +230,7 @@ class BtmsBackend(ApplicationSession):
                         #Numbered Seats
                         json_string = row['seats'].replace(';',':')
                         json_string = json_string.replace('\\','')
+
                         json_string = '[' + json_string + ']'
 
 
@@ -251,7 +253,7 @@ class BtmsBackend(ApplicationSession):
                                     self.item_list[eventdatetime_id][block]['seats'][seat] = status
                                     self.item_list[eventdatetime_id][block]['seats_user'][seat] = row['user']
 
-                        #Free Seats
+                        #Unnumbered Seats
                         if row['art'] == 2:
                             json_string = row['amount'].replace(';',':')
                             json_string = json_string.replace('\\','')
@@ -274,10 +276,10 @@ class BtmsBackend(ApplicationSession):
                                 amount = 0
                                 for key, value in item_ov[0].iteritems():
                                     #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
-                                    self.freeseat_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']] = value
+                                    self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']] = value
                                     amount = amount + value
 
-                                self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.freeseat_list[eventdatetime_id][row['item_id']]['amount'] - amount
+                                self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['amount'] - amount
                                 print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                 except Exception as err:
@@ -340,25 +342,25 @@ class BtmsBackend(ApplicationSession):
         self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, user_id)
 
 
-    @wamp.register(u'io.crossbar.btms.freeseats.set')
-    def setFreeseats(self,edt_id, t_id, item_id, amount):
+    @wamp.register(u'io.crossbar.btms.unnumbered_seats.set')
+    def setUnnumberedSeats(self,edt_id, t_id, item_id, amount):
         try:
             #self.item_list[edt_id][str(item_id)]['tid_amount'][t_id]= amount
-            self.freeseat_list[edt_id][str(item_id)]['tid_amount'][t_id] = amount
+            self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'][t_id] = amount
         except KeyError:
-            self.freeseat_list[edt_id][str(item_id)]['tid_amount'] = {}
-            self.freeseat_list[edt_id][str(item_id)]['tid_amount'][t_id] = amount
+            self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'] = {}
+            self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'][t_id] = amount
 
         amount1 = 0
-        for key, value in self.freeseat_list[edt_id][str(item_id)]['tid_amount'].iteritems():
+        for key, value in self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'].iteritems():
             amount1 = amount1 + value
 
-        amount1 = self.freeseat_list[edt_id][str(item_id)]['amount'] - amount1
+        amount1 = self.unnumbered_seat_list[edt_id][str(item_id)]['amount'] - amount1
 
         self.item_list[edt_id][str(item_id)]['amount'] = amount1
         print amount1
 
-        self.publish('io.crossbar.btms.freeseats.set.action', edt_id, item_id, amount1)
+        self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount1)
 
 
     @wamp.register(u'io.crossbar.btms.bill.add')
@@ -463,8 +465,77 @@ class BtmsBackend(ApplicationSession):
         return 'event created'
 
 
+    @wamp.register(u'io.crossbar.btms.transact')
+    def transact(self, opt, event_id, event_date, event_time, transaction_id,
+                 seat_trans_list, itm_cat_amount_list, status, account, total_bill_price,
+                 back_price, given_price, user_id):
+
+        edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
+
+        #Check again seat status
+        check_result = False
+        for item_id, seat_list in seat_trans_list.iteritems():
+            for seat, status in seat_list.iteritems():
+                check_result = False
+                if self.item_list[edt_id][item_id]['seats'][seat] == 1 and self.item_list[edt_id][item_id]['seats_user'][seat] == user_id:
+                    self.item_list[edt_id][item_id]['seats'][seat] = 2
+                    check_result = True
+
+        #Set seat status if seats are reserved from same user
+        if check_result == True:
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, user_id)
+
+            cat_id = self.item_list[edt_id][item_id]['cat_id']
+            amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+            art = '1'
+            seats = json.dumps(seat_trans_list, separators=(',',';'))
+
+            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                      "cat_id, art, amount, seats, status, user) " \
+                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                      (transaction_id, event_id, event_date,
+                        event_time, item_id, cat_id, art, amount,
+                        seats, status, user_id)
+
+            self.db.runOperation(sql)
+
+        #Get unnumbered seats
+
+        #for key, value in self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'].iteritems():
+            #print key, value
+
+        for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
+            try:
+                print self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+
+                #self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+                cat_id = self.item_list[edt_id][item_id]['cat_id']
+                amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                art = '2'
+                seats = '{}'
+
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                      "cat_id, art, amount, seats, status, user) " \
+                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                      (transaction_id, event_id, event_date,
+                        event_time, item_id, cat_id, art, amount,
+                        seats, status, user_id)
+
+                self.db.runOperation(sql)
 
 
+            except KeyError:
+                pass
+
+
+
+
+        #print opt, event_id, event_date, event_time, transaction_id, seat_trans_list, status, \
+            #account, total_bill_price, back_price, given_price, user_id
+
+
+
+        return ''
 
 
     @inlineCallbacks

@@ -80,7 +80,7 @@ class BtmsWampComponentAuth(ApplicationSession):
         self.subscribe(ui.on_venue_update, u'io.crossbar.btms.venue.update')
         self.subscribe(ui.on_block_item, u'io.crossbar.btms.item.block.action')
         self.subscribe(ui.on_select_seats, u'io.crossbar.btms.seats.select.action')
-        self.subscribe(ui.on_set_freeseats, u'io.crossbar.btms.freeseats.set.action')
+        self.subscribe(ui.on_set_unnumbered_seats, u'io.crossbar.btms.unnumbered_seats.set.action')
 
 
 
@@ -696,7 +696,8 @@ class BtmsRoot(BoxLayout):
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         self.seat_list[str(item_id)][int(seat)] = status
-                        self.update_bill(item_id, cat_id, 0, 1)
+                        if status == 3 or status == 0:
+                            self.update_bill(item_id, cat_id, 0, 1)
             else:
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
@@ -704,11 +705,11 @@ class BtmsRoot(BoxLayout):
                         self.seat_list[str(item_id)][int(seat)] = status
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
-    def set_freeseats(self, item_id, amount):
-        self.session.call(u'io.crossbar.btms.freeseats.set', self.eventdatetime_id, self.transaction_id, item_id, amount)
+    def set_unnumbered_seats(self, item_id, amount):
+        self.session.call(u'io.crossbar.btms.unnumbered_seats.set', self.eventdatetime_id, self.transaction_id, item_id, amount)
 
 
-    def on_set_freeseats(self,edt_id, item_id, amount):
+    def on_set_unnumbered_seats(self,edt_id, item_id, amount):
         if edt_id == self.eventdatetime_id:
             itm['venue_itm_pbar_'+str(item_id)].value = amount
             itm['venue_itm_label_'+str(item_id)].text = str(amount)
@@ -837,7 +838,7 @@ class BtmsRoot(BoxLayout):
             self.itm_price_amount[cat_id][item_id] = amount
             itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
 
-            self.set_freeseats(item_id, amount)
+            self.set_unnumbered_seats(item_id, amount)
 
             #Set amount for categorie from same items
             amount = 0
@@ -887,12 +888,15 @@ class BtmsRoot(BoxLayout):
             #self.session.call(u'io.crossbar.btms.bill.add', eventdatetime_id, block)
 
     #@inlineCallbacks
-    def bar(self, *args):
-
+    def cash(self, *args):
+        #Give, Back
         if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
             self.ids.kv_given_button.text = str(self.total_bill_price) + unichr(8364)
             self.ids.kv_back_button.text =  '0' + unichr(8364)
-            self.complete_transaction(2)
+            self.back_price = 0
+            self.given_price = self.total_bill_price
+
+            self.transact('cash')
         else:
             self.ids.kv_given_button.text = self.ids.number_display_box.text + unichr(8364)
 
@@ -902,54 +906,93 @@ class BtmsRoot(BoxLayout):
                 self.ids.kv_back_button.text =  '0' + unichr(8364)
             else:
                 self.ids.kv_back_button.text = str(back_price) + unichr(8364)
-                self.complete_transaction(2)
 
+
+                self.back_price = back_price
+                self.given_price = float(self.ids.number_display_box.text)
+                self.transact('cash')
             self.ids.number_display_box.text = ''
+
+
+
 
 
     def card(self, *args):
         #call ext api, like payleven, sumup, etc...
         self.ids.kv_card_button.text = 'n. a.'
+
         def my_callback(dt):
             self.ids.kv_card_button.text = 'CARD'
         Clock.schedule_once(my_callback, 2)
 
 
-    #@inlineCallbacks
-    def complete_transaction(self, cmd, *args):
-        '''
+    @inlineCallbacks
+    def transact(self, opt, *args):
+
+        if opt == 'cash':
+            account = 1000 #SKR03
+            status = 2
+        elif opt == 'card':
+            account = 1200 #SKR03
+            status = 2
+        elif opt == 'reserve':
+            account = 0
+            status = 1
+
+        #Collect Data
+        seat_trans_list = {}
+        for item_id, seats in self.seat_list.items():
+            for seat, status1 in seats.items():
+                if status1 == 3:
+                    try:
+                        seat_trans_list[str(item_id)]
+                    except KeyError:
+                        seat_trans_list[str(item_id)] = {}
+                    seat_trans_list[str(item_id)][str(seat)] = 2
+
+
+        itm_cat_amount_list = {}
+        for cat_id, value in self.itm_cat_price_amount.iteritems():
+            itm_cat_amount_list[str(cat_id)] = {}
+            for price_id, value1 in value.iteritems():
+                if value1['amount'] == 0:
+                    pass
+                else:
+                    itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
+
+
+
+
+
+
         try:
-            results = yield self.session.call(u'io.crossbar.btms.transaction.complete',self.event_id, self.event_date, self.event_time)
+            results = yield self.session.call(u'io.crossbar.btms.transact',
+                                              opt, self.event_id, self.event_date, self.event_time,
+                                              self.transaction_id, seat_trans_list, itm_cat_amount_list, status, account,
+                                              self.total_bill_price, self.back_price,self.given_price,
+                                              self.user_id)
 
             self.ids.number_display_box.text = results
 
         except Exception as err:
             print "Error", err
 
-        '''
+        self.reset_transaction()
 
-        if cmd == 0:
-            pass
-        elif cmd == 1:
-            pass
 
-        elif cmd == 2:
-            #Bar
-            #self.ids.kv_total_button.text = '0' + unichr(8364)
-            #self.ids.kv_given_button.text = '0' + unichr(8364)
-            #self.ids.kv_back_button.text =  '0' + unichr(8364)
-            self.ids.item_screen_manager.current = 'first_item_screen'
-            self.ids.event_btn.disabled = False
-            self.ids.event_date_btn.disabled = False
-            self.ids.event_time.disabled = False
+    def reset_transaction(self):
+        #self.ids.kv_total_button.text = '0' + unichr(8364)
+        #self.ids.kv_given_button.text = '0' + unichr(8364)
+        #self.ids.kv_back_button.text =  '0' + unichr(8364)
+        self.ids.item_screen_manager.current = 'first_item_screen'
+        self.block_item(0, 1)
 
-            self.transaction_id = 0
-            seat_bar_list = {}
-            for item_id, seats in self.seat_list.items():
-                seat_bar_list[str(item_id)] = {}
-                for seat, status in seats.items():
-                    if status == 3:
-                        seat_bar_list[str(item_id)][str(seat)] = 2
+        self.ids.event_btn.disabled = False
+        self.ids.event_date_btn.disabled = False
+        self.ids.event_time.disabled = False
+
+        self.transaction_id = 0
+
 
     @inlineCallbacks
     def print_ticket(self, *args):
@@ -1012,6 +1055,9 @@ class BtmsRoot(BoxLayout):
                 self.report_printer = printer
                 store.put('printers',ticket=self.ticket_printer, bon=self.bon_printer, report=printer)
 
+    def get_printer_status(self, transaction_id, printer, *args):
+        print option, printer
+        #TODO check printer status
 
     @inlineCallbacks
     def create_events(self):
