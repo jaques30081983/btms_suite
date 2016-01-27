@@ -386,10 +386,10 @@ class BtmsRoot(BoxLayout):
             global bill_itm_price_amount
             global bill_total_price
             #global seat_list
-            global free_seat_list
+            #global free_seat_list
             itm = {}
             self.seat_list = {}
-            free_seat_list = {}
+            self.unnumbered_seat_list = {}
             bill_itm = {}
             bill_itm_price_amount = {}
             bill_total_price = {}
@@ -432,8 +432,8 @@ class BtmsRoot(BoxLayout):
                     self.ids.sale_item_list_box.add_widget(float_layout2)
 
                 if row['art'] == 2:
-                    # Free Plaetze
-                    free_seat_list[row['id']] = row['seats']
+                    # Unnumbered Seats
+                    self.unnumbered_seat_list[row['id']] = row['cat_id']
 
                     float_layout1 = FloatLayout(size_hint=[0.325, .003])
                     itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], text=row['title'],
@@ -746,6 +746,7 @@ class BtmsRoot(BoxLayout):
 
 
         print'update_bill:', item_id, cat_id, art
+        #self.ids.kv_total_button.text = '0' + unichr(8364)
         self.ids.kv_given_button.text = '0' + unichr(8364)
         self.ids.kv_back_button.text = '0' + unichr(8364)
 
@@ -977,7 +978,10 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
-        self.reset_transaction()
+        finally:
+            self.print_ticket()
+            self.transaction_id_old = self.transaction_id #Will be used if printing not work
+            self.reset_transaction()
 
 
     def reset_transaction(self):
@@ -992,6 +996,22 @@ class BtmsRoot(BoxLayout):
         self.ids.event_time.disabled = False
 
         self.transaction_id = 0
+
+
+        self.total_cat_price_list = {}
+
+        #Reset Price/Amount Section
+        for cat_id, value in self.itm_cat_price_amount.iteritems():
+            self.itm_price[cat_id]['tbutton'].text = '0'
+            for price_id, value1 in value.iteritems():
+                value1['button'].text = '0'
+                value1['amount'] = 0
+
+        #Reset Item Amounts
+        for item_id, cat_id in self.unnumbered_seat_list.iteritems():
+            print item_id, cat_id
+            self.itm_price_amount[cat_id][item_id] = 0
+            itm['venue_itm_label_amount'+str(item_id)].text = '0'
 
 
     @inlineCallbacks
@@ -1115,12 +1135,12 @@ class BtmsApp(App):
                 self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))
 
         if store.exists('printers'):
-            self.ticket_printer = store.get('printers')['ticket']
-            self.bon_printer = store.get('printers')['bon']
-            self.report_printer = store.get('printers')['report']
+            self.root.ticket_printer = store.get('printers')['ticket']
+            self.root.bon_printer = store.get('printers')['bon']
+            self.root.report_printer = store.get('printers')['report']
 
             self.root.ids.kv_printer_button.text = 'Printer: ' + store.get('printers')['ticket']
-            self.root.ids.kv_ticket_printer_spinner.text = self.ticket_printer
+            self.root.ids.kv_ticket_printer_spinner.text = self.root.ticket_printer
             self.root.ids.kv_bon_printer_spinner.text = store.get('printers')['bon']
             self.root.ids.kv_report_printer_spinner.text = store.get('printers')['report']
 

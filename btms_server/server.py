@@ -33,6 +33,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 import MySQLdb.cursors
 from datetime import datetime
 from baluhn import generate, verify
+from ticket import createPdfTicket
 
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
@@ -391,8 +392,9 @@ class BtmsBackend(ApplicationSession):
     def printTicket(self,printer,transaction_id):
 
         #Print Ticket
-        printer_returns = conn.printFile(printer, '/home/jaques5/workspace/btms_suite/btms_server/spool/ticket.pdf', transaction_id, {})
-
+        ticket_path = '../spool/ticket_'+ transaction_id +'.pdf'
+        printer_returns = conn.printFile(printer, ticket_path, transaction_id, {})
+        #printer_returns = 123
         print 'printer returns:', printer_returns
 
 
@@ -466,6 +468,7 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.transact')
+    @inlineCallbacks
     def transact(self, opt, event_id, event_date, event_time, transaction_id,
                  seat_trans_list, itm_cat_amount_list, status, account, total_bill_price,
                  back_price, given_price, user_id):
@@ -481,7 +484,7 @@ class BtmsBackend(ApplicationSession):
                     self.item_list[edt_id][item_id]['seats'][seat] = 2
                     check_result = True
 
-        #Set seat status if seats are reserved from same user
+        #Set seat status if seats are reserved from same user and insert in db
         if check_result == True:
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, user_id)
 
@@ -499,10 +502,8 @@ class BtmsBackend(ApplicationSession):
 
             self.db.runOperation(sql)
 
-        #Get unnumbered seats
 
-        #for key, value in self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'].iteritems():
-            #print key, value
+        #Get unnumbered seats and insert in db
 
         for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
             try:
@@ -528,14 +529,107 @@ class BtmsBackend(ApplicationSession):
                 pass
 
 
+        #Create and Insert Tickets
+        #Iterate over seat_list and create new indexed one
+        single_seat_list = {}
+
+        i = 0
+        for item_id, seat_list in sorted(seat_trans_list.iteritems()):
+            cat_id = self.item_list[edt_id][item_id]['cat_id']
+            try:
+                single_seat_list[cat_id]
+            except KeyError:
+                single_seat_list[cat_id] = {}
+
+            for seat, status in sorted(seat_list.iteritems()):
+                #if self.item_list[edt_id][item_id]['seats'][seat] == 2 and self.item_list[edt_id][item_id]['seats_user'][seat] == user_id:
+                single_seat_list[cat_id][i] = {}
+                single_seat_list[cat_id][i][item_id] = seat
+
+                i = i + 1
+
+
+
+        #Iterate over unnumbered seat list + i
+
+        for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
+
+            try:
+                amount = self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+                cat_id = self.item_list[edt_id][item_id]['cat_id']
+                i = 0
+                try:
+                    single_seat_list[cat_id]
+                except KeyError:
+                    single_seat_list[cat_id] = {}
+
+
+
+                for j in range(0,amount):
+                    single_seat_list[cat_id][i] = {}
+                    single_seat_list[cat_id][i][item_id] = 0
+                    i = i + 1
+            except KeyError:
+                pass
+
+
+
+
+
+        #distr prices over categorie seats
+        ticket_list = {}
+        t = 0
+        for cat_id, price_amount_list in sorted(itm_cat_amount_list.iteritems()):
+            i = 0
+            for price_id, amount in price_amount_list.iteritems():
+                for j in range(0,amount):
+
+                    value = single_seat_list[int(cat_id)][i]
+                    item_id = value.items()[0][0]
+                    seat = value.items()[0][1]
+                    ticket_list[t] = {}
+                    ticket_list[t]['cat_id'] = cat_id
+                    ticket_list[t]['item_id'] = item_id
+                    ticket_list[t]['price_id'] = price_id
+                    ticket_list[t]['seat'] = seat
+
+                    i = i + 1
+                    t =  t + 1
+
+
+        #print 'index', ticket_list
+        for key, value in sorted(ticket_list.iteritems()):
+            print key, value['item_id'], value['price_id'], value['cat_id'], value['seat']
+            ticket_id = key
+            cat_id = value['cat_id']
+            item_id = value['item_id']
+            price_id = value['price_id']
+            seat = value['seat']
+
+            if seat == 0:
+                art = 2
+            else:
+                art = 1
+
+            sql = "insert into btms_tickets(tid, ticket_id, event_id, date, time, item_id, " \
+                                  "cat_id, art, price_id, seat, status, user) " \
+                                  "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                                  (transaction_id, ticket_id, event_id, event_date,
+                                    event_time, item_id, cat_id, art, price_id,
+                                    seat, status, user_id)
+
+            self.db.runOperation(sql)
 
 
         #print opt, event_id, event_date, event_time, transaction_id, seat_trans_list, status, \
             #account, total_bill_price, back_price, given_price, user_id
 
 
+        result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
 
-        return ''
+        r = createPdfTicket(self, result)
+
+        returnValue(r)
 
 
     @inlineCallbacks
