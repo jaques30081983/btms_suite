@@ -133,6 +133,7 @@ class BtmsRoot(BoxLayout):
         """
         self.session = session
         self.ids.sm.current = 'work1'
+        self.reprint_ticket_status = False
        #self.ids.kv_user_list.clear_widgets(children=None)
 
         results = yield self.session.call(u'io.crossbar.btms.users.get')
@@ -962,15 +963,11 @@ class BtmsRoot(BoxLayout):
                     itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
 
 
-
-
-
-
         try:
             results = yield self.session.call(u'io.crossbar.btms.transact',
-                                              opt, self.event_id, self.event_date, self.event_time,
+                                              self.venue_id, self.event_id, self.event_date, self.event_time,
                                               self.transaction_id, seat_trans_list, itm_cat_amount_list, status, account,
-                                              self.total_bill_price, self.back_price,self.given_price,
+                                              str(self.total_bill_price), str(self.back_price),str(self.given_price),
                                               self.user_id)
 
             self.ids.number_display_box.text = results
@@ -979,8 +976,12 @@ class BtmsRoot(BoxLayout):
             print "Error", err
 
         finally:
-            self.print_ticket()
-            self.transaction_id_old = self.transaction_id #Will be used if printing not work
+            self.print_ticket(self.transaction_id)
+            #Will be used if printing not work
+            self.last_transaction_id = self.transaction_id
+            self.last_event_id = self.event_id
+            self.last_venue_id = self.venue_id
+            #Reset Transaction
             self.reset_transaction()
 
 
@@ -1015,18 +1016,29 @@ class BtmsRoot(BoxLayout):
 
 
     @inlineCallbacks
-    def print_ticket(self, *args):
+    def print_ticket(self, transaction_id, *args):
 
         #Print
         try:
-            results = yield self.session.call(u'io.crossbar.btms.ticket.print', self.ticket_printer, self.transaction_id)
+            results = yield self.session.call(u'io.crossbar.btms.ticket.print', self.ticket_printer, transaction_id, self.user)
 
             print results
+            self.get_printer_status(results)
 
         except Exception as err:
             print "Error", err
 
+    @inlineCallbacks
+    def reprint_ticket(self, *args):
 
+        #RePrint
+        try:
+            results = yield self.session.call(u'io.crossbar.btms.ticket.reprint', self.last_event_id, self.last_venue_id, self.last_transaction_id, self.user_id)
+        except Exception as err:
+            print "Error", err
+        finally:
+            if self.reprint_ticket_status == True:
+                self.print_ticket(self.last_transaction_id)
 
     @inlineCallbacks
     def get_printers(self, *args):
@@ -1075,9 +1087,78 @@ class BtmsRoot(BoxLayout):
                 self.report_printer = printer
                 store.put('printers',ticket=self.ticket_printer, bon=self.bon_printer, report=printer)
 
-    def get_printer_status(self, transaction_id, printer, *args):
-        print option, printer
-        #TODO check printer status
+
+    def get_printer_status(self, job, *args):
+        self.printer_status_count = 0
+
+        def reset_pbar(*largs):
+            self.ids.kv_printer_pbar.value = 0
+            self.ids.kv_printer_button.text = 'Printer: ' + self.ticket_printer
+
+        @inlineCallbacks
+        def get_status(*largs):
+
+            try:
+                result = yield self.session.call(u'io.crossbar.btms.ticket.print.job.status', job)
+                r_job = result['job']
+                status = result['status']
+                print result
+                if status == 9:
+                    Clock.unschedule(get_status)
+                    self.reprint_ticket_status = False
+                    self.ids.kv_printer_pbar.value = 100
+                    self.ids.kv_printer_button.text = str(r_job) + ' JOB_COMPLETED'
+
+                    Clock.schedule_once(reset_pbar, 2)
+                else:
+                    self.printer_status_count = self.printer_status_count + 1
+                    if self.printer_status_count >= 50:
+                        self.printer_status_count = 40
+
+                    self.ids.kv_printer_pbar.value = self.printer_status_count
+
+                    if status == 3:
+                        self.ids.kv_printer_button.text = str(r_job) + ' JOB_PENDING'
+                        self.reprint_ticket_status = False
+                    elif status == 4:
+                        self.ids.kv_printer_button.text = str(r_job) + ' JOB_HELD'
+                        self.reprint_ticket_status = False
+                    elif status == 5:
+                        self.ids.kv_printer_button.text = str(r_job) + ' JOB_PROCESSING'
+                        self.reprint_ticket_status = False
+                    elif status == 6:
+                        self.ids.kv_printer_button.text = str(r_job) + ' JOB_STOPPED'
+                        self.reprint_ticket_status = False
+                    elif status == 7:
+                        self.ids.kv_printer_button.text = str(r_job) + ' JOB_CANCELED, reprint ?'
+                        self.reprint_ticket_status = True
+                        Clock.unschedule(get_status)
+                        Clock.schedule_once(reset_pbar, 5)
+                    elif status == 8:
+                        self.ids.kv_printer_button.text = str(r_job) + ' JOB_ABORTED, reprint ?'
+                        self.reprint_ticket_status = True
+                        Clock.unschedule(get_status)
+                        Clock.schedule_once(reset_pbar, 5)
+                    else:
+                        self.ids.kv_printer_button.text = str(r_job) + ' IPP_JOB ' + str(status)
+                        self.reprint_ticket_status = False
+
+
+            except Exception as err:
+                print "Error", err
+
+        Clock.schedule_interval(get_status, 1)
+
+        '''
+        equals 9 (IPP_JOB_COMPLETED) pysical printed
+        IPP_JOB_ABORTED = 8
+        IPP_JOB_CANCELED = 7
+        IPP_JOB_COMPLETED = 9
+        IPP_JOB_HELD = 4
+        IPP_JOB_PENDING = 3
+        IPP_JOB_PROCESSING = 5
+        IPP_JOB_STOPPED = 6
+        '''
 
     @inlineCallbacks
     def create_events(self):

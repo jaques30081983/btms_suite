@@ -591,7 +591,13 @@
 			    text: "Printer / Status"
 				pos_hint: {'x': .70, 'y': .0}
 				size_hint: .3, .05
-				on_release: root.print_ticket()
+				on_release: root.reprint_ticket()
+
+			ProgressBar:
+			    id: kv_printer_pbar
+			    pos_hint: {'x': .70, 'y': .0}
+				size_hint: .3, .02
+				max: 100
 				
 			#Total, Given, Back
 			Button:

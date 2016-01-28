@@ -229,6 +229,7 @@ class BtmsBackend(ApplicationSession):
 
                     for row in result_transactions:
                         #Numbered Seats
+
                         json_string = row['seats'].replace(';',':')
                         json_string = json_string.replace('\\','')
 
@@ -272,16 +273,15 @@ class BtmsBackend(ApplicationSession):
                             if item_ov == None:
                                 pass
                             else:
-
-                                #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'] = {} #TODO Create own list, only in server, less traffic
                                 amount = 0
                                 for key, value in item_ov[0].iteritems():
                                     #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
                                     self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']] = value
                                     amount = amount + value
+                                print 'amount', amount
 
-                                self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['amount'] - amount
-                                print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
+                            self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
+                            print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                 except Exception as err:
                     print "Error", err
@@ -389,18 +389,23 @@ class BtmsBackend(ApplicationSession):
         return printers
 
     @wamp.register(u'io.crossbar.btms.ticket.print')
-    def printTicket(self,printer,transaction_id):
+    def printTicket(self,printer,transaction_id, user_name):
 
         #Print Ticket
         ticket_path = '../spool/ticket_'+ transaction_id +'.pdf'
-        printer_returns = conn.printFile(printer, ticket_path, transaction_id, {})
-        #printer_returns = 123
-        print 'printer returns:', printer_returns
+        printer_returns = conn.printFile(printer, ticket_path, transaction_id+'_'+user_name, {})
 
+        #print 'printer returns:', printer_returns
+
+        return printer_returns
+
+    @wamp.register(u'io.crossbar.btms.ticket.print.job.status')
+    def getPrintJobStatus(self,job):
 
         #Check for ticket is printed
-        print 'printed status:', conn.getJobAttributes(printer_returns)["job-state"]
 
+        status = conn.getJobAttributes(job)["job-state"]
+        #print 'printed status:', status
         '''
         equals 9 (IPP_JOB_COMPLETED) pysical printed
         IPP_JOB_ABORTED = 8
@@ -411,10 +416,8 @@ class BtmsBackend(ApplicationSession):
         IPP_JOB_PROCESSING = 5
         IPP_JOB_STOPPED = 6
         '''
-
-        return printer_returns
-
-
+        job_status = {"job":job,"status":status}
+        return job_status
 
     @wamp.register(u'io.crossbar.btms.event.create')
     #@inlineCallbacks
@@ -469,9 +472,10 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.transact')
     @inlineCallbacks
-    def transact(self, opt, event_id, event_date, event_time, transaction_id,
+    def transact(self, venue_id, event_id, event_date, event_time, transaction_id,
                  seat_trans_list, itm_cat_amount_list, status, account, total_bill_price,
                  back_price, given_price, user_id):
+
 
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
 
@@ -528,108 +532,128 @@ class BtmsBackend(ApplicationSession):
             except KeyError:
                 pass
 
+        try:
+            #Create and Insert Tickets
+            #Iterate over seat_list and create new indexed one
+            single_seat_list = {}
 
-        #Create and Insert Tickets
-        #Iterate over seat_list and create new indexed one
-        single_seat_list = {}
-
-        i = 0
-        for item_id, seat_list in sorted(seat_trans_list.iteritems()):
-            cat_id = self.item_list[edt_id][item_id]['cat_id']
-            try:
-                single_seat_list[cat_id]
-            except KeyError:
-                single_seat_list[cat_id] = {}
-
-            for seat, status in sorted(seat_list.iteritems()):
-                #if self.item_list[edt_id][item_id]['seats'][seat] == 2 and self.item_list[edt_id][item_id]['seats_user'][seat] == user_id:
-                single_seat_list[cat_id][i] = {}
-                single_seat_list[cat_id][i][item_id] = seat
-
-                i = i + 1
-
-
-
-        #Iterate over unnumbered seat list + i
-
-        for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
-
-            try:
-                amount = self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+            i = 0
+            for item_id, seat_list in sorted(seat_trans_list.iteritems()):
                 cat_id = self.item_list[edt_id][item_id]['cat_id']
-                i = 0
                 try:
                     single_seat_list[cat_id]
                 except KeyError:
                     single_seat_list[cat_id] = {}
 
-
-
-                for j in range(0,amount):
+                for seat, status in sorted(seat_list.iteritems()):
+                    #if self.item_list[edt_id][item_id]['seats'][seat] == 2 and self.item_list[edt_id][item_id]['seats_user'][seat] == user_id:
                     single_seat_list[cat_id][i] = {}
-                    single_seat_list[cat_id][i][item_id] = 0
-                    i = i + 1
-            except KeyError:
-                pass
-
-
-
-
-
-        #distr prices over categorie seats
-        ticket_list = {}
-        t = 0
-        for cat_id, price_amount_list in sorted(itm_cat_amount_list.iteritems()):
-            i = 0
-            for price_id, amount in price_amount_list.iteritems():
-                for j in range(0,amount):
-
-                    value = single_seat_list[int(cat_id)][i]
-                    item_id = value.items()[0][0]
-                    seat = value.items()[0][1]
-                    ticket_list[t] = {}
-                    ticket_list[t]['cat_id'] = cat_id
-                    ticket_list[t]['item_id'] = item_id
-                    ticket_list[t]['price_id'] = price_id
-                    ticket_list[t]['seat'] = seat
+                    single_seat_list[cat_id][i][item_id] = seat
 
                     i = i + 1
-                    t =  t + 1
 
 
-        #print 'index', ticket_list
-        for key, value in sorted(ticket_list.iteritems()):
-            print key, value['item_id'], value['price_id'], value['cat_id'], value['seat']
-            ticket_id = key
-            cat_id = value['cat_id']
-            item_id = value['item_id']
-            price_id = value['price_id']
-            seat = value['seat']
 
-            if seat == 0:
-                art = 2
-            else:
-                art = 1
+            #Iterate over unnumbered seat list + i
 
-            sql = "insert into btms_tickets(tid, ticket_id, event_id, date, time, item_id, " \
-                                  "cat_id, art, price_id, seat, status, user) " \
-                                  "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                                  (transaction_id, ticket_id, event_id, event_date,
-                                    event_time, item_id, cat_id, art, price_id,
-                                    seat, status, user_id)
+            for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
 
-            self.db.runOperation(sql)
+                try:
+                    amount = self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+                    cat_id = self.item_list[edt_id][item_id]['cat_id']
+                    i = 0
+                    try:
+                        single_seat_list[cat_id]
+                    except KeyError:
+                        single_seat_list[cat_id] = {}
 
 
-        #print opt, event_id, event_date, event_time, transaction_id, seat_trans_list, status, \
-            #account, total_bill_price, back_price, given_price, user_id
+
+                    for j in range(0,amount):
+                        single_seat_list[cat_id][i] = {}
+                        single_seat_list[cat_id][i][item_id] = 0
+                        i = i + 1
+                except KeyError:
+                    pass
 
 
-        result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
 
-        r = createPdfTicket(self, result)
 
-        returnValue(r)
+
+            #distr prices over categorie seats
+            ticket_list = {}
+            t = 0
+            for cat_id, price_amount_list in sorted(itm_cat_amount_list.iteritems()):
+                i = 0
+                for price_id, amount in price_amount_list.iteritems():
+                    for j in range(0,amount):
+
+                        value = single_seat_list[int(cat_id)][i]
+                        item_id = value.items()[0][0]
+                        seat = value.items()[0][1]
+                        ticket_list[t] = {}
+                        ticket_list[t]['cat_id'] = cat_id
+                        ticket_list[t]['item_id'] = item_id
+                        ticket_list[t]['price_id'] = price_id
+                        ticket_list[t]['seat'] = seat
+
+                        i = i + 1
+                        t =  t + 1
+
+
+            #print 'index', ticket_list
+            for key, value in sorted(ticket_list.iteritems()):
+                print key, value['item_id'], value['price_id'], value['cat_id'], value['seat']
+                ticket_id = key
+                cat_id = value['cat_id']
+                item_id = value['item_id']
+                price_id = value['price_id']
+                seat = value['seat']
+
+                if seat == 0:
+                    art = 2
+                else:
+                    art = 1
+
+                sql = "insert into btms_tickets(tid, ticket_id, event_id, date, time, item_id, " \
+                                      "cat_id, art, price_id, seat, status, user) " \
+                                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                                      (transaction_id, ticket_id, event_id, event_date,
+                                        event_time, item_id, cat_id, art, price_id,
+                                        seat, status, user_id)
+
+                self.db.runOperation(sql)
+        finally:
+
+            #print opt, event_id, event_date, event_time, transaction_id, seat_trans_list, status, \
+                #account, total_bill_price, back_price, given_price, user_id
+
+            try:
+                event_result = yield self.db.runQuery("SELECT id, title, description, admission FROM btms_events WHERE id = '"+str(event_id)+"' ")
+                categories_result = yield self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
+                prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
+                venue_result = yield  self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
+                tickets_result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
+
+            finally:
+                r = createPdfTicket(self, transaction_id, tickets_result,event_result, categories_result, prices_result, venue_result, user_id)
+
+                returnValue(r)
+
+    @wamp.register(u'io.crossbar.btms.ticket.reprint')
+    @inlineCallbacks
+    def reprintTicket(self, event_id, venue_id, transaction_id, user_id):
+        try:
+            event_result = yield self.db.runQuery("SELECT id, title, description, admission FROM btms_events WHERE id = '"+str(event_id)+"' ")
+            categories_result = yield self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
+            prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
+            venue_result = yield  self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
+            tickets_result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
+
+        finally:
+            r = createPdfTicket(self, transaction_id, tickets_result,event_result, categories_result, prices_result, venue_result, user_id)
+
+            returnValue(r)
 
 
     @inlineCallbacks
