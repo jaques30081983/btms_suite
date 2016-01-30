@@ -37,6 +37,7 @@ from kivy.uix.progressbar import ProgressBar
 from functools import partial
 import hashlib
 import datetime as dt
+import json
 
 
 class BtmsWampComponentAuth(ApplicationSession):
@@ -134,6 +135,8 @@ class BtmsRoot(BoxLayout):
         self.session = session
         self.ids.sm.current = 'work1'
         self.reprint_ticket_status = False
+        self.retrive_status = False
+        #TODO Call reset function
        #self.ids.kv_user_list.clear_widgets(children=None)
 
         results = yield self.session.call(u'io.crossbar.btms.users.get')
@@ -469,10 +472,16 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
+    @inlineCallbacks
+    def get_transaction_id(self, *args):
+        self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time)
+        print 'TID:', self.transaction_id
 
 
-
+    @inlineCallbacks
     def switch_item(self, com, cols, rows, item_id, cat_id, seats, title, *args):
+        if self.transaction_id == 0:
+            self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time)
         self.block_item(item_id, com)
         self.ids.sale_item_list_box2.clear_widgets(children=None)
         if com == 0:
@@ -558,7 +567,7 @@ class BtmsRoot(BoxLayout):
                 itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
 
-            #Free Seats
+            #Unnumbered Seats
             try:
 
                 itm['venue_itm_label_' + str(key)].text = str(value['amount'])
@@ -680,20 +689,19 @@ class BtmsRoot(BoxLayout):
                 itm['venue_item_user'+str(item_id)].text = ''
 
     def select_seats(self,seat_select_list, cat_id, *args):
+        self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, self.transaction_id, self.user_id)
 
-        self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, self.user_id)
-
-    def on_select_seats(self,edt_id, seat_select_list, cat_id, user_id):
-        print 'on_select_seats',edt_id, seat_select_list, user_id
+    def on_select_seats(self,edt_id, seat_select_list, cat_id, tid, user_id):
+        print 'on_select_seats',edt_id, seat_select_list, tid, user_id
 
         if edt_id == self.eventdatetime_id:
-            if user_id == self.user_id:
+            if tid == self.transaction_id:
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
                         print item_id, seat, status
 
-                        if status == 1:
-                            status = 3
+                        if status == 1: #reserverd
+                            status = 3 #local selected
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                         self.seat_list[str(item_id)][int(seat)] = status
@@ -707,6 +715,7 @@ class BtmsRoot(BoxLayout):
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
 
     def set_unnumbered_seats(self, item_id, amount):
+
         self.session.call(u'io.crossbar.btms.unnumbered_seats.set', self.eventdatetime_id, self.transaction_id, item_id, amount)
 
 
@@ -720,31 +729,27 @@ class BtmsRoot(BoxLayout):
         self.ids.number_display_box.text = result
         print result
 
-    @inlineCallbacks
-    def get_transaction_id(self, *args):
-        self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,)
+    def disable_buttons(self, boolean):
+        #Disable Event, Date, Time Selection
+        self.ids.event_btn.disabled = boolean
+        self.ids.event_date_btn.disabled = boolean
+        self.ids.event_time.disabled = boolean
 
+        self.ids.kv_ret_button.disabled = boolean
+        self.ids.kv_journal_button.disabled = boolean
+        self.ids.kv_bon_button.disabled = boolean
+        self.ids.kv_release_res_button.disabled = boolean
+        self.ids.kv_release_con_button.disabled = boolean
+        self.ids.kv_user_button.disabled = boolean
+        self.ids.kv_dashboard_button.disabled = boolean
 
 
     @inlineCallbacks
     def update_bill(self, item_id, cat_id, price_id, art, *args):
 
+        self.disable_buttons(True)
 
-        try:
-            if self.transaction_id == 0:
-                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,)
-
-                #Disable Event, Date, Time Selection
-                self.ids.event_btn.disabled = True
-                self.ids.event_date_btn.disabled = True
-                self.ids.event_time.disabled = True
-                self.ids.res_number_display_box.text = ''
-        except Exception as err:
-            print "Error", err
-
-        print self.transaction_id
-
-
+        self.ids.res_number_display_box.text = ''
 
         print'update_bill:', item_id, cat_id, art
         #self.ids.kv_total_button.text = '0' + unichr(8364)
@@ -825,6 +830,10 @@ class BtmsRoot(BoxLayout):
 
 
         elif art == 2:
+            if self.transaction_id == 0:
+                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time)
+
+
             price_id = self.itm_cat_first_price[cat_id]
             if self.ids.number_display_box.text == '':
                 try:
@@ -927,6 +936,143 @@ class BtmsRoot(BoxLayout):
             self.ids.kv_card_button.text = 'CARD'
         Clock.schedule_once(my_callback, 2)
 
+    @inlineCallbacks
+    def reserve(self):
+        #Collect Data
+        seat_trans_list = {}
+        for item_id, seats in self.seat_list.items():
+            for seat, status1 in seats.items():
+                if status1 == 3:
+                    try:
+                        seat_trans_list[str(item_id)]
+                    except KeyError:
+                        seat_trans_list[str(item_id)] = {}
+                    seat_trans_list[str(item_id)][str(seat)] = 1
+
+
+        itm_cat_amount_list = {}
+        for cat_id, value in self.itm_cat_price_amount.iteritems():
+            itm_cat_amount_list[str(cat_id)] = {}
+            for price_id, value1 in value.iteritems():
+                if value1['amount'] == 0:
+                    pass
+                else:
+                    itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
+        try:
+            results = yield self.session.call(u'io.crossbar.btms.reserve', self.retrive_status,
+                                              self.event_id, self.event_date, self.event_time,
+                                              self.transaction_id, seat_trans_list, itm_cat_amount_list,
+                                              self.user_id)
+            self.ids.res_number_display_box.text = str(results)
+
+        except Exception as err:
+            print "Error", err
+
+        finally:
+            self.reset_transaction()
+
+    @inlineCallbacks
+    def retrieve(self):
+        self.ids.item_screen_manager.current = 'first_item_screen'
+        transaction_id_part = self.ids.number_display_box.text
+        self.retrive_status = True
+
+        result = yield self.session.call(u'io.crossbar.btms.retrieve',self.eventdatetime_id, transaction_id_part)
+
+        if result == True:
+            print 'TID is True but no Transaction'
+            self.ids.res_number_display_box.text = 'No Reserve'
+            self.ids.number_display_box.text = ''
+        elif result == False:
+            print 'TID is False'
+            self.ids.res_number_display_box.text = 'No. Wrong'
+            self.ids.number_display_box.text = ''
+        else:
+            print 'verifyed and a Transaction', result
+            self.ids.number_display_box.text = ''
+            self.disable_buttons(True)
+
+            for row in result:
+
+                self.transaction_id = row['tid']
+                #Numbered Seats
+
+                json_string = row['seats'].replace(';',':')
+                json_string = json_string.replace('\\','')
+                json_string = '[' + json_string + ']'
+                item_seats = json.loads(json_string)
+
+
+                try:
+                    item_seats[0]
+                except IndexError:
+                    item_seats = None
+
+                if item_seats == None:
+                    pass
+                else:
+
+                    for item_id, seat_list in item_seats[0].iteritems():
+                        for seat, status in seat_list.iteritems():
+                            self.seat_list[str(item_id)][int(seat)] = 3
+                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+
+                #Data for unnumbered Seats and Prices
+                json_string = row['amount'].replace(';',':')
+                json_string = json_string.replace('\\','')
+                json_string = '[' + json_string + ']'
+                item_amount = json.loads(json_string)
+
+                #Unnumbered Seats
+                if row['art'] == 2:
+
+                    item_id = row['item_id']
+                    try:
+                        item_amount[0]
+                    except IndexError:
+                        item_amount = None
+
+                    if item_amount == None:
+                        pass
+                    else:
+                        amount = 0
+                        for key, value in item_amount[0].iteritems():
+                            amount = amount + value
+                        itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
+                        self.itm_price_amount[int(row['cat_id'])][int(item_id)] = amount
+
+
+                #Prices and Amount
+                try:
+                    item_amount[0]
+                except IndexError:
+                    item_amount = None
+
+                if item_amount == None:
+                    pass
+                else:
+                    amount = 0
+                    for price_id, amount in item_amount[0].iteritems():
+                        self.itm_cat_price_amount[row['cat_id']][int(price_id)]['amount'] = amount
+                        self.itm_cat_price_amount[row['cat_id']][int(price_id)]['button'].text = str(amount)
+
+                    #Compute Total Price of Categorie
+                    total_cat_price = 0
+                    for key, value in self.itm_cat_price_amount[row['cat_id']].iteritems():
+                        summ = value['amount'] * float(self.itm_cat_price_amount[row['cat_id']][key]['price'])
+                        total_cat_price = total_cat_price + summ
+
+                    self.itm_price[row['cat_id']]['tbutton'].text = str(total_cat_price) + unichr(8364)
+                    self.total_cat_price_list[row['cat_id']] = total_cat_price
+
+                #Iterate over all Categories
+                self.total_bill_price = 0
+                for key, value in self.total_cat_price_list.iteritems():
+                    print 'total', key, value
+                    self.total_bill_price = self.total_bill_price + value
+
+                self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
+
 
     @inlineCallbacks
     def transact(self, opt, *args):
@@ -937,9 +1083,6 @@ class BtmsRoot(BoxLayout):
         elif opt == 'card':
             account = 1200 #SKR03
             status = 2
-        elif opt == 'reserve':
-            account = 0
-            status = 1
 
         #Collect Data
         seat_trans_list = {}
@@ -964,13 +1107,13 @@ class BtmsRoot(BoxLayout):
 
 
         try:
-            results = yield self.session.call(u'io.crossbar.btms.transact',
+            results = yield self.session.call(u'io.crossbar.btms.transact', self.retrive_status,
                                               self.venue_id, self.event_id, self.event_date, self.event_time,
                                               self.transaction_id, seat_trans_list, itm_cat_amount_list, status, account,
                                               str(self.total_bill_price), str(self.back_price),str(self.given_price),
                                               self.user_id)
 
-            self.ids.number_display_box.text = results
+            #self.ids.number_display_box.text = results
 
         except Exception as err:
             print "Error", err
@@ -996,8 +1139,16 @@ class BtmsRoot(BoxLayout):
         self.ids.event_date_btn.disabled = False
         self.ids.event_time.disabled = False
 
-        self.transaction_id = 0
+        self.ids.kv_ret_button.disabled = False
+        self.ids.kv_journal_button.disabled = False
+        self.ids.kv_bon_button.disabled = False
+        self.ids.kv_release_res_button.disabled = False
+        self.ids.kv_release_con_button.disabled = False
+        self.ids.kv_user_button.disabled = False
+        self.ids.kv_dashboard_button.disabled = False
 
+        self.transaction_id = 0
+        self.retrive_status = False
 
         self.total_cat_price_list = {}
 
@@ -1022,7 +1173,6 @@ class BtmsRoot(BoxLayout):
         try:
             results = yield self.session.call(u'io.crossbar.btms.ticket.print', self.ticket_printer, transaction_id, self.user)
 
-            print results
             self.get_printer_status(results)
 
         except Exception as err:
@@ -1128,7 +1278,10 @@ class BtmsRoot(BoxLayout):
                         self.reprint_ticket_status = False
                     elif status == 6:
                         self.ids.kv_printer_button.text = str(r_job) + ' JOB_STOPPED'
-                        self.reprint_ticket_status = False
+                        #TODO kill old Job, STOP cause error in File
+                        self.reprint_ticket_status = True
+                        Clock.unschedule(get_status)
+                        Clock.schedule_once(reset_pbar, 5)
                     elif status == 7:
                         self.ids.kv_printer_button.text = str(r_job) + ' JOB_CANCELED, reprint ?'
                         self.reprint_ticket_status = True
