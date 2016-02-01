@@ -100,7 +100,7 @@ class BtmsRoot(BoxLayout):
     The Root widget, defined in conjunction with the rule in btms.kv.
     """
     global seat_stat_img
-    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_01.png','images/bet_sitz_30px_05.png')
+    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_05.png')
 
 
     def start_wamp_component_auth(self, server_url, user, password):
@@ -987,13 +987,17 @@ class BtmsRoot(BoxLayout):
 
         result = yield self.session.call(u'io.crossbar.btms.retrieve',self.eventdatetime_id, transaction_id_part)
 
-        if result == True:
+        if result == 1:
             print 'TID is True but no Transaction'
             self.ids.res_number_display_box.text = 'No Reserve'
             self.ids.number_display_box.text = ''
-        elif result == False:
+        elif result == 0:
             print 'TID is False'
             self.ids.res_number_display_box.text = 'No. Wrong'
+            self.ids.number_display_box.text = ''
+        elif result == 2:
+            print 'Already opened'
+            self.ids.res_number_display_box.text = 'Yet opened'
             self.ids.number_display_box.text = ''
         else:
             print 'verifyed and a Transaction', result
@@ -1085,12 +1089,84 @@ class BtmsRoot(BoxLayout):
         if cmd == 0:
             popup_layout1 = FloatLayout(size_hint=[1, 1])
             popup = Popup(title='Release Reservation', content=popup_layout1, size_hint=(.5, .4))
-            popup_layout1.add_widget(Label(text='Do you want to release the reservation \nof event ' + str(event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .2}, size_hint=[1, .8]))
+            popup_layout1.add_widget(Label(text='Do you want to release the reservation \nof event ' + str(self.event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .2}, size_hint=[1, .8]))
             popup_layout1.add_widget(Button(text='Yes',pos_hint={'x': .0, 'y': .0}, size_hint=[.5, .2],on_press=partial(self.release_reservation, 1), on_release=popup.dismiss))
             popup_layout1.add_widget(Button(text='No',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
             popup.open()
         elif cmd == 1:
             self.session.call(u'io.crossbar.btms.reservation.release', self.event_id, self.event_date, self.event_time)
+
+    @inlineCallbacks
+    def release_contingent(self, cmd, conti_id, *args):
+        if cmd == 0:
+            result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0)
+
+            popup_layout1 = FloatLayout(size_hint=[1, 1])
+            popup = Popup(title='Release Contingent', content=popup_layout1, size_hint=(.5, .4))
+            popup_layout1.add_widget(Label(text='Choose the Contingent wich you want to release \nof event ' + str(self.event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .8}, size_hint=[1, .2]))
+            popup_layout2 = GridLayout(pos_hint={'x': .0, 'y': .23}, size_hint=[1, .55], cols=3)
+
+            for row in result:
+                popup_layout2.add_widget(Button(text=row['title'], on_press=partial(self.release_contingent, 1, row['id']), on_release=popup.dismiss))
+
+            popup_layout1.add_widget(popup_layout2)
+            #popup_layout1.add_widget(Button(text='Yes',pos_hint={'x': .0, 'y': .0}, size_hint=[.5, .2],on_press=partial(self.release_contingent, 1), on_release=popup.dismiss))
+            popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': 0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+            popup.open()
+        elif cmd == 1:
+
+            result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id)
+            self.transaction_id = 'conti_'+str(conti_id)
+            for row in result:
+
+                #Numbered Seats
+
+                json_string = row['seats'].replace(';',':')
+                json_string = json_string.replace('\\','')
+                json_string = '[' + json_string + ']'
+                item_seats = json.loads(json_string)
+
+
+                try:
+                    item_seats[0]
+                except IndexError:
+                    item_seats = None
+
+                if item_seats == None:
+                    pass
+                else:
+
+                    for item_id, seat_list in item_seats[0].iteritems():
+                        for seat, status in seat_list.iteritems():
+                            self.seat_list[str(item_id)][int(seat)] = 3
+                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+
+                #Data for unnumbered Seats and Prices
+                json_string = row['amount'].replace(';',':')
+                json_string = json_string.replace('\\','')
+                json_string = '[' + json_string + ']'
+                item_amount = json.loads(json_string)
+
+                #Unnumbered Seats
+                if row['art'] == 2:
+
+                    item_id = row['item_id']
+                    try:
+                        item_amount[0]
+                    except IndexError:
+                        item_amount = None
+
+                    if item_amount == None:
+                        pass
+                    else:
+                        amount = 0
+                        for key, value in item_amount[0].iteritems():
+                            amount = amount + value
+                        itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
+                        self.itm_price_amount[int(row['cat_id'])][int(item_id)] = amount
+
+        elif cmd == 2:
+            self.session.call(u'io.crossbar.btms.contingent.release', self.event_id, self.event_date, self.event_time, conti_id, self.user_id)
 
 
     @inlineCallbacks

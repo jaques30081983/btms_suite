@@ -229,7 +229,7 @@ class BtmsBackend(ApplicationSession):
                 print "Error", err
 
             finally:
-
+                #Get Transactions
                 try:
 
                     result_transactions = yield self.db.runQuery("SELECT tid, item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE event_id = '"+str(event_id)+"' AND date = '"+date+"' AND time = '"+time+"'")
@@ -294,12 +294,76 @@ class BtmsBackend(ApplicationSession):
                 except Exception as err:
                     print "Error", err
                 finally:
-                    pass
-                    #print self.item_list
-                    #test = 'test123'
-                    #returnValue(test)
+                    try:
+                        #Get Contingents
+                        result_contingents = yield self.db.runQuery("SELECT id, item_id, cat_id, art, amount, seats, status, user_id FROM btms_contingents WHERE event_id = '"+str(event_id)+"' AND date_day = '"+date+"' AND time = '"+time+"'")
+                        print result_contingents
+                        for row in result_contingents:
+                            #Numbered Seats
 
-                    returnValue(self.item_list[eventdatetime_id])
+                            json_string = row['seats'].replace(';',':')
+                            json_string = json_string.replace('\\','')
+
+                            json_string = '[' + json_string + ']'
+
+
+                            item_ov = json.loads(json_string)
+
+
+                            try:
+                                item_ov[0]
+                            except IndexError:
+                                item_ov = None
+
+                            if item_ov == None:
+                                pass
+                            else:
+
+                                for block, seat_list in item_ov[0].iteritems():
+
+                                    for seat, status in seat_list.iteritems():
+
+                                        self.item_list[eventdatetime_id][block]['seats'][seat] = 4
+                                        self.item_list[eventdatetime_id][block]['seats_user'][seat] = row['user_id']
+                                        self.item_list[eventdatetime_id][block]['seats_tid'][seat] = 'conti_'+str(row['id'])
+
+                            #Unnumbered Seats
+                            if row['art'] == 2:
+                                json_string = row['amount'].replace(';',':')
+                                json_string = json_string.replace('\\','')
+                                json_string = '[' + json_string + ']'
+
+
+                                item_ov = json.loads(json_string)
+
+
+                                try:
+                                    item_ov[0]
+                                except IndexError:
+                                    item_ov = None
+
+                                if item_ov == None:
+                                    pass
+                                else:
+                                    amount = 0
+                                    for key, value in item_ov[0].iteritems():
+                                        #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
+                                        self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount']['conti_'+str(row['id'])] = value
+                                        amount = amount + value
+                                    print 'amount', amount
+
+                                self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
+                                print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
+
+                    except Exception as err:
+                        print "Error", err
+                    finally:
+                        pass
+                        #print self.item_list
+                        #test = 'test123'
+                        #returnValue(test)
+
+                        returnValue(self.item_list[eventdatetime_id])
 
 
     @wamp.register(u'io.crossbar.btms.item.block')
@@ -572,26 +636,33 @@ class BtmsBackend(ApplicationSession):
         transaction_id = filter(str.isalnum, str(transaction_id))
         verify_result = verify(transaction_id)
 
+        try:
+            self.busy_transactions
+        except AttributeError:
+            self.busy_transactions = []
+
         if verify_result == True:
-            try:
-
-                result = yield self.db.runQuery("SELECT tid, item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE tid = '"+str(transaction_id)+"' ")
-
-            except Exception as err:
-                print "Error", err
-
-            if result == ():
-                returnValue(True)
+            for transaction_id in self.busy_transactions:
+                print'is in list', transaction_id
+                returnValue(2)
             else:
+                print 'not in list', transaction_id
                 try:
-                    self.busy_transactions
-                except AttributeError:
-                    self.busy_transactions = []
-                self.busy_transactions.append(transaction_id)
 
-                returnValue(result)
+                    result = yield self.db.runQuery("SELECT tid, item_id, cat_id, art, amount, seats, status, user FROM btms_transactions WHERE tid = '"+str(transaction_id)+"' ")
+
+                except Exception as err:
+                    print "Error", err
+
+                if result == ():
+                    returnValue(1)
+                else:
+
+                    self.busy_transactions.append(transaction_id)
+
+                    returnValue(result)
         else:
-            returnValue(False)
+            returnValue(0)
 
 
 
@@ -824,7 +895,7 @@ class BtmsBackend(ApplicationSession):
 
 
         try:
-            result = yield self.db.runQuery("SELECT tid, item_id, art FROM btms_transactions WHERE "
+            result = yield self.db.runQuery("SELECT id, tid, item_id, art FROM btms_transactions WHERE "
                                             "event_id = '"+str(event_id)+"' AND date = '"+str(event_date)+"' AND "
                                             "time = '"+str(event_time)+"' AND status = '"+str(1)+"'")
             new_seat_select_list = {}
@@ -857,7 +928,9 @@ class BtmsBackend(ApplicationSession):
                         print 'rowart', row['art'], row['item_id'], row['tid']
                         self.unnumbered_seat_list[edt_id][str(row['item_id'])]['tid_amount'][str(row['tid'])] = 0
 
-                    #TODO delete from db with status 1 and not busy
+                    #Delete from db with status 1 and not busy
+                    sql = "DELETE FROM btms_transactions WHERE id = '"+str(row['id'])+"'"
+                    self.db.runOperation(sql)
 
 
         except Exception as err:
@@ -879,6 +952,34 @@ class BtmsBackend(ApplicationSession):
                 self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
 
 
+    @wamp.register(u'io.crossbar.btms.contingents.get')
+    @inlineCallbacks
+    def getContingents(self,cmd, conti_id):
+        if cmd == 0:
+            try:
+                #TODO WHERE event_id and time
+                result = yield self.db.runQuery("SELECT id, title FROM btms_contingents WHERE ref = '0' ORDER by id")
+            except Exception as err:
+                print "Error", err
+            finally:
+                returnValue(result)
+        elif cmd == 1:
+            try:
+                result = yield self.db.runQuery("SELECT item_id, cat_id, art, amount, seats FROM btms_contingents WHERE ref = '"+str(conti_id)+"' ORDER by id")
+            except Exception as err:
+                print "Error", err
+            finally:
+                returnValue(result)
+
+    @wamp.register(u'io.crossbar.btms.contingent.select')
+    @inlineCallbacks
+    def releaseContingent(self, event_id, event_date, event_time, conti_id, user_id):
+        pass
+
+    @wamp.register(u'io.crossbar.btms.contingent.release')
+    @inlineCallbacks
+    def selectContingent(self, event_id, event_date, event_time, conti_id, user_id):
+        pass
 
 
     @inlineCallbacks
