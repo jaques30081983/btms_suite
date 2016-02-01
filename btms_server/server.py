@@ -158,6 +158,12 @@ class BtmsBackend(ApplicationSession):
 
         transaction_id = str(transaction_id)+luhn
 
+        try:
+            self.busy_transactions
+        except AttributeError:
+            self.busy_transactions = []
+        self.busy_transactions.append(transaction_id)
+
         returnValue(transaction_id)
 
 
@@ -360,12 +366,12 @@ class BtmsBackend(ApplicationSession):
         for key, value in self.unnumbered_seat_list[edt_id][str(item_id)]['tid_amount'].iteritems():
             amount1 = amount1 + value
 
-        amount1 = self.unnumbered_seat_list[edt_id][str(item_id)]['amount'] - amount1
+        amount2 = self.unnumbered_seat_list[edt_id][str(item_id)]['amount'] - amount1
 
-        self.item_list[edt_id][str(item_id)]['amount'] = amount1
+        self.item_list[edt_id][str(item_id)]['amount'] = amount2 #Set for Init
         print amount1
 
-        self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount1)
+        self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
 
 
     @wamp.register(u'io.crossbar.btms.bill.add')
@@ -489,29 +495,40 @@ class BtmsBackend(ApplicationSession):
             for item_id, seat_list in seat_trans_list.iteritems():
                 pass
 
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, 0)
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, None, 0)
 
             cat_id = self.item_list[edt_id][item_id]['cat_id']
             amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
             art = '1'
             seats = json.dumps(seat_trans_list, separators=(',',';'))
-            if retrive_status == False:
-                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                          "cat_id, art, amount, seats, status, user) " \
-                          "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                          (transaction_id, event_id, event_date,
-                            event_time, item_id, cat_id, art, amount,
-                            seats, status, user_id)
+            #if retrive_status == False:
+            '''
+            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                      "cat_id, art, amount, seats, status, user) " \
+                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                      (transaction_id, event_id, event_date,
+                        event_time, item_id, cat_id, art, amount,
+                        seats, status, user_id)
 
-                self.db.runOperation(sql)
-            elif retrive_status == True:
-                sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
-                      " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
-                      "btms_transactions.cat_id='%s'" % (amount, seats, user_id, transaction_id, cat_id)
-                self.db.runOperation(sql)
+            self.db.runOperation(sql)
+            '''
+
+            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                    "cat_id, art, amount, seats, status, user) " \
+                    "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                    "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                    "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
+
+            self.db.runOperation(sql)
+
+            #elif retrive_status == True:
+                #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                 #     " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
+                  #    "btms_transactions.cat_id='%s'" % (amount, seats, user_id, transaction_id, cat_id)
+                #self.db.runOperation(sql)
 
 
-        #Get unnumbered seats and insert in db
+        #Insert or Update unnumbered seats and insert in db
 
         for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
             try:
@@ -522,23 +539,27 @@ class BtmsBackend(ApplicationSession):
                 amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
                 art = '2'
                 seats = '{}'
-                if retrive_status == False:
-                    sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                          "cat_id, art, amount, seats, status, user) " \
-                          "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                          (transaction_id, event_id, event_date,
-                            event_time, item_id, cat_id, art, amount,
-                            seats, status, user_id)
+                #if retrive_status == False:
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                      "cat_id, art, amount, seats, status, user) " \
+                      "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                       "'"+str(item_id)+"','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                      "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
 
-                    self.db.runOperation(sql)
-                elif retrive_status == True:
-                    sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
-                      " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
-                      "btms_transactions.item_id='%s'" % (amount, seats, user_id, transaction_id, item_id)
-                    self.db.runOperation(sql)
+                self.db.runOperation(sql)
+                #elif retrive_status == True:
+                    #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                    #  " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
+                    #  "btms_transactions.item_id='%s'" % (amount, seats, user_id, transaction_id, item_id)
+                    #self.db.runOperation(sql)
 
             except KeyError:
                 pass
+
+        try:
+            self.busy_transactions.remove(transaction_id)
+        except ValueError:
+            print 'Transaction Id not in busy list.'
         transaction_id_part = transaction_id[-5:]
         return transaction_id_part
 
@@ -562,6 +583,12 @@ class BtmsBackend(ApplicationSession):
             if result == ():
                 returnValue(True)
             else:
+                try:
+                    self.busy_transactions
+                except AttributeError:
+                    self.busy_transactions = []
+                self.busy_transactions.append(transaction_id)
+
                 returnValue(result)
         else:
             returnValue(False)
@@ -597,6 +624,7 @@ class BtmsBackend(ApplicationSession):
             amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
             art = '1'
             seats = json.dumps(seat_trans_list, separators=(',',';'))
+            '''
             if retrive_status == False:
                 sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
                           "cat_id, art, amount, seats, status, user) " \
@@ -611,8 +639,13 @@ class BtmsBackend(ApplicationSession):
                           " btms_transactions.status='%s', btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
                           "btms_transactions.cat_id='%s'" % (amount, seats, '2', user_id, transaction_id, cat_id)
                     self.db.runOperation(sql)
-
-
+            '''
+            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                "cat_id, art, amount, seats, status, user) " \
+                "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"', status='2' "
+            self.db.runOperation(sql)
         #Get unnumbered seats and insert in db
 
         for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
@@ -624,6 +657,7 @@ class BtmsBackend(ApplicationSession):
                 amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
                 art = '2'
                 seats = '{}'
+                '''
                 if retrive_status == False:
                     sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
                           "cat_id, art, amount, seats, status, user) " \
@@ -638,7 +672,13 @@ class BtmsBackend(ApplicationSession):
                           " btms_transactions.status='%s', btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
                           "btms_transactions.item_id='%s'" % (amount, seats, '2', user_id, transaction_id, item_id)
                     self.db.runOperation(sql)
-
+                '''
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                    "cat_id, art, amount, seats, status, user) " \
+                    "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                    "'"+str(item_id)+"','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                    "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"', status='2' "
+                self.db.runOperation(sql)
 
             except KeyError:
                 pass
@@ -749,6 +789,11 @@ class BtmsBackend(ApplicationSession):
             finally:
                 r = createPdfTicket(self, transaction_id, tickets_result,event_result, categories_result, prices_result, venue_result, user_id)
 
+                try:
+                    self.busy_transactions.remove(transaction_id)
+                except ValueError:
+                    print 'Transaction Id not in busy list.'
+
                 returnValue(r)
 
     @wamp.register(u'io.crossbar.btms.ticket.reprint')
@@ -765,6 +810,75 @@ class BtmsBackend(ApplicationSession):
             r = createPdfTicket(self, transaction_id, tickets_result,event_result, categories_result, prices_result, venue_result, user_id)
 
             returnValue(r)
+
+    @wamp.register(u'io.crossbar.btms.reservation.release')
+    @inlineCallbacks
+    def releaseReservation(self, event_id, event_date, event_time):
+        edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
+        try:
+            self.busy_transactions
+        except AttributeError:
+            self.busy_transactions = []
+
+        print self.busy_transactions, event_id, event_date, event_time
+
+
+        try:
+            result = yield self.db.runQuery("SELECT tid, item_id, art FROM btms_transactions WHERE "
+                                            "event_id = '"+str(event_id)+"' AND date = '"+str(event_date)+"' AND "
+                                            "time = '"+str(event_time)+"' AND status = '"+str(1)+"'")
+            new_seat_select_list = {}
+            for row in result:
+
+                if row['tid'] in self.busy_transactions:
+                    print'is in list', row['tid']
+                else:
+                    print 'not in list', row['tid']
+                    #Numbered Seats
+                    for item_id, value in self.item_list[edt_id].iteritems():
+
+                        for seat, tid in value['seats_tid'].iteritems(): #items
+
+                            if row['tid'] == tid:
+
+                                try:
+                                    new_seat_select_list[item_id]
+                                except KeyError:
+                                    new_seat_select_list[item_id] = {}
+                                if self.item_list[edt_id][item_id]['seats'][seat] == 1:
+                                    new_seat_select_list[item_id][seat] = 0
+
+                                    self.item_list[edt_id][item_id]['seats'][seat] = 0
+                                    self.item_list[edt_id][item_id]['seats_user'][seat] = 0
+                                    self.item_list[edt_id][item_id]['seats_tid'][seat] = 0
+
+                    #Unnumbered Seats
+                    if row['art'] == 2:
+                        print 'rowart', row['art'], row['item_id'], row['tid']
+                        self.unnumbered_seat_list[edt_id][str(row['item_id'])]['tid_amount'][str(row['tid'])] = 0
+
+                    #TODO delete from db with status 1 and not busy
+
+
+        except Exception as err:
+            print "Error", err
+        finally:
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, 0, None, 0)
+            #Puplish Unnumbered Seats
+            for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
+                amount1 = 0
+                for key1, value1 in value['tid_amount'].iteritems():
+                    amount1 = amount1 + value1
+                    print key1, value1
+
+                amount2 = self.unnumbered_seat_list[edt_id][str(item_id)]['amount'] - amount1
+
+                self.item_list[edt_id][str(item_id)]['amount'] = amount2
+                print amount1, amount2
+
+                self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
+
+
 
 
     @inlineCallbacks
