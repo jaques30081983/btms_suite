@@ -645,15 +645,15 @@
 				
 		#Status
 			Button:
-				id: kv_release_res_button
-				text: "Rel. Reserv."
-				on_release: root.release_reservation(0)
+				id: kv_reservation_button
+				text: "Reservation"
+				on_release: root.reservation(0)
 				pos_hint: {'x': .0, 'y': .0}
 				size_hint: .165, .05
 
 			ToggleButton:
 				id: kv_release_con_button
-				text: "Rel. Conti."
+				text: "Contingent"
 				on_release: root.release_contingent(0,0)
 
 				pos_hint: {'x': .175, 'y': .0}

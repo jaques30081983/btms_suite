@@ -127,25 +127,35 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.transaction_id.get')
     @inlineCallbacks
-    def getTransactionId(self,event_id,event_date,event_time,*args):
+    def getTransactionId(self,event_id,event_date,event_time,reservation_art,*args):
         #Check if a counter for EventDateTime exists
-        result_venues = yield self.db.runQuery("SELECT * FROM btms_counter WHERE event_id = '"+str(event_id)+"' AND"
-                                               " date = '"+str(event_date)+"' AND time = '"+str(event_time)+"'")
+        counter_amount = 0
+        try:
+            result_venues = yield self.db.runQuery("SELECT * FROM btms_counter WHERE event_id = '"+str(event_id)+"' AND date = '"+str(event_date)+"' AND time = '"+str(event_time)+"' AND art ='"+str(reservation_art)+"'")
+        except Exception as err:
+                print "Error", err
+
+        print 'tid res', result_venues
         for row in result_venues:
             #print row
             counter_id = row['id']
             counter_amount = row['amount']
 
-        #Update counter if exists or create new counter
-        try:
             counter_amount = counter_amount + 1
             sql = "UPDATE btms_counter SET btms_counter.amount='%s' WHERE btms_counter.id='%s'" % (counter_amount, counter_id)
             d = self.db.runOperation(sql)
             print 'updated'
-        except NameError:
-            print 'not exists'
-            counter_amount = 1000
-            sql = "insert into btms_counter(event_id, date, time, amount ) values('%s','%s','%s','%s')" % (event_id, event_date, event_time, counter_amount)
+
+        #Update counter if exists or create new counter
+        if counter_amount == 0:
+            if reservation_art == 0:
+                counter_amount = 1000
+            elif reservation_art == 1:
+                counter_amount = 500
+            elif reservation_art == 2:
+                counter_amount = 100
+
+            sql = "insert into btms_counter(event_id, date, time, amount, art ) values('%s','%s','%s','%s','%s')" % (event_id, event_date, event_time, counter_amount, reservation_art)
             d = self.db.runOperation(sql)
 
         #Generate Transaction Id
@@ -153,8 +163,6 @@ class BtmsBackend(ApplicationSession):
         transaction_id = filter(str.isalnum, str(transaction_id))
 
         luhn = generate(transaction_id)
-
-
 
         transaction_id = str(transaction_id)+luhn
 
@@ -546,7 +554,7 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.reserve')
     def reserve(self, retrive_status, event_id, event_date, event_time, transaction_id,
-                 seat_trans_list, itm_cat_amount_list, user_id):
+                 seat_trans_list, itm_cat_amount_list, pre_res_art, user_id):
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
         status = 1
 
@@ -624,7 +632,12 @@ class BtmsBackend(ApplicationSession):
             self.busy_transactions.remove(transaction_id)
         except ValueError:
             print 'Transaction Id not in busy list.'
-        transaction_id_part = transaction_id[-5:]
+        if pre_res_art == 0:
+            transaction_id_part = transaction_id[-5:]
+        elif pre_res_art == 1:
+            transaction_id_part = transaction_id[-4:]
+        elif pre_res_art == 2:
+            transaction_id_part = transaction_id[-4:]
         return transaction_id_part
 
 
@@ -972,12 +985,12 @@ class BtmsBackend(ApplicationSession):
                 returnValue(result)
 
     @wamp.register(u'io.crossbar.btms.contingent.select')
-    @inlineCallbacks
+    #@inlineCallbacks
     def releaseContingent(self, event_id, event_date, event_time, conti_id, user_id):
         pass
 
     @wamp.register(u'io.crossbar.btms.contingent.release')
-    @inlineCallbacks
+    #@inlineCallbacks
     def selectContingent(self, event_id, event_date, event_time, conti_id, user_id):
         pass
 

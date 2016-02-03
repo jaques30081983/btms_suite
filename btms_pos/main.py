@@ -136,6 +136,7 @@ class BtmsRoot(BoxLayout):
         self.ids.sm.current = 'work1'
         self.reprint_ticket_status = False
         self.retrive_status = False
+        self.reservation_art = 0
         #TODO Call reset function
        #self.ids.kv_user_list.clear_widgets(children=None)
 
@@ -474,14 +475,14 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def get_transaction_id(self, *args):
-        self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time)
+        self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
         print 'TID:', self.transaction_id
 
 
     @inlineCallbacks
     def switch_item(self, com, cols, rows, item_id, cat_id, seats, title, *args):
         if self.transaction_id == 0:
-            self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time)
+            self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
         bool = False
         while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
             bool = True
@@ -735,25 +736,58 @@ class BtmsRoot(BoxLayout):
         self.ids.number_display_box.text = result
         print result
 
-    def disable_buttons(self, boolean):
-        #Disable Event, Date, Time Selection
-        self.ids.event_btn.disabled = boolean
-        self.ids.event_date_btn.disabled = boolean
-        self.ids.event_time.disabled = boolean
+    def disable_buttons(self,cmd, boolean):
+        if cmd == 'contingent':
+            self.ids.event_btn.disabled = boolean
+            self.ids.event_date_btn.disabled = boolean
+            self.ids.event_time.disabled = boolean
 
-        self.ids.kv_ret_button.disabled = boolean
-        self.ids.kv_journal_button.disabled = boolean
-        self.ids.kv_bon_button.disabled = boolean
-        self.ids.kv_release_res_button.disabled = boolean
-        self.ids.kv_release_con_button.disabled = boolean
-        self.ids.kv_user_button.disabled = boolean
-        self.ids.kv_dashboard_button.disabled = boolean
+            self.ids.kv_ret_button.disabled = boolean
+            self.ids.kv_journal_button.disabled = boolean
+            self.ids.kv_cash_button.disabled = boolean
+            self.ids.kv_card_button.disabled = boolean
+            self.ids.kv_bon_button.disabled = boolean
+            self.ids.kv_reservation_button.disabled = boolean
+            self.ids.kv_res_button.disabled = boolean
+            #self.ids.kv_release_con_button.disabled = boolean
+            self.ids.kv_user_button.disabled = boolean
+            self.ids.kv_dashboard_button.disabled = boolean
+
+        if cmd == 'reservation':
+            self.ids.event_btn.disabled = boolean
+            self.ids.event_date_btn.disabled = boolean
+            self.ids.event_time.disabled = boolean
+
+            #self.ids.kv_ret_button.disabled = boolean
+            self.ids.kv_journal_button.disabled = boolean
+            self.ids.kv_cash_button.disabled = boolean
+            self.ids.kv_card_button.disabled = boolean
+            self.ids.kv_bon_button.disabled = boolean
+            #self.ids.kv_reservation_button.disabled = boolean
+            #self.ids.kv_res_button.disabled = boolean
+            self.ids.kv_release_con_button.disabled = boolean
+            self.ids.kv_user_button.disabled = boolean
+            self.ids.kv_dashboard_button.disabled = boolean
+
+        else:
+            #Disable Event, Date, Time Selection
+            self.ids.event_btn.disabled = boolean
+            self.ids.event_date_btn.disabled = boolean
+            self.ids.event_time.disabled = boolean
+
+            self.ids.kv_ret_button.disabled = boolean
+            self.ids.kv_journal_button.disabled = boolean
+            self.ids.kv_bon_button.disabled = boolean
+            self.ids.kv_reservation_button.disabled = boolean
+            self.ids.kv_release_con_button.disabled = boolean
+            self.ids.kv_user_button.disabled = boolean
+            self.ids.kv_dashboard_button.disabled = boolean
 
 
     @inlineCallbacks
     def update_bill(self, item_id, cat_id, price_id, art, *args):
 
-        self.disable_buttons(True)
+        self.disable_buttons('update_bill', True)
 
         self.ids.res_number_display_box.text = ''
 
@@ -837,7 +871,7 @@ class BtmsRoot(BoxLayout):
 
         elif art == 2:
             if self.transaction_id == 0:
-                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time)
+                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
             bool = False
             while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
                 bool = True
@@ -970,7 +1004,7 @@ class BtmsRoot(BoxLayout):
             results = yield self.session.call(u'io.crossbar.btms.reserve', self.retrive_status,
                                               self.event_id, self.event_date, self.event_time,
                                               self.transaction_id, seat_trans_list, itm_cat_amount_list,
-                                              self.user_id)
+                                              self.reservation_art, self.user_id)
             self.ids.res_number_display_box.text = str(results)
 
         except Exception as err:
@@ -1002,7 +1036,7 @@ class BtmsRoot(BoxLayout):
         else:
             print 'verifyed and a Transaction', result
             self.ids.number_display_box.text = ''
-            self.disable_buttons(True)
+            self.disable_buttons('retrieve',True)
 
             for row in result:
 
@@ -1085,6 +1119,33 @@ class BtmsRoot(BoxLayout):
 
                 self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
 
+    def reservation(self,cmd, *args):
+        if self.reservation_art == 0:
+            if cmd == 0:
+                popup_layout1 = FloatLayout(size_hint=[1, 1])
+                popup = Popup(title='Reservation', content=popup_layout1, size_hint=(.5, .4))
+                popup_layout1.add_widget(Button(text='Release Reservation',pos_hint={'x': .0, 'y': .7}, size_hint=[1, .2],on_press=partial(self.release_reservation, 0), on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Start Paper Res. Cat I',pos_hint={'x': .0, 'y': .5}, size_hint=[1, .2],on_press=partial(self.reservation, 1), on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Start Paper Res. Cat II&III',pos_hint={'x': 0, 'y': .3}, size_hint=[1, .2],on_press=partial(self.reservation, 2), on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+                popup.open()
+            elif cmd == 1:
+                self.ids.kv_reservation_button.state='down'
+                self.ids.kv_reservation_button.text='Stop Paper Res. C1'
+                self.reservation_art = 1
+                self.disable_buttons('reservation',True)
+            elif cmd == 2:
+                self.ids.kv_reservation_button.state='down'
+                self.ids.kv_reservation_button.text='Stop Paper Res. C2'
+                self.reservation_art = 2
+                self.disable_buttons('reservation',True)
+        else:
+            self.ids.kv_reservation_button.state='normal'
+            self.ids.kv_reservation_button.text='Reservation'
+            self.reservation_art = 0
+            self.disable_buttons('reservation',False)
+
+
     def release_reservation(self,cmd, *args):
         if cmd == 0:
             popup_layout1 = FloatLayout(size_hint=[1, 1])
@@ -1117,6 +1178,7 @@ class BtmsRoot(BoxLayout):
 
             result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id)
             self.transaction_id = 'conti_'+str(conti_id)
+            self.disable_buttons('contingent',True)
             for row in result:
 
                 #Numbered Seats
@@ -1230,17 +1292,18 @@ class BtmsRoot(BoxLayout):
         self.ids.item_screen_manager.current = 'first_item_screen'
         self.block_item(0, 1)
 
-        self.ids.event_btn.disabled = False
-        self.ids.event_date_btn.disabled = False
-        self.ids.event_time.disabled = False
+        #self.ids.event_btn.disabled = False
+        #self.ids.event_date_btn.disabled = False
+        #self.ids.event_time.disabled = False
 
-        self.ids.kv_ret_button.disabled = False
-        self.ids.kv_journal_button.disabled = False
-        self.ids.kv_bon_button.disabled = False
-        self.ids.kv_release_res_button.disabled = False
-        self.ids.kv_release_con_button.disabled = False
-        self.ids.kv_user_button.disabled = False
-        self.ids.kv_dashboard_button.disabled = False
+        #self.ids.kv_ret_button.disabled = False
+        #self.ids.kv_journal_button.disabled = False
+        #self.ids.kv_bon_button.disabled = False
+        #self.ids.kv_release_res_button.disabled = False
+        #self.ids.kv_release_con_button.disabled = False
+        #self.ids.kv_user_button.disabled = False
+        #self.ids.kv_dashboard_button.disabled = False
+        self.disable_buttons(0,False)
 
         self.transaction_id = 0
         self.retrive_status = False
