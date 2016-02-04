@@ -137,6 +137,7 @@ class BtmsRoot(BoxLayout):
         self.reprint_ticket_status = False
         self.retrive_status = False
         self.reservation_art = 0
+        self.contingent_boolean = False
         #TODO Call reset function
        #self.ids.kv_user_list.clear_widgets(children=None)
 
@@ -753,7 +754,7 @@ class BtmsRoot(BoxLayout):
             self.ids.kv_user_button.disabled = boolean
             self.ids.kv_dashboard_button.disabled = boolean
 
-        if cmd == 'reservation':
+        elif cmd == 'reservation':
             self.ids.event_btn.disabled = boolean
             self.ids.event_date_btn.disabled = boolean
             self.ids.event_time.disabled = boolean
@@ -786,8 +787,8 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def update_bill(self, item_id, cat_id, price_id, art, *args):
-
-        self.disable_buttons('update_bill', True)
+        if self.contingent_boolean == False:
+            self.disable_buttons('update_bill', True)
 
         self.ids.res_number_display_box.text = ''
 
@@ -1159,60 +1160,81 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def release_contingent(self, cmd, conti_id, *args):
-        if cmd == 0:
-            result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0)
+        if self.contingent_boolean == False:
+            if cmd == 0:
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0)
 
-            popup_layout1 = FloatLayout(size_hint=[1, 1])
-            popup = Popup(title='Release Contingent', content=popup_layout1, size_hint=(.5, .4))
-            popup_layout1.add_widget(Label(text='Choose the Contingent wich you want to release \nof event ' + str(self.event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .8}, size_hint=[1, .2]))
-            popup_layout2 = GridLayout(pos_hint={'x': .0, 'y': .23}, size_hint=[1, .55], cols=3)
+                popup_layout1 = FloatLayout(size_hint=[1, 1])
+                popup = Popup(title='Release Contingent', content=popup_layout1, size_hint=(.5, .4))
+                popup_layout1.add_widget(Label(text='Choose the Contingent wich you want to release \nof event ' + str(self.event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .8}, size_hint=[1, .2]))
+                popup_layout2 = GridLayout(pos_hint={'x': .0, 'y': .23}, size_hint=[1, .55], cols=3)
 
-            for row in result:
-                popup_layout2.add_widget(Button(text=row['title'], on_press=partial(self.release_contingent, 1, row['id']), on_release=popup.dismiss))
+                for row in result:
+                    popup_layout2.add_widget(Button(text=row['title'], on_press=partial(self.release_contingent, 1, row['id']), on_release=popup.dismiss))
 
-            popup_layout1.add_widget(popup_layout2)
-            #popup_layout1.add_widget(Button(text='Yes',pos_hint={'x': .0, 'y': .0}, size_hint=[.5, .2],on_press=partial(self.release_contingent, 1), on_release=popup.dismiss))
-            popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': 0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
-            popup.open()
-        elif cmd == 1:
+                popup_layout1.add_widget(popup_layout2)
+                #popup_layout1.add_widget(Button(text='Yes',pos_hint={'x': .0, 'y': .0}, size_hint=[.5, .2],on_press=partial(self.release_contingent, 1), on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': 0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+                popup.open()
+            elif cmd == 1:
+                self.contingent_boolean = True
+                self.ids.kv_release_con_button.state='down'
+                self.ids.kv_release_con_button.text='Release Contingent'
+                self.conti_id = conti_id
 
-            result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id)
-            self.transaction_id = 'conti_'+str(conti_id)
-            self.disable_buttons('contingent',True)
-            for row in result:
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id)
+                self.transaction_id = 'con'+str(conti_id)
+                self.disable_buttons('contingent',True)
+                for row in result:
 
-                #Numbered Seats
+                    #Numbered Seats
 
-                json_string = row['seats'].replace(';',':')
-                json_string = json_string.replace('\\','')
-                json_string = '[' + json_string + ']'
-                item_seats = json.loads(json_string)
+                    json_string = row['seats'].replace(';',':')
+                    json_string = json_string.replace('\\','')
+                    json_string = '[' + json_string + ']'
+                    item_seats = json.loads(json_string)
 
 
-                try:
-                    item_seats[0]
-                except IndexError:
-                    item_seats = None
+                    try:
+                        item_seats[0]
+                    except IndexError:
+                        item_seats = None
 
-                if item_seats == None:
-                    pass
-                else:
+                    if item_seats == None:
+                        pass
+                    else:
 
-                    for item_id, seat_list in item_seats[0].iteritems():
-                        for seat, status in seat_list.iteritems():
-                            self.seat_list[str(item_id)][int(seat)] = 3
-                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+                        for item_id, seat_list in item_seats[0].iteritems():
+                            for seat, status in seat_list.iteritems():
+                                self.seat_list[str(item_id)][int(seat)] = 3
+                                itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
 
-                #Data for unnumbered Seats and Prices
-                json_string = row['amount'].replace(';',':')
-                json_string = json_string.replace('\\','')
-                json_string = '[' + json_string + ']'
-                item_amount = json.loads(json_string)
+                    #Data for unnumbered Seats and Prices
+                    json_string = row['amount'].replace(';',':')
+                    json_string = json_string.replace('\\','')
+                    json_string = '[' + json_string + ']'
+                    item_amount = json.loads(json_string)
 
-                #Unnumbered Seats
-                if row['art'] == 2:
+                    #Unnumbered Seats
+                    if row['art'] == 2:
 
-                    item_id = row['item_id']
+                        item_id = row['item_id']
+                        try:
+                            item_amount[0]
+                        except IndexError:
+                            item_amount = None
+
+                        if item_amount == None:
+                            pass
+                        else:
+                            amount = 0
+                            for key, value in item_amount[0].iteritems():
+                                amount = amount + value
+                            itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
+                            self.itm_price_amount[int(row['cat_id'])][int(item_id)] = amount
+
+
+                    #Prices and Amount
                     try:
                         item_amount[0]
                     except IndexError:
@@ -1222,14 +1244,60 @@ class BtmsRoot(BoxLayout):
                         pass
                     else:
                         amount = 0
-                        for key, value in item_amount[0].iteritems():
-                            amount = amount + value
-                        itm['venue_itm_label_amount'+str(item_id)].text = str(amount)
-                        self.itm_price_amount[int(row['cat_id'])][int(item_id)] = amount
+                        for price_id, amount in item_amount[0].iteritems():
+                            self.itm_cat_price_amount[row['cat_id']][int(price_id)]['amount'] = amount
+                            self.itm_cat_price_amount[row['cat_id']][int(price_id)]['button'].text = str(amount)
 
-        elif cmd == 2:
-            self.session.call(u'io.crossbar.btms.contingent.release', self.event_id, self.event_date, self.event_time, conti_id, self.user_id)
+                        #Compute Total Price of Categorie
+                        total_cat_price = 0
+                        for key, value in self.itm_cat_price_amount[row['cat_id']].iteritems():
+                            summ = value['amount'] * float(self.itm_cat_price_amount[row['cat_id']][key]['price'])
+                            total_cat_price = total_cat_price + summ
 
+                        self.itm_price[row['cat_id']]['tbutton'].text = str(total_cat_price) + unichr(8364)
+                        self.total_cat_price_list[row['cat_id']] = total_cat_price
+
+                    #Iterate over all Categories
+                    self.total_bill_price = 0
+                    for key, value in self.total_cat_price_list.iteritems():
+                        print 'total', key, value
+                        self.total_bill_price = self.total_bill_price + value
+
+                    self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
+
+
+        elif self.contingent_boolean == True:
+            self.ids.kv_release_con_button.state='normal'
+            self.ids.kv_release_con_button.text='Contingent'
+
+            #Collect Data
+            seat_trans_list = {}
+            for item_id, seats in self.seat_list.items():
+                for seat, status1 in seats.items():
+                    if status1 == 3:
+                        try:
+                            seat_trans_list[str(item_id)]
+                        except KeyError:
+                            seat_trans_list[str(item_id)] = {}
+                        seat_trans_list[str(item_id)][str(seat)] = 2
+
+
+            itm_cat_amount_list = {}
+            for cat_id, value in self.itm_cat_price_amount.iteritems():
+                itm_cat_amount_list[str(cat_id)] = {}
+                for price_id, value1 in value.iteritems():
+                    if value1['amount'] == 0:
+                        pass
+                    else:
+                        itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
+
+
+
+
+            self.session.call(u'io.crossbar.btms.contingent.release', self.event_id, self.event_date, self.event_time, self.conti_id, seat_trans_list, itm_cat_amount_list, self.user_id)
+            self.contingent_boolean = False
+            self.disable_buttons('contingent',False)
+            self.reset_transaction()
 
     @inlineCallbacks
     def transact(self, opt, *args):

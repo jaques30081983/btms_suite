@@ -304,7 +304,7 @@ class BtmsBackend(ApplicationSession):
                 finally:
                     try:
                         #Get Contingents
-                        result_contingents = yield self.db.runQuery("SELECT id, item_id, cat_id, art, amount, seats, status, user_id FROM btms_contingents WHERE event_id = '"+str(event_id)+"' AND date_day = '"+date+"' AND time = '"+time+"'")
+                        result_contingents = yield self.db.runQuery("SELECT id, ref, item_id, cat_id, art, amount, seats, status, user_id FROM btms_contingents WHERE event_id = '"+str(event_id)+"' AND date_day = '"+date+"' AND time = '"+time+"'")
                         print result_contingents
                         for row in result_contingents:
                             #Numbered Seats
@@ -331,9 +331,9 @@ class BtmsBackend(ApplicationSession):
 
                                     for seat, status in seat_list.iteritems():
 
-                                        self.item_list[eventdatetime_id][block]['seats'][seat] = 4
+                                        self.item_list[eventdatetime_id][block]['seats'][seat] = status
                                         self.item_list[eventdatetime_id][block]['seats_user'][seat] = row['user_id']
-                                        self.item_list[eventdatetime_id][block]['seats_tid'][seat] = 'conti_'+str(row['id'])
+                                        self.item_list[eventdatetime_id][block]['seats_tid'][seat] = 'con'+str(row['ref'])
 
                             #Unnumbered Seats
                             if row['art'] == 2:
@@ -356,7 +356,7 @@ class BtmsBackend(ApplicationSession):
                                     amount = 0
                                     for key, value in item_ov[0].iteritems():
                                         #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
-                                        self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount']['conti_'+str(row['id'])] = value
+                                        self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount']['con'+str(row['id'])] = value
                                         amount = amount + value
                                     print 'amount', amount
 
@@ -420,7 +420,7 @@ class BtmsBackend(ApplicationSession):
                         new_seat_select_list[item_id][seat] = 0
                         print 'seat is now free', item_id, seat, status
                     else:
-                        print 'seat is occupied', item_id, seat, status
+                        print 'seat is occupied', item_id, seat, status, tid, self.item_list[edt_id][item_id]['seats_tid'][seat]
 
         self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, tid, user_id)
 
@@ -984,17 +984,102 @@ class BtmsBackend(ApplicationSession):
             finally:
                 returnValue(result)
 
-    @wamp.register(u'io.crossbar.btms.contingent.select')
-    #@inlineCallbacks
-    def releaseContingent(self, event_id, event_date, event_time, conti_id, user_id):
-        pass
 
     @wamp.register(u'io.crossbar.btms.contingent.release')
     #@inlineCallbacks
-    def selectContingent(self, event_id, event_date, event_time, conti_id, user_id):
-        pass
+    def releaseContingent(self, event_id, event_date, event_time, conti_id, seat_trans_list, itm_cat_amount_list, user_id):
+        print 'Contingent released', event_id, event_date, event_time, conti_id, seat_trans_list, itm_cat_amount_list, user_id
+        edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
+        transaction_id = 'con'+str(conti_id)
+
+        if seat_trans_list == {}:
+            pass
+        else:
+
+            for item_id, seat_list in seat_trans_list.iteritems():
+                for seat, status in seat_list.iteritems():
+                    self.item_list[edt_id][item_id]['seats'][seat] = 2
 
 
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, None, 0)
+
+            cat_id = self.item_list[edt_id][item_id]['cat_id']
+            amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+            art = '1'
+            seats = json.dumps(seat_trans_list, separators=(',',';'))
+            #if retrive_status == False:
+            '''
+            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                      "cat_id, art, amount, seats, status, user) " \
+                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                      (transaction_id, event_id, event_date,
+                        event_time, item_id, cat_id, art, amount,
+                        seats, status, user_id)
+
+            self.db.runOperation(sql)
+
+
+            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                    "cat_id, art, amount, seats, status, user) " \
+                    "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                    "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                    "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
+
+            self.db.runOperation(sql)
+            '''
+
+            sql = "UPDATE btms_contingents SET btms_contingents.amount='%s', btms_contingents.seats='%s', btms_contingents.status='%s'," \
+                  " btms_contingents.user_id='%s' WHERE btms_contingents.ref='%s' AND " \
+                  "btms_contingents.date_day='%s' AND btms_contingents.time='%s' AND " \
+                  "btms_contingents.cat_id='%s'" % (amount, seats, '2', user_id, conti_id, event_date, event_time, cat_id)
+            self.db.runOperation(sql)
+
+
+        #Insert or Update unnumbered seats and insert in db
+
+        for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
+            try:
+                print self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+
+                #self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+                cat_id = self.item_list[edt_id][item_id]['cat_id']
+                amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                art = '2'
+                seats = '{}'
+                #if retrive_status == False:
+                '''
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                      "cat_id, art, amount, seats, status, user) " \
+                      "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                       "'"+str(item_id)+"','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                      "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
+
+                self.db.runOperation(sql)
+                '''
+                #elif retrive_status == True:
+                    #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                    #  " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
+                    #  "btms_transactions.item_id='%s'" % (amount, seats, user_id, transaction_id, item_id)
+                    #self.db.runOperation(sql)
+
+                sql = "UPDATE btms_contingents SET btms_contingents.amount='%s', btms_contingents.seats='%s', btms_contingents.status='%s'," \
+                  " btms_contingents.user_id='%s' WHERE btms_contingents.ref='%s' AND " \
+                  "btms_contingents.date_day='%s' AND btms_contingents.time='%s' AND " \
+                  "btms_contingents.cat_id='%s'" % (amount, seats, '2', user_id, conti_id, event_date, event_time, cat_id)
+                self.db.runOperation(sql)
+
+            except KeyError:
+                pass
+        try:
+            self.busy_transactions
+        except AttributeError:
+            self.busy_transactions = []
+
+        try:
+            self.busy_transactions.remove(transaction_id)
+        except ValueError:
+            print 'Transaction Id not in busy list.'
+        return
     @inlineCallbacks
     def onJoin(self, details):
         ## create a new database connection pool. connections are created lazy (as needed)

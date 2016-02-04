@@ -32,7 +32,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 16.01.18
 
 # (list) Application requirements
-requirements = kivy,autobahn,twisted,msgpack
+requirements = kivy,autobahn,twisted
 
 # (list) Garden requirements
 #garden_requirements =
