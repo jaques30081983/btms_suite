@@ -137,7 +137,7 @@ class BtmsRoot(BoxLayout):
         self.reprint_ticket_status = False
         self.retrive_status = False
         self.reservation_art = 0
-        self.contingent_boolean = False
+        self.contingent_cmd = 0
         #TODO Call reset function
        #self.ids.kv_user_list.clear_widgets(children=None)
 
@@ -260,7 +260,7 @@ class BtmsRoot(BoxLayout):
                 venue_id = row['venue_id']
 
 
-                self.get_event_days(event_id,venue_id)
+                self.get_event_days(event_id,venue_id,row['date_start'],row['date_end'])
 
 
                 self.ids.event_btn.text = row['title'] + '\n' + row['date_start'] + ' - ' + row['date_end']
@@ -270,7 +270,7 @@ class BtmsRoot(BoxLayout):
                                                                    row['date_end'], size_hint_y=None, height=44)
             event_itm['event_btn_' + str(row['id'])].bind(
                 on_release=lambda event_btn: self.ids.event_title.select(event_btn.text))
-            event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_event_days,row['id'],row['venue_id']))
+            event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_event_days,row['id'],row['venue_id'],row['date_start'],row['date_end']))
             #event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_venue, row['id'], row['venue_id']))
 
 
@@ -280,10 +280,16 @@ class BtmsRoot(BoxLayout):
         #self.ids.event_title.values = event_titles_list
 
     @inlineCallbacks
-    def get_event_days(self, event_id, venue_id, *args):
+    def get_event_days(self, event_id, venue_id, event_date_start, event_date_end, *args):
         self.event_id = event_id
         self.venue_id = venue_id
+        self.event_date_start = event_date_start
+        self.event_date_end = event_date_end
+
         self.load_new_venue = 0 #toggle for get_venue_update in set_event_time
+
+        self.loading(0, 'loading event days')
+
         def result_event_day(results):
 
 
@@ -311,6 +317,7 @@ class BtmsRoot(BoxLayout):
                     self.ids.event_date_btn.text = date_day_name +' '+ row['date_day']
                     #self.event_date = row['date_day']
                     self.set_event_day_times(row['date_day'])
+
 
 
                 event_date_itm['event_date_btn_' + str(row['id'])] = Button(id=str(row['id']), text=date_day_name +' '+ row['date_day'],
@@ -344,7 +351,7 @@ class BtmsRoot(BoxLayout):
     def set_event_day_times(self, day, *args):
         #Set Date
         self.event_date = day[-10:]
-
+        self.loading(10, 'set event day times')
 
         #Set Time List
         event_times_list = []
@@ -366,6 +373,7 @@ class BtmsRoot(BoxLayout):
 
 
     def set_event_time(self, time, *args):
+        self.loading(20, 'set event time')
         self.event_time = time
         self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
 
@@ -375,8 +383,10 @@ class BtmsRoot(BoxLayout):
 
 
 
+
     @inlineCallbacks
     def get_venue(self, event_id1, venue_id, *args):
+        self.loading(20, 'loading venue')
         global event_id
         event_id = event_id1
 
@@ -556,6 +566,7 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def get_venue_status(self,venue_id,event_id):
+        self.loading(30, 'loading venue status')
         results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time)
 
         #print results
@@ -594,6 +605,7 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def get_prices(self, venue_id, event_id, *args):
+        self.loading(40, 'loading prices')
         self.ids.bill_item_list_box.clear_widgets(children=None)
         try:
             self.prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
@@ -602,6 +614,8 @@ class BtmsRoot(BoxLayout):
 
         except Exception as err:
             print "Error", err
+        finally:
+            self.loading(80, 'finish')
 
     @inlineCallbacks
     def get_categories(self, venue_id, prices, *args):
@@ -787,7 +801,7 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def update_bill(self, item_id, cat_id, price_id, art, *args):
-        if self.contingent_boolean == False:
+        if self.contingent_cmd == 0:
             self.disable_buttons('update_bill', True)
 
         self.ids.res_number_display_box.text = ''
@@ -943,29 +957,32 @@ class BtmsRoot(BoxLayout):
 
     #@inlineCallbacks
     def cash(self, *args):
-        #Give, Back
-        if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
-            self.ids.kv_given_button.text = str(self.total_bill_price) + unichr(8364)
-            self.ids.kv_back_button.text =  '0' + unichr(8364)
-            self.back_price = 0
-            self.given_price = self.total_bill_price
-
-            self.transact('cash')
+        if self.transaction_id == 0:
+            pass
         else:
-            self.ids.kv_given_button.text = self.ids.number_display_box.text + unichr(8364)
-
-            back_price = float(self.ids.number_display_box.text) - self.total_bill_price
-            if back_price <= 0:
-                self.ids.kv_given_button.text =  '!!!'
+            #Give, Back
+            if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
+                self.ids.kv_given_button.text = str(self.total_bill_price) + unichr(8364)
                 self.ids.kv_back_button.text =  '0' + unichr(8364)
-            else:
-                self.ids.kv_back_button.text = str(back_price) + unichr(8364)
+                self.back_price = 0
+                self.given_price = self.total_bill_price
 
-
-                self.back_price = back_price
-                self.given_price = float(self.ids.number_display_box.text)
                 self.transact('cash')
-            self.ids.number_display_box.text = ''
+            else:
+                self.ids.kv_given_button.text = self.ids.number_display_box.text + unichr(8364)
+
+                back_price = float(self.ids.number_display_box.text) - self.total_bill_price
+                if back_price <= 0:
+                    self.ids.kv_given_button.text =  '!!!'
+                    self.ids.kv_back_button.text =  '0' + unichr(8364)
+                else:
+                    self.ids.kv_back_button.text = str(back_price) + unichr(8364)
+
+
+                    self.back_price = back_price
+                    self.given_price = float(self.ids.number_display_box.text)
+                    self.transact('cash')
+                self.ids.number_display_box.text = ''
 
 
 
@@ -1002,10 +1019,9 @@ class BtmsRoot(BoxLayout):
                 else:
                     itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
         try:
-            results = yield self.session.call(u'io.crossbar.btms.reserve', self.retrive_status,
-                                              self.event_id, self.event_date, self.event_time,
+            results = yield self.session.call(u'io.crossbar.btms.reserve', self.event_id, self.event_date, self.event_time,
                                               self.transaction_id, seat_trans_list, itm_cat_amount_list,
-                                              self.reservation_art, self.user_id)
+                                              self.reservation_art, str(self.total_bill_price), self.user_id)
             self.ids.res_number_display_box.text = str(results)
 
         except Exception as err:
@@ -1015,12 +1031,15 @@ class BtmsRoot(BoxLayout):
             self.reset_transaction()
 
     @inlineCallbacks
-    def retrieve(self):
+    def retrieve(self, transaction_id, *args):
         self.ids.item_screen_manager.current = 'first_item_screen'
-        transaction_id_part = self.ids.number_display_box.text
+        self.ids.sm.current = 'work1'
+        if transaction_id == 0:
+            transaction_id = self.ids.number_display_box.text
+
         self.retrive_status = True
 
-        result = yield self.session.call(u'io.crossbar.btms.retrieve',self.eventdatetime_id, transaction_id_part)
+        result = yield self.session.call(u'io.crossbar.btms.retrieve',self.eventdatetime_id, transaction_id)
 
         if result == 1:
             print 'TID is True but no Transaction'
@@ -1159,25 +1178,25 @@ class BtmsRoot(BoxLayout):
             self.session.call(u'io.crossbar.btms.reservation.release', self.event_id, self.event_date, self.event_time)
 
     @inlineCallbacks
-    def release_contingent(self, cmd, conti_id, *args):
-        if self.contingent_boolean == False:
+    def contingent(self, cmd, conti_id, *args):
+        if self.contingent_cmd == 0:
             if cmd == 0:
                 result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0)
 
                 popup_layout1 = FloatLayout(size_hint=[1, 1])
-                popup = Popup(title='Release Contingent', content=popup_layout1, size_hint=(.5, .4))
+                popup = Popup(title='Contingent', content=popup_layout1, size_hint=(.5, .4))
                 popup_layout1.add_widget(Label(text='Choose the Contingent wich you want to release \nof event ' + str(self.event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .8}, size_hint=[1, .2]))
                 popup_layout2 = GridLayout(pos_hint={'x': .0, 'y': .23}, size_hint=[1, .55], cols=3)
 
                 for row in result:
-                    popup_layout2.add_widget(Button(text=row['title'], on_press=partial(self.release_contingent, 1, row['id']), on_release=popup.dismiss))
+                    popup_layout2.add_widget(Button(text=row['title'], on_press=partial(self.contingent, 1, row['id']), on_release=popup.dismiss))
 
                 popup_layout1.add_widget(popup_layout2)
-                #popup_layout1.add_widget(Button(text='Yes',pos_hint={'x': .0, 'y': .0}, size_hint=[.5, .2],on_press=partial(self.release_contingent, 1), on_release=popup.dismiss))
-                popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': 0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Add Contingent',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent, 2, 0), on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
                 popup.open()
             elif cmd == 1:
-                self.contingent_boolean = True
+                self.contingent_cmd = 1
                 self.ids.kv_release_con_button.state='down'
                 self.ids.kv_release_con_button.text='Release Contingent'
                 self.conti_id = conti_id
@@ -1265,8 +1284,15 @@ class BtmsRoot(BoxLayout):
 
                     self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
 
+            elif cmd == 2:
+                self.contingent_cmd = 2
+                self.ids.kv_release_con_button.state='down'
+                self.ids.kv_release_con_button.text='Add Contingent'
+                self.conti_id = 'con0'
+                self.transaction_id = self.conti_id
+                self.disable_buttons('contingent',True)
 
-        elif self.contingent_boolean == True:
+        elif self.contingent_cmd == 1:
             self.ids.kv_release_con_button.state='normal'
             self.ids.kv_release_con_button.text='Contingent'
 
@@ -1295,7 +1321,61 @@ class BtmsRoot(BoxLayout):
 
 
             self.session.call(u'io.crossbar.btms.contingent.release', self.event_id, self.event_date, self.event_time, self.conti_id, seat_trans_list, itm_cat_amount_list, self.user_id)
-            self.contingent_boolean = False
+            self.contingent_cmd = 0
+            self.disable_buttons('contingent',False)
+            self.reset_transaction()
+
+        elif self.contingent_cmd == 2:
+            #Ask for title
+            popup_layout1 = FloatLayout(size_hint=[1, 1])
+            popup = Popup(title='Add Contingent', content=popup_layout1, size_hint=(.5, .4))
+            popup_layout1.add_widget(Label(text='Enter title for new Contingent of event ' + str(self.event_id) +' at '+ self.event_time + ' .', pos_hint={'x': .0, 'y': .7}, size_hint=[1, .2]))
+            self.contingent_new_title = TextInput(pos_hint={'x': 0, 'y': .4}, size_hint=[1, .2])
+            popup_layout1.add_widget(self.contingent_new_title)
+            popup_layout1.add_widget(Button(text='Add',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent, 3, 0), on_release=popup.dismiss))
+            popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent, 4, 0), on_release=popup.dismiss))
+
+            popup.open()
+            self.contingent_cmd = 3
+        elif self.contingent_cmd == 3 and cmd == 3:
+            #Add to db
+            print 'conti 3'
+            self.ids.kv_release_con_button.state='normal'
+            self.ids.kv_release_con_button.text='Contingent'
+
+            #Collect Data
+            seat_trans_list = {}
+            for item_id, seats in self.seat_list.items():
+                for seat, status1 in seats.items():
+                    if status1 == 3:
+                        try:
+                            seat_trans_list[str(item_id)]
+                        except KeyError:
+                            seat_trans_list[str(item_id)] = {}
+                        seat_trans_list[str(item_id)][str(seat)] = 4
+
+
+            itm_cat_amount_list = {}
+            for cat_id, value in self.itm_cat_price_amount.iteritems():
+                itm_cat_amount_list[str(cat_id)] = {}
+                for price_id, value1 in value.iteritems():
+                    if value1['amount'] == 0:
+                        pass
+                    else:
+                        itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
+
+            self.session.call(u'io.crossbar.btms.contingent.add', self.event_id, self.event_date_start, self.event_date_end, self.event_date, self.event_time, self.conti_id, self.contingent_new_title.text, seat_trans_list, itm_cat_amount_list, self.user_id)
+
+            self.contingent_cmd = 0
+            self.disable_buttons('contingent',False)
+            self.reset_transaction()
+
+        elif self.contingent_cmd == 3 and cmd == 4:
+            #Cancel
+            print 'conti 4'
+            self.ids.kv_release_con_button.state='normal'
+            self.ids.kv_release_con_button.text='Contingent'
+            self.contingent_cmd = 0
             self.disable_buttons('contingent',False)
             self.reset_transaction()
 
@@ -1404,17 +1484,30 @@ class BtmsRoot(BoxLayout):
         except Exception as err:
             print "Error", err
 
-    @inlineCallbacks
-    def reprint_ticket(self, *args):
+    #@inlineCallbacks
+    def print_bon(self, transaction_id, *args):
+        print 'bon:', transaction_id
+        self.ids.sm.current = 'work1'
+        #TODO print bons
 
-        #RePrint
-        try:
-            results = yield self.session.call(u'io.crossbar.btms.ticket.reprint', self.last_event_id, self.last_venue_id, self.last_transaction_id, self.user_id)
-        except Exception as err:
-            print "Error", err
-        finally:
-            if self.reprint_ticket_status == True:
-                self.print_ticket(self.last_transaction_id)
+    @inlineCallbacks
+    def reprint_ticket(self,cmd, transaction_id, *args):
+        if cmd == 0:
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.ticket.reprint', self.last_event_id, self.last_venue_id, self.last_transaction_id, self.user_id)
+            except Exception as err:
+                print "Error", err
+            finally:
+                if self.reprint_ticket_status == True:
+                    self.print_ticket(self.last_transaction_id)
+        elif cmd == 1:
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.ticket.reprint', self.event_id, self.venue_id, str(transaction_id), self.user_id)
+            except Exception as err:
+                print "Error", err
+            finally:
+                self.print_ticket(str(transaction_id))
+                self.ids.sm.current = 'work1'
 
     @inlineCallbacks
     def get_printers(self, *args):
@@ -1572,7 +1665,102 @@ class BtmsRoot(BoxLayout):
 
 
 
+    @inlineCallbacks
+    def get_journal(self, cmd):
+        self.ids.sm.current = 'journal'
+        self.ids.journal_list_box.clear_widgets(children=None)
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.2, .003], text='Date / Time'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.2, .003], text='Transaction ID'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.1, .003], text='Total'))
+        #self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['credit']) + unichr(8364)))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.1, .003], text='Given'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.1, .003], text='Back'))
 
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.1, .003], text=''))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.1, .003], text=''))
+        if cmd == 'cash':
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.journal.get','cash_today', self.event_id, self.event_date, self.event_time, self.user_id)
+            except Exception as err:
+                print "Error", err
+            finally:
+
+                for row in results:
+
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .003], text=row['reg_date_time']))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .003], text=str(row['tid'])))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['debit']) + unichr(8364)))
+                    #self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['credit']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['given']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['back']) + unichr(8364)))
+
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text='Bon', on_release=partial(self.print_bon, row['tid'])))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text='Reprint', on_release=partial(self.reprint_ticket, 1, row['tid'])))
+
+        elif cmd == 'card':
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.journal.get','card_today', self.event_id, self.event_date, self.event_time, self.user_id)
+            except Exception as err:
+                print "Error", err
+            finally:
+
+                for row in results:
+
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .003], text=row['reg_date_time']))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .003], text=str(row['tid'])))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['debit']) + unichr(8364)))
+                    #self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['credit']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['given']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['back']) + unichr(8364)))
+
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text='Bon', on_release=partial(self.print_bon, row['tid'])))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text='Reprint'))
+
+        elif cmd == 'reserved':
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.journal.get','reserved_today', self.event_id, self.event_date, self.event_time, self.user_id)
+            except Exception as err:
+                print "Error", err
+            finally:
+
+                for row in results:
+
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .003], text=row['reg_date_time']))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .003], text=str(row['tid'])))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['debit']) + unichr(8364)))
+                    #self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['credit']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['given']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=str(row['back']) + unichr(8364)))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text=''))
+                    self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .003], text='Load', on_release=partial(self.retrieve, str(row['tid']))))
+
+    def loading(self, status, msg, *args):
+        self.loading_status = status
+
+        def loading_progress(*args):
+            self.loading_status = self.loading_status + 1
+            if self.loading_status == 60:
+                self.loading_status = 40
+
+            if self.loading_status == 100:
+                self.loading_popup.dismiss()
+                Clock.unschedule(loading_progress)
+
+            self.loading_progressbar.value = self.loading_status
+
+
+        if status == 0:
+            popup_layout1 = FloatLayout(size_hint=[1, 1])
+            self.loading_popup = Popup(title='Loading', content=popup_layout1, size_hint=(.5, .3), auto_dismiss=False)
+            self.loading_msg = Label(text='loading',pos_hint={'x': .0, 'y': .7}, size_hint=[1, .2])
+            popup_layout1.add_widget(self.loading_msg)
+            self.loading_progressbar = ProgressBar(max=100, pos_hint={'x': .1, 'y': .4}, size_hint=[.8, .2])
+            popup_layout1.add_widget(self.loading_progressbar)
+            popup_layout1.add_widget(Label(text='sekunde...',pos_hint={'x': .0, 'y': .1}, size_hint=[1, .2]))
+            #popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .0, 'y': .0}, size_hint=[1, .2], on_release=self.loading_popup.dismiss))
+            self.loading_popup.open()
+            Clock.schedule_interval(loading_progress, 0.01)
+        self.loading_msg.text = msg
 
 
 # Buttons

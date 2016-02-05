@@ -296,7 +296,7 @@ class BtmsBackend(ApplicationSession):
                                     amount = amount + value
                                 print 'amount', amount
 
-                            self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
+                            self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['amount'] - amount
                             print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                 except Exception as err:
@@ -353,15 +353,17 @@ class BtmsBackend(ApplicationSession):
                                 if item_ov == None:
                                     pass
                                 else:
+                                    #count from prices in db row
                                     amount = 0
                                     for key, value in item_ov[0].iteritems():
                                         #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
                                         self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount']['con'+str(row['id'])] = value
                                         amount = amount + value
-                                    print 'amount', amount
+                                    print 'amount', amount, eventdatetime_id, row['item_id'], self.item_list[eventdatetime_id][row['item_id']]['amount']
 
-                                self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
-                                print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
+                                    self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
+
+                                    #print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                     except Exception as err:
                         print "Error", err
@@ -553,11 +555,12 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.reserve')
-    def reserve(self, retrive_status, event_id, event_date, event_time, transaction_id,
-                 seat_trans_list, itm_cat_amount_list, pre_res_art, user_id):
+    def reserve(self, event_id, event_date, event_time, transaction_id,
+                 seat_trans_list, itm_cat_amount_list, pre_res_art, debit, user_id):
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
         status = 1
 
+        self.setJournal(transaction_id, event_id, event_date, event_time, '0', debit, '0', '0', status, user_id)
 
 
         if seat_trans_list == {}:
@@ -643,12 +646,15 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.retrieve')
     @inlineCallbacks
-    def retrieve(self, eventdatetime_id, transaction_id_part):
+    def retrieve(self, eventdatetime_id, in_transaction_id):
 
-        transaction_id = eventdatetime_id+transaction_id_part
-        transaction_id = filter(str.isalnum, str(transaction_id))
-        verify_result = verify(transaction_id)
-
+        if len(in_transaction_id) <= 5:
+            transaction_id = eventdatetime_id+in_transaction_id
+            transaction_id = filter(str.isalnum, str(transaction_id))
+            verify_result = verify(transaction_id)
+        else:
+            transaction_id = in_transaction_id
+            verify_result = True
         try:
             self.busy_transactions
         except AttributeError:
@@ -688,6 +694,7 @@ class BtmsBackend(ApplicationSession):
                  seat_trans_list, itm_cat_amount_list, status, account, total_bill_price,
                  back_price, given_price, user_id):
 
+        self.setJournal(transaction_id, event_id, event_date, event_time, account, total_bill_price, given_price, back_price, status, user_id)
 
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
 
@@ -1080,6 +1087,129 @@ class BtmsBackend(ApplicationSession):
         except ValueError:
             print 'Transaction Id not in busy list.'
         return
+
+
+
+    @wamp.register(u'io.crossbar.btms.contingent.add')
+    def addContingent(self, event_id, event_date_start, event_date_end, event_date, event_time, conti_id, title, seat_trans_list, itm_cat_amount_list, user_id):
+        print 'Contingent add', event_id, event_date, event_time, conti_id, title, seat_trans_list, itm_cat_amount_list, user_id
+        edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
+        transaction_id = 'con0'
+
+
+        @inlineCallbacks
+        def insert_contingents(last_insert_id):
+            #Prepare numbered Seats
+            if seat_trans_list == {}:
+                pass
+            else:
+
+                for item_id, seat_list in seat_trans_list.iteritems():
+                    for seat, status in seat_list.iteritems():
+                        self.item_list[edt_id][item_id]['seats'][seat] = 4
+
+                self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, None, 0)
+
+
+                nr_cat_id = self.item_list[edt_id][item_id]['cat_id']
+                nr_amount = json.dumps(itm_cat_amount_list[str(nr_cat_id)], separators=(',',';'))
+                nr_art = '1'
+                nr_seats = json.dumps(seat_trans_list, separators=(',',';'))
+
+
+            #Insert Contingent for every day of event and time
+            result_days = yield self.getEventsDay(event_id)
+
+            for rows in result_days:
+
+                #Insert numbered seats
+                if seat_trans_list == {}:
+                    pass
+                else:
+                    sql = "insert into btms_contingents(ref, title, event_id, date_start, date_end, date_day, time, item_id, cat_id, art, amount, seats, status, user_id) " \
+                        "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" \
+                        % (last_insert_id, '', event_id, 0, 0, rows['date_day'], event_time, 0, nr_cat_id, nr_art, {}, nr_seats, 0, user_id)
+
+                    self.db.runOperation(sql)
+
+                #Insert unnumbered seats and insert in db
+                for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
+                    try:
+                        print self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
+
+                        unnr_cat_id = self.item_list[edt_id][item_id]['cat_id']
+                        unnr_amount = json.dumps(itm_cat_amount_list[str(unnr_cat_id)], separators=(',',';'))
+                        unnr_art = '2'
+                        unnr_seats = '{}'
+
+                        sql2 = "insert into btms_contingents(ref, title, event_id, date_start, date_end, date_day, time, item_id, cat_id, art, amount, seats, status, user_id) " \
+                            "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" \
+                            % (last_insert_id, '', event_id, 0, 0, rows['date_day'], event_time, item_id, unnr_cat_id, unnr_art, unnr_amount, unnr_seats, 0, user_id)
+
+                        self.db.runOperation(sql2)
+
+                    except KeyError:
+                        pass
+
+
+        def execute(sql): #TODO not beautiful should be in a pool class ....
+            return self.db.runInteraction(_execute, sql)
+
+        def _execute(trans, sql):
+            trans.execute(sql)
+            return trans.lastrowid
+
+        sql = "insert into btms_contingents(ref, title, event_id, date_start, date_end, date_day, time, item_id, cat_id, art, amount, seats, status, user_id) " \
+              "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" \
+              % (0, title, event_id, event_date_start, event_date_end, 0, event_time, 0, 0, 0, {}, {}, 0, user_id)
+        #id, ref, title,event_id, date_start, date_end, date_day, time, item_id, cat_id, art, amount, seats, status, user_id, log
+        d = execute(sql)
+        d.addCallback(insert_contingents)
+
+        #remove from busy transactions
+        try:
+            self.busy_transactions
+        except AttributeError:
+            self.busy_transactions = []
+
+        try:
+            self.busy_transactions.remove(transaction_id)
+        except ValueError:
+            print 'Transaction Id not in busy list.'
+        return
+
+
+
+
+    @wamp.register(u'io.crossbar.btms.journal.get')
+    def getJournal(self,cmd, event_id, event_date, event_time, user_id):
+        if cmd == 'cash_today':
+            results = self.db.runQuery("SELECT tid, debit, credit, given, back, reg_date_time FROM btms_journal " \
+                                   "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                                    " event_time = '"+event_time+"' AND user_id = '"+str(user_id)+"' AND account = '1000'" \
+                                    "ORDER by reg_date_time DESC LIMIT 15")
+            return results
+        elif cmd == 'card_today':
+            results = self.db.runQuery("SELECT tid, debit, credit, given, back, reg_date_time FROM btms_journal " \
+                           "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                            " event_time = '"+event_time+"' AND user_id = '"+str(user_id)+"' AND account = '1200'" \
+                            "ORDER by reg_date_time DESC LIMIT 15")
+            return results
+        elif cmd == 'reserved_today':
+            results = self.db.runQuery("SELECT tid, debit, credit, given, back, reg_date_time FROM btms_journal " \
+                           "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                            " event_time = '"+event_time+"' AND user_id = '"+str(user_id)+"' AND status = '1'" \
+                            "ORDER by reg_date_time DESC LIMIT 15")
+            return results
+
+    @wamp.register(u'io.crossbar.btms.journal.set')
+    def setJournal(self, tid, event_id, event_date, event_time, account, debit, given, back, status, user_id):
+        reg_date_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, debit, given, back, status, user_id, reg_date_time)" \
+              " values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (tid, event_id, event_date, event_time, account, debit, given, back, status, user_id, reg_date_time)
+        self.db.runOperation(sql)
+
     @inlineCallbacks
     def onJoin(self, details):
         ## create a new database connection pool. connections are created lazy (as needed)
