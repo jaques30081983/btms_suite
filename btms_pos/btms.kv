@@ -273,49 +273,49 @@
 					name: 'first_item_screen'
 					
 					
-					ScrollView:
-						size_hint: 1, .94
-						pos_hint: {'x': 0, 'y': .06}
-						scroll_timeout: 100
-						scroll_distance: 20
+					#ScrollView:
+						#size_hint: 1, .94
+						#pos_hint: {'x': 0, 'y': .06}
+						#scroll_timeout: 100
+						#scroll_distance: 20
 					
 				   
-						GridLayout:
-							id: sale_item_list_box
-							pos_hint: {'x': .0, 'y': .2}
-							size_hint: 1, 1.5
-							padding: 0
-							spacing: 5
-							height: 30
-							cols: 4
-							rows: None
-							do_scroll_x: False
-							row_default_height: (self.width / 3.3)
+                    GridLayout:
+                        id: sale_item_list_box
+                        pos_hint: {'x': .0, 'y': .06}
+                        size_hint: 1, .94
+                        padding: 0
+                        spacing: 5
+                        height: 30
+                        cols: 4
+                        rows: None
+                        do_scroll_x: False
+                        row_default_height: (self.width / 3.3)
 							
 							
 				Screen:
 					name: 'second_item_screen'
 					
 					
-					ScrollView:
-						size_hint: 1, .94
-						pos_hint: {'x': 0, 'y': .06}
-						scroll_timeout: 100
-						scroll_distance: 20
+					#ScrollView:
+						#size_hint: 1, .94
+						#pos_hint: {'x': 0, 'y': .06}
+						#scroll_timeout: 100
+						#scroll_distance: 20
 					
 				   
-						BoxLayout:
-							id: sale_item_list_box2
-							pos_hint: {'x': .0, 'y': .2}
-							size_hint: 1, 1.1
-							orientation: 'vertical'
-							spacing: 5
+                    BoxLayout:
+                        id: sale_item_list_box2
+                        pos_hint: {'x': .0, 'y': .06}
+                        size_hint: 1, .94
+                        orientation: 'vertical'
+                        spacing: 5
 
 
-							Button:
-								text: "Back"
-								size_hint: 1, 0.05
-								on_release: item_screen_manager.current = "first_item_screen"
+                        Button:
+                            text: "Back"
+                            size_hint: 1, 0.05
+                            on_release: item_screen_manager.current = "first_item_screen"
 								
 							
 			#ScrollView:
@@ -350,7 +350,7 @@
 				text: 'select...'
 				on_release: event_title.open(self)
 				size_hint_y: None
-				height: '40dp'
+				height: event_time.height
 				background_normal: 'atlas://data/images/defaulttheme/spinner'
 				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
 				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
@@ -368,11 +368,12 @@
 			Button:
 				id: event_date_btn
 				pos_hint: {'x': .7, 'y': .87}
-				size_hint: .3, .06
+				font_size: self.height * .6
+				size_hint: .3, None
 				text: 'select...'
 				on_release: event_date.open(self)
 				size_hint_y: None
-				height: '40dp'
+				height: event_time.height
 				background_normal: 'atlas://data/images/defaulttheme/spinner'
 				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
 				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
@@ -390,7 +391,7 @@
 			#Spinner:
 				#id: event_date
 				#text: "loading..."
-				#font_size: self.height * .6
+				#font_size: self.height * .7
 				#pos_hint: {'x': .7, 'y': .87}
 				#size_hint: .3, .06
 				#on_text: number_display_box.text = self.text; 
@@ -760,7 +761,7 @@
                     Button:
                         id: kv_edit_events
                         text: "Edit Events"
-                        on_release: sm.current = "edit_events"
+                        #on_release: sm.current = "edit_events"
                         #on_press: root.get_dashboard()
                         pos_hint: {'x': .70, 'y': .0}
                         size_hint: .3, .05
@@ -776,7 +777,7 @@
                     Button:
                         id: kv_reports
                         text: "Reports"
-                        on_release: sm.current = "reports"
+                        on_release: root.get_reports(0,0,0,0,0)
                         #on_press: root.get_dashboard()
                         pos_hint: {'x': .70, 'y': .0}
                         size_hint: .3, .05
@@ -852,7 +853,7 @@
 
 
 				GridLayout:
-					id: dashboard_list_box
+					id: create_event_list_box
 					pos_hint: {'x': 0, 'y': 0.0}
 					size_hint: 1, 1.0
 					padding: 0
@@ -986,9 +987,103 @@
 				on_release: root.create_events()
 				#on_release: sm.transition.direction = 'left'
 				#on_release: sm.current = "dashboard"
+        Screen:
+            name: 'reports'
+            GridLayout:
+                id: report_select_grid
+                pos_hint: {'x': 0, 'y': 0.95}
+                size_hint: 1, .05
+                padding: 0
+                spacing: 3
+                cols: 5
+                rows: None
+                Label:
+                    size_hint: .3, 1
+                    text: 'Event'
+                Label:
+                    size_hint: .3, 1
+                    text: 'Date'
+                Label:
+                    size_hint: .2, 1
+                    text: 'Time'
+                Label:
+                    size_hint: .2, 1
+                    text: 'User'
+                Label:
+                    text: 'Report'
+
+            GridLayout:
+                id: report_select_grid
+                pos_hint: {'x': 0, 'y': 0.1}
+                size_hint: 1, .85
+                padding: 0
+                spacing: 3
+                cols: 5
+                rows: None
+                #row_default_height: 10
+
+                ScrollView:
+                    size_hint: .3, 1
+                    #pos_hint: {'x': 0, 'y': .1}
+                    #scroll_timeout: 100
+                    #scroll_distance: 20
+                    GridLayout:
+                        id: report_select_event_list
+                        size_hint: 1, None
+                        cols: 1
+                        row_default_height: 30
+
+                ScrollView:
+                    size_hint: .3, 1
+                    GridLayout:
+                        id: report_select_date_list
+                        size_hint: 1, None
+                        cols: 1
+                        row_default_height: 30
 
 
 
+                ScrollView:
+                    size_hint: .2, 1
+                    GridLayout:
+                        id: report_select_time_list
+                        size_hint: 1, None
+                        cols: 1
+
+                        Button:
+                            text: '19:30'
+
+                        Button:
+                            text: 'test 3'
+                ScrollView:
+                    size_hint: .2, 1
+                    GridLayout:
+                        id: report_select_user_list
+                        size_hint: 1, None
+                        cols: 1
+
+                ScrollView:
+                    GridLayout:
+                        id: report_draw_list
+                        cols: 1
+
+                        Button:
+                            text: 'test'
+
+                        Button:
+                            text: 'test 5'
+            Button:
+                text: "Back"
+                size_hint: 0.5, 0.1
+                pos_hint: {'x': 0, 'y': 0}
+                on_release: sm.transition.direction = 'right'
+                on_release: sm.current = "dashboard"
+
+            Button:
+                text: "Print Report"
+                size_hint: 0.5, 0.1
+                pos_hint: {'x': .5, 'y': 0}
+                #on_release: root.create_events()
 
 <BillItemArtikel>:
 	id: bill_item_artikel
@@ -1016,191 +1111,6 @@
 		size_hint: .2, .9
 		on_release: app.root.ids.number_display_box.text = ''
 		
-		
-		
-<BillItemFreiePlaetze>:						
-	size_hint: 1, None
-	orientation: 'horizontal'
-	
-	padding: 0
-	spacing: 5
-	canvas:
-		Color:
-			rgb: .35, .35, .35
-		Rectangle:
-			pos: self.pos
-			size: self.size
-	Label:
-		text: "Freie Plaetze:"
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 0.5, 1
-		canvas.before:
-			PushMatrix
-			Rotate:
-				angle: 90
-				origin: self.center
-		canvas.after:
-			PopMatrix
-	
-	FloatLayout:
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 1, .8
-		Label:
-			text: "Normal"
-			font_size: self.height * 0.6
-			pos_hint: {'x': 0, 'y': 1}
-			size_hint: 1, .2	
-		Button:
-			text: "+"
-			pos_hint: {'x': 0, 'y': .7}
-			size_hint: 1, .3
-			on_release: _numbered_normal.text = str(int(_numbered_normal.text) + 1)
-	   
-		Label:
-			id: _numbered_normal
-			text: "000"
-			font_size: self.height * 0.7
-			halign: "center"
-			multiline: False
-			pos_hint: {'x': .0, 'y': 0.335}
-			size_hint: 1, .35
-		 
-		Button:
-			text: "-"
-			pos_hint: {'x': 0, 'y': 0}
-			size_hint: 1, .3
-			on_release: _numbered_normal.text = str(int(_numbered_normal.text) - 1)
-	 
-	FloatLayout:
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 1, .8
-		Label:
-			text: "Ermäßigt"
-			font_size: self.height * 0.6
-			pos_hint: {'x': 0, 'y': 1}
-			size_hint: 1, .2	
-		Button:
-			text: "+"
-			pos_hint: {'x': 0, 'y': .7}
-			size_hint: 1, .3
-	   
-		Label:
-			text: "000"
-			font_size: self.height * 0.7
-			halign: "center"
-			multiline: False
-			pos_hint: {'x': .0, 'y': 0.335}
-			size_hint: 1, .35
-		 
-		Button:
-			text: "-"
-			pos_hint: {'x': 0, 'y': 0}
-			size_hint: 1, .3
-			
-	FloatLayout:
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 1, .8
-		Label:
-			text: "Gruppe"
-			font_size: self.height * 0.6
-			pos_hint: {'x': 0, 'y': 1}
-			size_hint: 1, .2	
-		Button:
-			text: "+"
-			pos_hint: {'x': 0, 'y': .7}
-			size_hint: 1, .3
-	   
-		Label:
-			text: "000"
-			font_size: self.height * 0.7
-			halign: "center"
-			multiline: False
-			pos_hint: {'x': .0, 'y': 0.335}
-			size_hint: 1, .35
-		 
-		Button:
-			text: "-"
-			pos_hint: {'x': 0, 'y': 0}
-			size_hint: 1, .3
-			
-	FloatLayout:
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 1, .8
-		Label:
-			text: "10 EUR K."
-			font_size: self.height * 0.6
-			pos_hint: {'x': 0, 'y': 1}
-			size_hint: 1, .2	
-		Button:
-			text: "+"
-			pos_hint: {'x': 0, 'y': .7}
-			size_hint: 1, .3
-	   
-		Label:
-			text: "000"
-			font_size: self.height * 0.7
-			halign: "center"
-			multiline: False
-			pos_hint: {'x': .0, 'y': 0.335}
-			size_hint: 1, .35
-		 
-		Button:
-			text: "-"
-			pos_hint: {'x': 0, 'y': 0}
-			size_hint: 1, .3
-			
-	FloatLayout:
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 1, .8
-		Label:
-			text: "Sonder"
-			font_size: self.height * 0.6
-			pos_hint: {'x': 0, 'y': 1}
-			size_hint: 1, .2	
-		Button:
-			text: "+"
-			pos_hint: {'x': 0, 'y': .7}
-			size_hint: 1, .3
-	   
-		Label:
-			text: "000"
-			font_size: self.height * 0.7
-			halign: "center"
-			multiline: False
-			pos_hint: {'x': .0, 'y': 0.335}
-			size_hint: 1, .35
-		 
-		Button:
-			text: "-"
-			pos_hint: {'x': 0, 'y': 0}
-			size_hint: 1, .3
-			
-	FloatLayout:
-		pos_hint: {'x': 0, 'y': 0}
-		size_hint: 1, .8
-		Label:
-			text: "Frei K."
-			font_size: self.height * 0.6
-			pos_hint: {'x': 0, 'y': 1}
-			size_hint: 1, .2	
-		Button:
-			text: "+"
-			pos_hint: {'x': 0, 'y': .7}
-			size_hint: 1, .3
-	   
-		Label:
-			text: "000"
-			font_size: self.height * 0.7
-			halign: "center"
-			multiline: False
-			pos_hint: {'x': .0, 'y': 0.335}
-			size_hint: 1, .35
-		 
-		Button:
-			text: "-"
-			pos_hint: {'x': 0, 'y': 0}
-			size_hint: 1, .3
-
 		
 
 <ImageButton@Button>:
@@ -1234,8 +1144,3 @@
 <LoginButton>:
 	text: 'Login'
 	on_release: app.root.btms_login_auth('test', app.root.ids.kv_password_input.text)
-	
-	
-
-
-

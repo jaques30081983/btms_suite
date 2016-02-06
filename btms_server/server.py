@@ -560,7 +560,7 @@ class BtmsBackend(ApplicationSession):
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
         status = 1
 
-        self.setJournal(transaction_id, event_id, event_date, event_time, '0', debit, '0', '0', status, user_id)
+        self.setJournal(transaction_id, event_id, event_date, event_time, '0', itm_cat_amount_list, debit, '0', '0', status, user_id)
 
 
         if seat_trans_list == {}:
@@ -694,7 +694,7 @@ class BtmsBackend(ApplicationSession):
                  seat_trans_list, itm_cat_amount_list, status, account, total_bill_price,
                  back_price, given_price, user_id):
 
-        self.setJournal(transaction_id, event_id, event_date, event_time, account, total_bill_price, given_price, back_price, status, user_id)
+        self.setJournal(transaction_id, event_id, event_date, event_time, account, itm_cat_amount_list,total_bill_price, given_price, back_price, status, user_id)
 
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
 
@@ -1203,12 +1203,173 @@ class BtmsBackend(ApplicationSession):
             return results
 
     @wamp.register(u'io.crossbar.btms.journal.set')
-    def setJournal(self, tid, event_id, event_date, event_time, account, debit, given, back, status, user_id):
+    def setJournal(self, tid, event_id, event_date, event_time, account, itm_cat_amount_list, debit, given, back, status, user_id):
         reg_date_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-        sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, debit, given, back, status, user_id, reg_date_time)" \
-              " values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (tid, event_id, event_date, event_time, account, debit, given, back, status, user_id, reg_date_time)
+        amount = json.dumps(itm_cat_amount_list, separators=(',',';'))
+        sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time)" \
+              " values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time)
         self.db.runOperation(sql)
+
+
+    @wamp.register(u'io.crossbar.btms.report.get')
+    @inlineCallbacks
+    def getReport(self,cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id):
+        if cmd == 0:
+            try:
+                if selected_user_id == 'all':
+                    results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                                   "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                                    " event_time = '"+event_time+"' ")
+                else:
+                    results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                                   "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                                    " event_time = '"+event_time+"' AND user_id = '"+str(selected_user_id)+"' ")
+            except Exception as err:
+                print "Error", err
+
+
+            report_result_dict = {}
+            report_result_dict['all'] = {}
+            report_result_dict['all']['m_total_sold'] = 0
+            report_result_dict['all']['m_sold_cash'] = 0
+            report_result_dict['all']['m_sold_card'] = 0
+            report_result_dict['all']['m_total_pre'] = 0
+            report_result_dict['all']['m_reserved'] = 0
+
+            report_result_dict['all']['a_total_sold'] = 0
+            report_result_dict['all']['a_sold_cash'] = 0
+            report_result_dict['all']['a_sold_card'] = 0
+            report_result_dict['all']['a_total_pre'] = 0
+            report_result_dict['all']['a_reserved'] = 0
+
+            for row in results:
+                report_result_dict['all']['m_total_pre'] = report_result_dict['all']['m_total_pre'] + row['debit']
+                #Get Amount
+                json_string = row['amount'].replace(';',':')
+                json_string = json_string.replace('\\','')
+                json_string = '[' + json_string + ']'
+                item_amount = json.loads(json_string)
+
+                try:
+                    item_amount[0]
+                    total_amount = 0
+                    for cat, value in item_amount[0].iteritems():
+                        try:
+                            report_result_dict['cat_'+str(cat)]
+                        except KeyError:
+                            report_result_dict['cat_'+str(cat)] = {}
+
+                            report_result_dict['cat_'+str(cat)]['a_total_sold'] = 0
+                            report_result_dict['cat_'+str(cat)]['a_sold_cash'] = 0
+                            report_result_dict['cat_'+str(cat)]['a_sold_card'] = 0
+                            report_result_dict['cat_'+str(cat)]['a_reserved'] = 0
+                            report_result_dict['cat_'+str(cat)]['a_total_pre'] = 0
+
+
+                            report_result_dict['cat_'+str(cat)]['m_total_sold'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_sold_cash'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_sold_card'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_reserved'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_total_pre'] = 0
+
+
+
+                        cat_amount = 0
+                        for price_id, value in value.iteritems():
+                            total_amount = total_amount + value
+                            cat_amount = cat_amount + value
+
+
+                        report_result_dict['cat_'+str(cat)]['a_total_pre'] = report_result_dict['cat_'+str(cat)]['a_total_pre'] + cat_amount
+
+                    report_result_dict['all']['a_total_pre'] = report_result_dict['all']['a_total_pre'] + total_amount
+
+                except IndexError:
+                    pass
+                #Sold
+                if row['status'] == 2:
+                    #Money
+                    report_result_dict['all']['m_total_sold'] = report_result_dict['all']['m_total_sold'] + row['debit']
+                    #Tickets
+                    try:
+                        item_amount[0]
+                        total_amount = 0
+                        for cat, value in item_amount[0].iteritems():
+                            cat_amount = 0
+                            for price_id, value in value.iteritems():
+                                total_amount = total_amount + value
+                                cat_amount = cat_amount + value
+                            report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
+
+                        report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
+                    except IndexError:
+                        pass
+                    #Sold Cash
+                    if row['account'] == 1000:
+                        #Money
+                        report_result_dict['all']['m_sold_cash'] = report_result_dict['all']['m_sold_cash'] + row['debit']
+
+                        #Tickets
+                        try:
+                            item_amount[0]
+                            total_amount = 0
+                            for cat, value in item_amount[0].iteritems():
+                                cat_amount = 0
+                                for price_id, value in value.iteritems():
+                                    total_amount = total_amount + value
+                                    cat_amount = cat_amount + value
+                                report_result_dict['cat_'+str(cat)]['a_sold_cash'] = report_result_dict['cat_'+str(cat)]['a_sold_cash'] + cat_amount
+
+                            report_result_dict['all']['a_sold_cash'] = report_result_dict['all']['a_sold_cash'] + total_amount
+                        except IndexError:
+                            pass
+                    #Sold Card
+                    if row['account'] == 1200:
+                        #Money
+                        report_result_dict['all']['m_sold_card'] = report_result_dict['all']['m_sold_card'] + row['debit']
+
+                        #Tickets
+                        try:
+                            item_amount[0]
+                            total_amount = 0
+                            for cat, value in item_amount[0].iteritems():
+                                cat_amount = 0
+                                for price_id, value in value.iteritems():
+                                    total_amount = total_amount + value
+                                    cat_amount = cat_amount + value
+                                report_result_dict['cat_'+str(cat)]['a_sold_card'] = report_result_dict['cat_'+str(cat)]['a_sold_card'] + cat_amount
+
+                            report_result_dict['all']['a_sold_card'] = report_result_dict['all']['a_sold_card'] + total_amount
+                        except IndexError:
+                            pass
+
+                #Reserved
+                if row['status'] == 1:
+                    #Money Pre
+                    report_result_dict['all']['m_reserved'] = report_result_dict['all']['m_reserved'] + row['debit']
+
+                    #Tickets
+                    try:
+                        item_amount[0]
+                        total_amount = 0
+                        for cat, value in item_amount[0].iteritems():
+                            cat_amount = 0
+                            for price_id, value in value.iteritems():
+                                total_amount = total_amount + value
+                                cat_amount = cat_amount + value
+                            report_result_dict['cat_'+str(cat)]['a_reserved'] = report_result_dict['cat_'+str(cat)]['a_reserved'] + cat_amount
+
+                        report_result_dict['all']['a_reserved'] = report_result_dict['all']['a_reserved'] + total_amount
+                    except IndexError:
+                        pass
+
+
+
+            returnValue(report_result_dict)
+
+        elif cmd == 1:
+            print 'print report', printer
+            #TODO print report
 
     @inlineCallbacks
     def onJoin(self, details):
