@@ -239,6 +239,7 @@ class BtmsRoot(BoxLayout):
     def get_events(self,results):
         global event_titles_list
         event_titles_list = {}
+        self.event_only_titles_list = {}
         event_itm = {}
 
 
@@ -255,6 +256,7 @@ class BtmsRoot(BoxLayout):
             print row['start_times']
 
             event_titles_list[row['id']] = row['title'] + '\n' + row['date_start'] + ' - ' + row['date_end']
+            self.event_only_titles_list[row['id']] = row['title']
 
             if event_id == 0:
                 event_id = row['id']
@@ -407,6 +409,7 @@ class BtmsRoot(BoxLayout):
             itm = {}
             self.seat_list = {}
             self.unnumbered_seat_list = {}
+            self.item_art_cat_list = {}
             bill_itm = {}
             bill_itm_price_amount = {}
             bill_total_price = {}
@@ -419,6 +422,9 @@ class BtmsRoot(BoxLayout):
                 row_id = str(row['id'])
                 self.seat_list[str(row['id'])] = {}
 
+                self.item_art_cat_list[row['id']] = {}
+                self.item_art_cat_list[row['id']]['art'] = row['art']
+                self.item_art_cat_list[row['id']]['cat_id'] = row['cat_id']
 
                 if row['art'] == 1:
                     #Numbered seats
@@ -669,7 +675,7 @@ class BtmsRoot(BoxLayout):
                                                                   pos_hint={'x': 0.85, 'y': 0},
                                                                   orientation='horizontal')
                 tbox = BoxLayout(size_hint=[1, 1], orientation='vertical')
-                tbox.add_widget(Button(text='CL'))
+                tbox.add_widget(Button(text='CL', on_release=partial(self.clear, row['id'])))
                 self.itm_price[row['id']]['tbutton'] = Button(text='0')
                 tbox.add_widget(self.itm_price[row['id']]['tbutton'])
 
@@ -889,7 +895,7 @@ class BtmsRoot(BoxLayout):
             if self.transaction_id == 0:
                 self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
             bool = False
-            while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
+            while self.transaction_id >= 0 and bool == False: # Make shure damn transaction id is set
                 bool = True
 
                 price_id = self.itm_cat_first_price[cat_id]
@@ -1203,7 +1209,10 @@ class BtmsRoot(BoxLayout):
                 self.conti_id = conti_id
 
                 result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id)
-                self.transaction_id = 'con'+str(conti_id)
+                transaction_id = self.eventdatetime_id+str(conti_id)
+                transaction_id = filter(str.isalnum, str(transaction_id))
+                self.transaction_id = 'con'+str(transaction_id)
+
                 self.disable_buttons('contingent',True)
                 for row in result:
 
@@ -1321,7 +1330,7 @@ class BtmsRoot(BoxLayout):
 
 
 
-            self.session.call(u'io.crossbar.btms.contingent.release', self.event_id, self.event_date, self.event_time, self.conti_id, seat_trans_list, itm_cat_amount_list, self.user_id)
+            self.session.call(u'io.crossbar.btms.contingent.release', self.event_id, self.event_date, self.event_time, self.conti_id, seat_trans_list, itm_cat_amount_list, self.total_bill_price, self.user_id)
             self.contingent_cmd = 0
             self.disable_buttons('contingent',False)
             self.reset_transaction()
@@ -1763,9 +1772,295 @@ class BtmsRoot(BoxLayout):
             Clock.schedule_interval(loading_progress, 0.01)
         self.loading_msg.text = msg
 
+    def create_clock(self, *args):
+        self.callback = partial(self.clear,0)
+        Clock.schedule_once(self.callback, 2)
+
+    def delete_clock(self, *args):
+        Clock.unschedule(self.callback)
+
+
+    #@inlineCallbacks
+    def clear(self,cat_id, *args):
+        print 'pressed', cat_id
+        if self.transaction_id == 0:
+            pass
+        else:
+            boolean = False
+            for item_id, value in self.item_art_cat_list.iteritems():
+                    print item_id, value['art'], value['cat_id']
+                    if cat_id == value['cat_id'] or cat_id == 0:
+                        if value['art'] == 1:
+                            if boolean == False:
+                                #Collect Data
+                                seat_trans_list = {}
+                                for item_id1, seats in self.seat_list.items():
+                                    for seat, status1 in seats.items():
+                                        if status1 == 3:
+                                            try:
+                                                seat_trans_list[str(item_id1)]
+                                            except KeyError:
+                                                seat_trans_list[str(item_id1)] = {}
+                                            seat_trans_list[str(item_id1)][str(seat)] = 1
+
+                                self.select_seats(seat_trans_list, value['cat_id'])
+                                boolean = True
+
+                        elif value['art'] == 2:
+                            self.ids.number_display_box.text = '0' #TODO Ugly hack
+                            self.update_bill(item_id, value['cat_id'], 0,2)
+            if cat_id == 0:
+                self.reset_transaction()
+
+    @inlineCallbacks
+    def get_events_dashboard(self, *args):
+        self.ids.kv_dashboard_events_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+        results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+        self.ids.kv_dashboard_events_grid.clear_widgets(children=None)
+        for row in results_event:
+            self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['title'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['date_start']+' - '+row['date_end']+' '+row['start_times']+' '+row['admission'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_events_grid.add_widget(ProgressBar(size_hint=[1, None], height=5))
+        self.ids.kv_dashboard_events_grid.bind(minimum_height=self.ids.kv_dashboard_events_grid.setter('height'))
+
+    @inlineCallbacks
+    def get_venues_dashboard(self, *args):
+        self.ids.kv_dashboard_venues_cat_prices_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+        results_event = yield self.session.call(u'io.crossbar.btms.venues.get')
+        self.ids.kv_dashboard_venues_cat_prices_grid.clear_widgets(children=None)
+        for row in results_event:
+            self.ids.kv_dashboard_venues_cat_prices_grid.add_widget(Label(text=row['title'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_venues_cat_prices_grid.add_widget(Label(text=row['description'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_venues_cat_prices_grid.add_widget(ProgressBar(size_hint=[1, None], height=5))
+        self.ids.kv_dashboard_venues_cat_prices_grid.bind(minimum_height=self.ids.kv_dashboard_venues_cat_prices_grid.setter('height'))
+
+    @inlineCallbacks
+    def get_users_dashboard(self, *args):
+        self.ids.kv_dashboard_users_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+        results_users = yield self.session.call(u'io.crossbar.btms.users.get')
+        self.ids.kv_dashboard_users_grid.clear_widgets(children=None)
+        for row in results_users:
+            self.ids.kv_dashboard_users_grid.add_widget(Label(text=row['user']+' - '+row['first_name']+', '+row['second_name'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_users_grid.add_widget(Label(text=row['email'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_users_grid.add_widget(Label(text=row['mobile'],size_hint=[1, None], height=20))
+            self.ids.kv_dashboard_users_grid.add_widget(ProgressBar(size_hint=[1, None], height=5))
+        self.ids.kv_dashboard_users_grid.bind(minimum_height=self.ids.kv_dashboard_users_grid.setter('height'))
+
+    @inlineCallbacks
+    def get_users_select(self, *args):
+        self.ids.kv_user_select_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+        results_users = yield self.session.call(u'io.crossbar.btms.users.get')
+        self.ids.kv_user_select_grid.clear_widgets(children=None)
+        for row in results_users:
+            user_box = BoxLayout(size_hint=[1, None], height=40)
+            user_box.add_widget(Button(text=str(row['id']),size_hint=[0.2, 1]))
+            user_box.add_widget(Button(text=row['user']))
+            user_box.add_widget(Button(text=row['first_name']))
+            user_box.add_widget(Button(text=row['second_name']))
+            user_box.add_widget(Button(text='Edit', size_hint=[0.2, 1], on_release=partial(self.get_user_edit,row['id'])))
+            user_box.add_widget(Button(text='Del', on_release=partial(self.delete_user,0, row['id'], row['user']), size_hint=[0.2, 1]))
+            self.ids.kv_user_select_grid.add_widget(user_box)
+
+        self.ids.kv_user_select_grid.bind(minimum_height=self.ids.kv_user_select_grid.setter('height'))
+
+    @inlineCallbacks
+    def get_user_edit(self, user_id, *args):
+        self.ids.edit_user_list_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+        self.ids.sm.current = "edit_user"
+        results_user = yield self.session.call(u'io.crossbar.btms.user.get',user_id)
+        self.ids.edit_user_list_grid.clear_widgets(children=None)
+        self.edit_user_id = user_id
+        for row in results_user:
+
+            self.ids.edit_user_list_grid.add_widget(Label(text='Username',size_hint=[0.3, 1]))
+            self.edit_user_name = TextInput(text=row['user'])
+            self.ids.edit_user_list_grid.add_widget(self.edit_user_name)
+
+            self.ids.edit_user_list_grid.add_widget(Label(text='Pin',size_hint=[0.3, 1]))
+            self.edit_user_pin = TextInput(text='00000', password=True, input_filter='int')
+            self.ids.edit_user_list_grid.add_widget(self.edit_user_pin)
+
+            self.ids.edit_user_list_grid.add_widget(Label(text='Firstname',size_hint=[0.3, 1]))
+            self.edit_user_firstname = TextInput(text=row['first_name'])
+            self.ids.edit_user_list_grid.add_widget(self.edit_user_firstname)
+
+            self.ids.edit_user_list_grid.add_widget(Label(text='Lastname',size_hint=[0.3, 1]))
+            self.edit_user_lastname = TextInput(text=row['second_name'])
+            self.ids.edit_user_list_grid.add_widget(self.edit_user_lastname)
+
+            self.ids.edit_user_list_grid.add_widget(Label(text='E-mail',size_hint=[0.3, 1]))
+            self.edit_user_email = TextInput(text=row['email'])
+            self.ids.edit_user_list_grid.add_widget(self.edit_user_email)
+
+            self.ids.edit_user_list_grid.add_widget(Label(text='Phone',size_hint=[0.3, 1]))
+            self.edit_user_phone = TextInput(text=row['mobile'])
+            self.ids.edit_user_list_grid.add_widget(self.edit_user_phone)
+
+
+        self.ids.edit_user_list_grid.bind(minimum_height=self.ids.edit_user_list_grid.setter('height'))
+
+
+    def update_user(self,*args):
+        secret = hashlib.md5( self.edit_user_pin.text ).hexdigest()
+        self.session.call(u'io.crossbar.btms.user.update', self.edit_user_id, self.edit_user_name.text, secret, self.edit_user_firstname.text, self.edit_user_lastname.text, self.edit_user_email.text, self.edit_user_phone.text)
+
+    def add_user(self,*args):
+        secret = hashlib.md5( self.ids.kv_add_user_pin.text ).hexdigest()
+        self.session.call(u'io.crossbar.btms.user.add', self.ids.kv_add_user_name.text, secret,
+            self.ids.kv_add_user_firstname.text, self.ids.kv_add_user_lastname.text,
+            self.ids.kv_add_user_email.text, self.ids.kv_add_user_phone.text)
+
+        self.ids.kv_add_user_name.text = ''
+        self.ids.kv_add_user_pin.text = ''
+        self.ids.kv_add_user_firstname.text = ''
+        self.ids.kv_add_user_lastname.text = ''
+        self.ids.kv_add_user_email.text = ''
+        self.ids.kv_add_user_phone.text = ''
+
+    def delete_user(self,cmd, user_id, user_name, *args):
+        if cmd == 0:
+            popup_layout1 = FloatLayout(size_hint=[1, 1])
+            popup = Popup(title='Delete User', content=popup_layout1, size_hint=(.5, .4))
+            popup_layout1.add_widget(Label(text='Do you really want to delete this user: '+user_name,pos_hint={'x': .0, 'y': .7}, size_hint=[1, .2]))
+            popup_layout1.add_widget(Button(text='Delete',pos_hint={'x': .0, 'y': .2}, size_hint=[1, .2], on_press=partial(self.delete_user, 1, user_id, user_name), on_release=popup.dismiss))
+            popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+            popup.open()
+        elif cmd == 1:
+            self.session.call(u'io.crossbar.btms.user.delete', user_id)
+            self.ids.sm.current = 'dashboard'
+            print'user deleted:', user_name
+
+    def get_server_dashboard(self, *args):
+        @inlineCallbacks
+        def result_server(*args):
+            self.ids.kv_dashboard_server_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+            results_server = yield self.session.call(u'io.crossbar.btms.server.get')
+            self.ids.kv_dashboard_server_grid.clear_widgets(children=None)
+            #print results_server
+            for row in results_server:
+                self.label = Label(text=row, size_hint=(1.0, None), halign="left", valign="middle",  height=20)
+                self.label.bind(size=self.label.setter('text_size'))
+                self.ids.kv_dashboard_server_grid.add_widget(self.label)
+
+            self.ids.kv_dashboard_server_grid.bind(minimum_height=self.ids.kv_dashboard_server_grid.setter('height'))
+        result_server()
+        #Clock.schedule_interval(result_server, 5)
+
+    @inlineCallbacks
+    def get_reports_dashboard(self, cmd, event_id, venue_id, event_date, event_time, user_id, *args):
+
+
+        if event_id == 0:
+            event_id = self.event_id
+
+        if venue_id == 0:
+            venue_id = self.venue_id
+
+        if event_date == 0:
+            event_date = self.event_date
+
+
+        if event_time == 0:
+            event_time = self.event_time
+
+        if user_id == 0:
+            user_id = self.user_id
+
+
+        if cmd == 0:
+            pass
+        else:
+            try:
+                self.reports_dashboard_curr_date
+            except AttributeError:
+                self.reports_dashboard_curr_date = self.event_date
+
+            date_1 = dt.datetime.strptime(self.reports_dashboard_curr_date, '%Y-%m-%d')
+            date2 = date_1 + dt.timedelta(days=cmd)
+
+            set_date = date2.strftime('%Y-%m-%d')
+            self.reports_dashboard_curr_date = set_date
+
+
+            if set_date in self.event_date_time_dict:
+                print 'in list', set_date
+                event_date = set_date
+                self.reports_dashboard_curr_date2 = set_date
+            else:
+                print 'not in list', set_date
+                check = 0
+                for i in range(1, 8):
+                    if cmd == 1:
+                        i2 = i
+                    elif cmd == -1:
+                        i2 = i*-1
+                    date_1 = dt.datetime.strptime(self.reports_dashboard_curr_date2, '%Y-%m-%d')
+                    date2 = date_1 + dt.timedelta(days=i2)
+                    curr_date = date2.strftime('%Y-%m-%d')
+
+                    if curr_date in self.event_date_time_dict:
+                        if check == 0:
+                            event_date = curr_date
+                            self.reports_dashboard_curr_date = curr_date
+                            self.reports_dashboard_curr_date2 = curr_date
+                            check = 1
+                            print 'set date', event_date
+                        #else:
+                            #print 'next dates', event_date
+                    else:
+                       self.reports_dashboard_curr_date = self.reports_dashboard_curr_date2
+
+
+        #Get Report
+        self.ids.kv_dashboard_report_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
+        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, '', 'all')
+        self.ids.kv_dashboard_report_grid.clear_widgets(children=None)
+        for key, value in results_report.iteritems():
+            if key == 'all':
+                date_day = dt.datetime.strptime(event_date, "%Y-%m-%d")
+                date_day_name = date_day.strftime("%a")
+
+                self.ids.kv_dashboard_report_grid.add_widget(Label(text=self.event_only_titles_list[event_id]+' - '+date_day_name+' '+event_date+' - '+event_time, size_hint=[1, None], height=30))
+                self.ids.kv_dashboard_report_grid.add_widget(ProgressBar(size_hint=[1, None], height=5))
+                report_grid = GridLayout(cols=3, size_hint=[1, None], height=80)
+
+                report_grid.add_widget(Label(text='Sold'))
+                #report_grid.add_widget(Label(text='Cash'))
+                #report_grid.add_widget(Label(text='Card'))
+                #report_grid.add_widget(Label(text='Cont.'))
+                report_grid.add_widget(Label(text='Reserved'))
+                report_grid.add_widget(Label(text='Expected'))
+
+
+                report_grid.add_widget(Label(text=str(value['a_total_sold'])))
+                #report_grid.add_widget(Label(text=str(value['a_sold_cash'])))
+                #report_grid.add_widget(Label(text=str(value['a_sold_card'])))
+                #report_grid.add_widget(Label(text=str(value['a_sold_conti'])))
+                report_grid.add_widget(Label(text=str(value['a_reserved'])))
+                report_grid.add_widget(Label(text=str(value['a_total_pre'])))
+
+
+                report_grid.add_widget(Label(text=str(value['m_total_sold'])+ unichr(8364)))
+                #report_grid.add_widget(Label(text=str(value['m_sold_cash'])+ unichr(8364)))
+                #report_grid.add_widget(Label(text=str(value['m_sold_card'])+ unichr(8364)))
+                #report_grid.add_widget(Label(text=str(value['m_sold_conti'])+ unichr(8364)))
+                report_grid.add_widget(Label(text=str(value['m_reserved'])+ unichr(8364)))
+                report_grid.add_widget(Label(text=str(value['m_total_pre'])+ unichr(8364)))
+
+                self.ids.kv_dashboard_report_grid.add_widget(report_grid)
+
+
+
+
+
     @inlineCallbacks
     def get_reports(self, event_id, venue_id, event_date, event_time, user_id, *args):
         self.ids.sm.current = "reports"
+
+        try:
+            self.report_cat_list
+        except AttributeError:
+            self.report_cat_list = {}
 
         #Get events for select list
         if event_id == 0:
@@ -1779,6 +2074,19 @@ class BtmsRoot(BoxLayout):
                     self.ids.report_select_event_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.get_reports,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
                 else:
                     self.ids.report_select_event_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.get_reports,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
+
+                #Get Categorie Names of events
+                try:
+                    self.report_cat_list[event_id]
+                except KeyError:
+                    self.report_cat_list[event_id] = {}
+                    results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',row['venue_id'])
+                    for row in results_cat:
+                        self.report_cat_list[event_id]['cat_'+str(row['id'])] = row['name']
+
+
+
+
 
             self.ids.report_select_event_list.bind(minimum_height=self.ids.report_select_event_list.setter('height'))
 
@@ -1852,27 +2160,34 @@ class BtmsRoot(BoxLayout):
         results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, self.report_printer, self.user_id)
         self.ids.report_draw_list.clear_widgets(children=None)
         for key, value in results_report.iteritems():
-            self.ids.report_draw_list.add_widget(Button(text=key+'  -  '+ str(event_id)+' '+str(event_date)+' '+str(event_time)+' '+str(user_id), size_hint=[1, None], height=30))
+            if key == 'all':
+                report_cat_name = 'All'
+            else:
+                report_cat_name = self.report_cat_list[event_id][key]
+            self.ids.report_draw_list.add_widget(Button(text=report_cat_name, size_hint=[1, None], height=30))
 
             report_grid = GridLayout(cols=5, size_hint=[1, None], height=80)
 
             report_grid.add_widget(Label(text='Sold'))
             report_grid.add_widget(Label(text='Cash'))
-            report_grid.add_widget(Label(text='Card'))
+            #report_grid.add_widget(Label(text='Card'))
+            report_grid.add_widget(Label(text='Cont.'))
             report_grid.add_widget(Label(text='Reserved'))
             report_grid.add_widget(Label(text='Expected'))
 
 
             report_grid.add_widget(Label(text=str(value['a_total_sold'])))
             report_grid.add_widget(Label(text=str(value['a_sold_cash'])))
-            report_grid.add_widget(Label(text=str(value['a_sold_card'])))
+            #report_grid.add_widget(Label(text=str(value['a_sold_card'])))
+            report_grid.add_widget(Label(text=str(value['a_sold_conti'])))
             report_grid.add_widget(Label(text=str(value['a_reserved'])))
             report_grid.add_widget(Label(text=str(value['a_total_pre'])))
 
 
             report_grid.add_widget(Label(text=str(value['m_total_sold'])+ unichr(8364)))
             report_grid.add_widget(Label(text=str(value['m_sold_cash'])+ unichr(8364)))
-            report_grid.add_widget(Label(text=str(value['m_sold_card'])+ unichr(8364)))
+            #report_grid.add_widget(Label(text=str(value['m_sold_card'])+ unichr(8364)))
+            report_grid.add_widget(Label(text=str(value['m_sold_conti'])+ unichr(8364)))
             report_grid.add_widget(Label(text=str(value['m_reserved'])+ unichr(8364)))
             report_grid.add_widget(Label(text=str(value['m_total_pre'])+ unichr(8364)))
             self.ids.report_draw_list.add_widget(report_grid)

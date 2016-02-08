@@ -35,6 +35,8 @@ from datetime import datetime
 from baluhn import generate, verify
 from ticket import createPdfTicket
 
+from server_stats import get_server_stats
+
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
 import json
@@ -76,7 +78,7 @@ class BtmsBackend(ApplicationSession):
         self.publish('io.crossbar.btms.vote.onreset')
 
     @wamp.register(u'io.crossbar.btms.users.get')
-    def getUser(self):
+    def getUsers(self):
         '''
         def get_result(user):
             return self.db.runQuery("SELECT * FROM btms_users ORDER by user")
@@ -91,13 +93,50 @@ class BtmsBackend(ApplicationSession):
         return self.db.runQuery("SELECT * FROM btms_users ORDER by user")
         #return [{'subject': key, 'votes': value} for key, value in self._votes.items()]
 
+    @wamp.register(u'io.crossbar.btms.user.get')
+    def getUser(self,user_id):
+        return self.db.runQuery("SELECT * FROM btms_users WHERE id = '"+str(user_id)+"'")
+
+    @wamp.register(u'io.crossbar.btms.user.update')
+    def updateUser(self, user_id, user_name, user_secret, user_firstname, user_lastname, user_email, user_phone):
+        if user_secret == 'dcddb75469b4b4875094e14561e573d8':
+            print 'pw not changed', user_id, user_name, user_secret, user_firstname, user_lastname, user_email, user_phone
+            sql = "UPDATE btms_users SET btms_users.user='%s', btms_users.first_name='%s', " \
+                  "btms_users.second_name='%s', btms_users.email='%s', btms_users.mobile='%s' " \
+                  "WHERE btms_users.id='%s'" % (user_name, user_firstname, user_lastname,
+                                                user_email, user_phone, user_id)
+        else:
+            print 'pw changed', user_id, user_name, user_secret, user_firstname, user_lastname, user_email, user_phone
+            sql = "UPDATE btms_users SET btms_users.user='%s', btms_users.secret='%s' , btms_users.first_name='%s', " \
+                  "btms_users.second_name='%s', btms_users.email='%s', btms_users.mobile='%s' " \
+                  "WHERE btms_users.id='%s'" % (user_name, user_secret, user_firstname, user_lastname,
+                                                user_email, user_phone, user_id)
+
+        self.db.runOperation(sql)
+
+    @wamp.register(u'io.crossbar.btms.user.add')
+    def addUser(self, user_name, user_secret, user_firstname, user_lastname, user_email, user_phone):
+        print 'add_user', user_name, user_secret, user_firstname, user_lastname, user_email, user_phone
+
+        sql = "insert into btms_users(user, secret, role, first_name, second_name, email, mobile) " \
+              "values('%s','%s','%s','%s','%s','%s','%s')" % \
+              (user_name, user_secret, 'frontend', user_firstname, user_lastname, user_email, user_phone)
+        self.db.runOperation(sql)
+
+    @wamp.register(u'io.crossbar.btms.user.delete')
+    def deleteUser(self, user_id):
+        #Delete from db
+        sql = "DELETE FROM btms_users WHERE id = '"+str(user_id)+"'"
+        self.db.runOperation(sql)
+
+
     @wamp.register(u'io.crossbar.btms.events.get')
     def getEvents(self):
 
         date_current = datetime.now().strftime('%Y-%m-%d')
 
 
-        return self.db.runQuery("SELECT id, title, description, date_start, start_times, date_end, venue_id FROM btms_events WHERE ref = '0' AND date_end >= '"+date_current+"' ORDER by date_end")
+        return self.db.runQuery("SELECT id, title, description, date_start, start_times, date_end, admission, venue_id FROM btms_events WHERE ref = '0' AND date_end >= '"+date_current+"' ORDER by date_end")
 
     @wamp.register(u'io.crossbar.btms.events.day')
     def getEventsDay(self,event_id):
@@ -296,7 +335,7 @@ class BtmsBackend(ApplicationSession):
                                     amount = amount + value
                                 print 'amount', amount
 
-                            self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['amount'] - amount
+                            self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
                             print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                 except Exception as err:
@@ -403,8 +442,10 @@ class BtmsBackend(ApplicationSession):
     def selectSeats(self,edt_id, seat_select_list, cat_id, tid, user_id):
         print seat_select_list
         new_seat_select_list = {}
+
         for item_id, seat_list in seat_select_list.iteritems():
-            new_seat_select_list = {item_id:{}}
+
+            new_seat_select_list[item_id] = {}
             for seat, status in seat_list.iteritems():
 
                 if self.item_list[edt_id][item_id]['seats'][seat] == 0:
@@ -423,6 +464,7 @@ class BtmsBackend(ApplicationSession):
                         print 'seat is now free', item_id, seat, status
                     else:
                         print 'seat is occupied', item_id, seat, status, tid, self.item_list[edt_id][item_id]['seats_tid'][seat]
+
 
         self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, tid, user_id)
 
@@ -994,10 +1036,15 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.contingent.release')
     #@inlineCallbacks
-    def releaseContingent(self, event_id, event_date, event_time, conti_id, seat_trans_list, itm_cat_amount_list, user_id):
-        print 'Contingent released', event_id, event_date, event_time, conti_id, seat_trans_list, itm_cat_amount_list, user_id
+    def releaseContingent(self, event_id, event_date, event_time, conti_id, seat_trans_list, itm_cat_amount_list, total_bill_price, user_id):
+        print 'Contingent released', event_id, event_date, event_time, conti_id, seat_trans_list, itm_cat_amount_list, total_bill_price, user_id
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
-        transaction_id = 'con'+str(conti_id)
+        transaction_id = edt_id+str(conti_id)
+        transaction_id = filter(str.isalnum, str(transaction_id))
+        transaction_id = 'con'+str(transaction_id)
+
+        self.setJournal(transaction_id, event_id, event_date, event_time, 1210, itm_cat_amount_list,total_bill_price, 0, 0, 2, user_id)
+
 
         if seat_trans_list == {}:
             pass
@@ -1204,16 +1251,28 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.journal.set')
     def setJournal(self, tid, event_id, event_date, event_time, account, itm_cat_amount_list, debit, given, back, status, user_id):
+
         reg_date_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
         amount = json.dumps(itm_cat_amount_list, separators=(',',';'))
+        '''
         sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time)" \
               " values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time)
+        self.db.runOperation(sql)
+        '''
+
+        sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time) " \
+                "values('"+str(tid)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                " '"+str(account)+"','"+amount+"','"+str(debit)+"','"+str(given)+"','"+str(back)+"','"+str(status)+"','"+str(user_id)+"','"+str(reg_date_time)+"') " \
+                "ON DUPLICATE KEY UPDATE account='"+str(account)+"', amount='"+amount+"', debit='"+str(debit)+"', given='"+str(given)+"', back='"+str(back)+"', " \
+                "status='"+str(status)+"', user_id='"+str(user_id)+"', reg_date_time='"+str(reg_date_time)+"' "
         self.db.runOperation(sql)
 
 
     @wamp.register(u'io.crossbar.btms.report.get')
     @inlineCallbacks
     def getReport(self,cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id):
+        print cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id
         if cmd == 0:
             try:
                 if selected_user_id == 'all':
@@ -1233,12 +1292,14 @@ class BtmsBackend(ApplicationSession):
             report_result_dict['all']['m_total_sold'] = 0
             report_result_dict['all']['m_sold_cash'] = 0
             report_result_dict['all']['m_sold_card'] = 0
+            report_result_dict['all']['m_sold_conti'] = 0
             report_result_dict['all']['m_total_pre'] = 0
             report_result_dict['all']['m_reserved'] = 0
 
             report_result_dict['all']['a_total_sold'] = 0
             report_result_dict['all']['a_sold_cash'] = 0
             report_result_dict['all']['a_sold_card'] = 0
+            report_result_dict['all']['a_sold_conti'] = 0
             report_result_dict['all']['a_total_pre'] = 0
             report_result_dict['all']['a_reserved'] = 0
 
@@ -1262,6 +1323,7 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['cat_'+str(cat)]['a_total_sold'] = 0
                             report_result_dict['cat_'+str(cat)]['a_sold_cash'] = 0
                             report_result_dict['cat_'+str(cat)]['a_sold_card'] = 0
+                            report_result_dict['cat_'+str(cat)]['a_sold_conti'] = 0
                             report_result_dict['cat_'+str(cat)]['a_reserved'] = 0
                             report_result_dict['cat_'+str(cat)]['a_total_pre'] = 0
 
@@ -1269,6 +1331,7 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['cat_'+str(cat)]['m_total_sold'] = 0
                             report_result_dict['cat_'+str(cat)]['m_sold_cash'] = 0
                             report_result_dict['cat_'+str(cat)]['m_sold_card'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_sold_conti'] = 0
                             report_result_dict['cat_'+str(cat)]['m_reserved'] = 0
                             report_result_dict['cat_'+str(cat)]['m_total_pre'] = 0
 
@@ -1342,7 +1405,25 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['all']['a_sold_card'] = report_result_dict['all']['a_sold_card'] + total_amount
                         except IndexError:
                             pass
+                    #Sold Contingent
+                    if row['account'] == 1210:
+                        #Money
+                        report_result_dict['all']['m_sold_conti'] = report_result_dict['all']['m_sold_conti'] + row['debit']
 
+                        #Tickets
+                        try:
+                            item_amount[0]
+                            total_amount = 0
+                            for cat, value in item_amount[0].iteritems():
+                                cat_amount = 0
+                                for price_id, value in value.iteritems():
+                                    total_amount = total_amount + value
+                                    cat_amount = cat_amount + value
+                                report_result_dict['cat_'+str(cat)]['a_sold_conti'] = report_result_dict['cat_'+str(cat)]['a_sold_conti'] + cat_amount
+
+                            report_result_dict['all']['a_sold_conti'] = report_result_dict['all']['a_sold_conti'] + total_amount
+                        except IndexError:
+                            pass
                 #Reserved
                 if row['status'] == 1:
                     #Money Pre
@@ -1370,6 +1451,15 @@ class BtmsBackend(ApplicationSession):
         elif cmd == 1:
             print 'print report', printer
             #TODO print report
+
+    @wamp.register(u'io.crossbar.btms.server.get')
+    #@inlineCallbacks
+    def getServer(self):
+        return get_server_stats()
+
+
+
+
 
     @inlineCallbacks
     def onJoin(self, details):

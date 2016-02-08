@@ -548,7 +548,8 @@
 				size_hint: .1, .1
 				on_press: res_number_display_box.text = "";
 				on_release: number_display_box.text = "";
-				
+				on_press: root.create_clock()
+                on_release: root.delete_clock()
 				
 				
 
@@ -611,6 +612,7 @@
 
 			Button:
 				id: kv_total_button
+				font_size: "20dp"
 				text: "0" + unichr(8364)
 
 				pos_hint: {'x': .35, 'y': .06}
@@ -625,6 +627,7 @@
 
 			Button:
 				id: kv_given_button
+				font_size: "20dp"
 				text: "0" + unichr(8364)
 
 				pos_hint: {'x': .465, 'y': .06}
@@ -639,6 +642,7 @@
 
 			Button:
 				id: kv_back_button
+				font_size: "20dp"
 				text: "0" + unichr(8364)
 
 				pos_hint: {'x': .58, 'y': .06}
@@ -674,7 +678,12 @@
 				text: "Dashboard"
 				on_release: sm.transition.direction = 'left'
 				on_release: sm.current = "dashboard"
-
+				on_press: root.get_printers()
+				on_press: root.get_reports_dashboard(0,0,0,0,0,0)
+				on_press: root.get_events_dashboard()
+				on_press: root.get_venues_dashboard()
+                on_press: root.get_users_dashboard()
+                on_press: root.get_server_dashboard()
 				pos_hint: {'x': .525, 'y': .0}
 				size_hint: .165, .05
 				
@@ -730,61 +739,337 @@
 
 		Screen:
 			name: 'dashboard'
-			ScrollView:
-				size_hint: 1, .9
-				pos_hint: {'x': 0, 'y': .1}
-				scroll_timeout: 100
-				scroll_distance: 20
 
+            GridLayout:
+                id: dashboard_list_box
+                pos_hint: {'x': 0, 'y': 0.1}
+                size_hint: 1, .9
+                padding: 0
+                spacing: 5
+                height: 30
+                cols: 3
+                rows: None
+                do_scroll_x: False
+                #row_default_height: 30
 
-				GridLayout:
-					id: dashboard_list_box
-					pos_hint: {'x': 0, 'y': 0.0}
-					size_hint: 1, 1
-					padding: 0
-					spacing: 5
-					height: 30
-					cols: 3
-					rows: None
-					do_scroll_x: False
-					row_default_height: 30
-
-					Button:
-                        id: kv_create_event
-                        text: "Create Event"
-                        on_release: sm.transition.direction = 'left'
-                        on_release: sm.current = "create_event"
-                        on_press: root.get_venues()
-                        pos_hint: {'x': .70, 'y': .0}
-                        size_hint: .3, .05
+                FloatLayout:
+                    size_hint: .3, .05
+                    pos_hint: {'x': 0, 'y': 0}
+                    Button:
+                        id: kv_events_title
+                        text: 'Reports'
+                        pos_hint: {'x': 0, 'y': .85}
+                        size_hint: 1, .15
+                        #background_normal: ''
+                        background_color: [.9,.9,.9,1]
 
                     Button:
-                        id: kv_edit_events
-                        text: "Edit Events"
-                        #on_release: sm.current = "edit_events"
-                        #on_press: root.get_dashboard()
-                        pos_hint: {'x': .70, 'y': .0}
-                        size_hint: .3, .05
+                        id: kv_events
+                        disabled: True
+                        pos_hint: {'x': 0, 'y': 0}
+                        size_hint: 1, .85
+                        background_color: [.4,.4,.4,1]
 
+                    GridLayout:
+                        id: kv_dashboard_report_grid
+                        pos_hint: {'x': .025, 'y': .2}
+                        size_hint: .95, .625
+                        padding: 0
+                        spacing: 5
+                        height: 10
+                        cols: 1
+                        rows: None
+                        do_scroll_x: False
+
+
+                    BoxLayout:
+                        pos_hint: {'x': 0.025, 'y': .025}
+                        size_hint: .95, .15
+                        Button:
+                            id: kv_reports_bkw
+                            text: "<||"
+                            on_release: root.get_reports_dashboard(-1,0,0,0,0,0)
+
+                        Button:
+                            id: kv_reports_details
+                            text: "Details"
+                            on_release: root.get_reports(0,0,0,0,0)
+
+
+                        Button:
+                            id: kv_reports_ffw
+                            on_release: root.get_reports_dashboard(1,0,0,0,0,0)
+                            text: "||>"
+
+
+
+
+                FloatLayout:
+                    size_hint: .3, .05
+                    pos_hint: {'x': 0, 'y': 0}
+                    Button:
+                        id: kv_events_title
+                        text: 'Events'
+                        pos_hint: {'x': 0, 'y': .85}
+                        size_hint: 1, .15
+                        background_color: [.9,.9,.9,1]
+                    Button:
+                        id: kv_events
+                        disabled: True
+                        pos_hint: {'x': 0, 'y': 0}
+                        size_hint: 1, .85
+                        background_color: [.4,.4,.4,1]
+                    ScrollView:
+                        id: kv_dashboard_events_scrollview
+                        pos_hint: {'x': .025, 'y': .2}
+                        size_hint: .95, .625
+                        do_scroll_x: False
+
+                        GridLayout:
+                            id: kv_dashboard_events_grid
+                            cols: 1
+                            size_hint: 1, None
+
+
+
+                    BoxLayout:
+                        pos_hint: {'x': 0.025, 'y': .025}
+                        size_hint: .95, .15
+                        Button:
+                            id: kv_create_event
+                            text: "Create"
+                            on_release: sm.transition.direction = 'left'
+                            on_release: sm.current = "create_event"
+                            on_press: root.get_venues()
+
+                        Button:
+                            id: kv_create_event
+                            text: "Edit"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+
+                        Button:
+                            id: kv_create_event
+                            text: "Delete"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+
+                FloatLayout:
+                    size_hint: .3, .05
+                    pos_hint: {'x': 0, 'y': 0}
+                    Button:
+                        id: kv_venues_cat_prices_title
+                        text: 'Venues / Categories / Prices'
+                        pos_hint: {'x': 0, 'y': .85}
+                        size_hint: 1, .15
+                        background_color: [.9,.9,.9,1]
+                    Button:
+                        id: kv_venues_cat_price
+                        disabled: True
+                        pos_hint: {'x': 0, 'y': 0}
+                        size_hint: 1, .85
+                        background_color: [.4,.4,.4,1]
+
+
+                    ScrollView:
+                        id: kv_dashboard_venues_cat_prices_scrollview
+                        pos_hint: {'x': .025, 'y': .2}
+                        size_hint: .95, .625
+                        do_scroll_x: False
+
+                        GridLayout:
+                            id: kv_dashboard_venues_cat_prices_grid
+                            cols: 1
+                            size_hint: 1, None
+
+
+                    BoxLayout:
+                        pos_hint: {'x': 0.025, 'y': .025}
+                        size_hint: .95, .15
+                        Button:
+                            id: kv_venues_cat_price_create
+                            text: "Create"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+
+                        Button:
+                            id: kv_venues_cat_price_edit
+                            text: "Edit"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+
+                        Button:
+                            id: kv_venues_cat_price_delete
+                            text: "Delete"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+
+                FloatLayout:
+                    size_hint: .3, .05
+                    pos_hint: {'x': 0, 'y': 0}
+                    Button:
+                        id: kv_users_title
+                        text: 'Users'
+                        pos_hint: {'x': 0, 'y': .85}
+                        size_hint: 1, .15
+                        background_color: [.9,.9,.9,1]
+                    Button:
+                        id: kv_users
+                        disabled: True
+                        pos_hint: {'x': 0, 'y': 0}
+                        size_hint: 1, .85
+                        background_color: [.4,.4,.4,1]
+
+                    ScrollView:
+                        id: kv_dashboard_users_scrollview
+                        pos_hint: {'x': .025, 'y': .2}
+                        size_hint: .95, .625
+                        do_scroll_x: False
+
+                        GridLayout:
+                            id: kv_dashboard_users_grid
+                            cols: 1
+                            size_hint: 1, None
+
+
+                    BoxLayout:
+                        pos_hint: {'x': 0.025, 'y': .025}
+                        size_hint: .95, .15
+                        Button:
+                            id: kv_users_add
+                            text: "Add"
+                            on_release: sm.transition.direction = 'left'
+                            on_release: sm.current = "add_user"
+
+                        Button:
+                            id: kv_users_edit_delete
+                            text: "Edit / Delete"
+                            on_release: sm.transition.direction = 'left'
+                            on_release: sm.current = "select_user"
+                            on_release: root.get_users_select()
+
+
+                FloatLayout:
+                    size_hint: .3, .05
+                    pos_hint: {'x': 0, 'y': 0}
+                    Button:
+                        id: kv_printers_title
+                        text: 'Printers'
+                        #on_release: sm.current = "printers"
+                        #on_press: root.get_printers()
+                        #pos_hint: {'x': .70, 'y': .0}
+                        pos_hint: {'x': 0, 'y': .85}
+                        size_hint: 1, .15
+                        background_color: [.9,.9,.9,1]
                     Button:
                         id: kv_printers
-                        text: "Printers"
-                        on_release: sm.current = "printers"
-                        on_press: root.get_printers()
-                        pos_hint: {'x': .70, 'y': .0}
-                        size_hint: .3, .05
+                        disabled: True
+                        #on_release: sm.current = "printers"
+                        #on_press: root.get_printers()
+                        #pos_hint: {'x': .70, 'y': .0}
+                        pos_hint: {'x': 0, 'y': 0}
+                        size_hint: 1, .85
+                        background_color: [.4,.4,.4,1]
 
+                    GridLayout:
+                        id: printers_list_box
+                        pos_hint: {'x': .025, 'y': .2}
+                        size_hint: .95, .625
+                        padding: 0
+                        spacing: 5
+                        height: 10
+                        cols: 2
+                        rows: None
+                        do_scroll_x: False
+                        #row_default_height: 30
+
+
+                        Label:
+                            text: "Ticket"
+                            size_hint: .3, 1
+
+                        Spinner:
+                            text: "select"
+                            id: kv_ticket_printer_spinner
+                            on_text: root.set_printer('ticket',self.text)
+                        Label:
+                            text: "Bon   "
+                            size_hint: .3, 1
+
+                        Spinner:
+                            text: "select"
+                            id: kv_bon_printer_spinner
+                            on_text: root.set_printer('bon',self.text)
+
+                        Label:
+                            text: "Report"
+                            size_hint: .3, 1
+
+                        Spinner:
+                            text: "select"
+                            id: kv_report_printer_spinner
+                            on_text: root.set_printer('report',self.text)
                     Button:
                         id: kv_reports
-                        text: "Reports"
-                        on_release: root.get_reports(0,0,0,0,0)
-                        #on_press: root.get_dashboard()
-                        pos_hint: {'x': .70, 'y': .0}
-                        size_hint: .3, .05
+                        text: "Reload Printers"
+                        on_release: root.get_printers()
+
+                        pos_hint: {'x': 0.025, 'y': .025}
+                        size_hint: .95, .15
+
+
+                FloatLayout:
+                    size_hint: .3, .05
+                    pos_hint: {'x': 0, 'y': 0}
+                    Button:
+                        id: kv_server_title
+                        text: 'Server'
+                        pos_hint: {'x': 0, 'y': .85}
+                        size_hint: 1, .15
+                        background_color: [.9,.9,.9,1]
+                    Button:
+                        id: kv_server
+                        disabled: True
+                        pos_hint: {'x': 0, 'y': 0}
+                        size_hint: 1, .85
+                        background_color: [.4,.4,.4,1]
+
+                    ScrollView:
+                        id: kv_dashboard_server_scrollview
+                        pos_hint: {'x': .025, 'y': .2}
+                        size_hint: .95, .625
+                        do_scroll_x: False
+
+                        GridLayout:
+                            id: kv_dashboard_server_grid
+                            cols: 1
+                            size_hint: 1, None
+
+                    BoxLayout:
+                        pos_hint: {'x': 0.025, 'y': .025}
+                        size_hint: .95, .15
+                        Button:
+                            id: kv_create_event
+                            text: "Reboot"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+
+                        Button:
+                            id: kv_create_event
+                            text: "Shutdown"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
 
 			Button:
 				text: "Back"
-				size_hint: 1, 0.1
+				size_hint: 1, 0.09
 				pos_hint: {'x': 0, 'y': 0}
 				on_release: sm.transition.direction = 'right'
 				on_release: sm.current = "work1"
@@ -798,40 +1083,6 @@
 				scroll_distance: 20
 
 
-				GridLayout:
-					id: printers_list_box
-					pos_hint: {'x': 0, 'y': 0.0}
-					size_hint: 1, 1
-					padding: 0
-					spacing: 5
-					height: 10
-					cols: 2
-					rows: None
-					do_scroll_x: False
-					row_default_height: 30
-
-                    Label:
-				        text: "Ticket Printer"
-
-				    Spinner:
-				        text: "select"
-				        id: kv_ticket_printer_spinner
-                        on_text: root.set_printer('ticket',self.text)
-				    Label:
-				        text: "Bon Printer"
-
-				    Spinner:
-				        text: "select"
-				        id: kv_bon_printer_spinner
-				        on_text: root.set_printer('bon',self.text)
-
-				    Label:
-				        text: "Report Printer"
-
-				    Spinner:
-				        text: "select"
-				        id: kv_report_printer_spinner
-				        on_text: root.set_printer('report',self.text)
 
 
 			Button:
@@ -1050,11 +1301,7 @@
                         size_hint: 1, None
                         cols: 1
 
-                        Button:
-                            text: '19:30'
 
-                        Button:
-                            text: 'test 3'
                 ScrollView:
                     size_hint: .2, 1
                     GridLayout:
@@ -1065,13 +1312,9 @@
                 ScrollView:
                     GridLayout:
                         id: report_draw_list
+                        size_hint: 1, None
                         cols: 1
 
-                        Button:
-                            text: 'test'
-
-                        Button:
-                            text: 'test 5'
             Button:
                 text: "Back"
                 size_hint: 0.5, 0.1
@@ -1084,6 +1327,160 @@
                 size_hint: 0.5, 0.1
                 pos_hint: {'x': .5, 'y': 0}
                 #on_release: root.create_events()
+
+        Screen:
+			name: 'add_user'
+
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+
+				GridLayout:
+					id: add_user_list_box
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, 1.0
+					padding: 0
+					spacing: 5
+					cols: 2
+					rows: None
+					do_scroll_x: False
+					row_default_height: 10
+
+
+				    Label:
+				        text: "Username"
+				        size_hint: .3, 1
+
+				    TextInput:
+				        id: kv_add_user_name
+				        hint_text: "max"
+
+                    Label:
+				        text: "Pin"
+				        size_hint: .3, 1
+
+				    TextInput:
+				        id: kv_add_user_pin
+				        input_filter: 'int'
+				        password: True
+				        hint_text: "11223"
+
+                    Label:
+				        text: "Firstname"
+				        size_hint: .3, 1
+
+				    TextInput:
+				        id: kv_add_user_firstname
+				        hint_text: "Maximilian"
+
+                    Label:
+				        text: "Lastname"
+				        size_hint: .3, 1
+
+				    TextInput:
+				        id: kv_add_user_lastname
+				        hint_text: "Mustermann"
+
+				    Label:
+				        text: "E-mail"
+				        size_hint: .3, 1
+
+				    TextInput:
+				        id: kv_add_user_email
+				        hint_text: "max@mustermann.de"
+
+				    Label:
+				        text: "Phone"
+				        size_hint: .3, 1
+
+				    TextInput:
+				        id: kv_add_user_phone
+				        hint_text: "004917623108500"
+
+
+            Button:
+				text: "Back"
+				size_hint: 0.5, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "dashboard"
+
+		    Button:
+				text: "Add"
+				size_hint: 0.5, 0.1
+				pos_hint: {'x': .5, 'y': 0}
+				on_release: root.add_user()
+				on_release: sm.current = "dashboard"
+
+
+        Screen:
+			name: 'select_user'
+
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+				GridLayout:
+                    id: kv_user_select_grid
+                    #pos_hint: {'x': .025, 'y': .2}
+                    size_hint: 1, None
+                    padding: 0
+                    spacing: 3
+                    height: 10
+                    cols: 1
+                    rows: None
+                    do_scroll_x: False
+
+            Button:
+				text: "Back"
+				size_hint: 1, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "dashboard"
+        Screen:
+			name: 'edit_user'
+
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+
+				GridLayout:
+					id: edit_user_list_grid
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, 1.0
+					padding: 0
+					spacing: 5
+					cols: 2
+					rows: None
+					do_scroll_x: False
+					row_default_height: 10
+
+
+
+
+		    Button:
+				text: "Back"
+				size_hint: .5, 0.1
+				pos_hint: {'x': 0, 'y': 0}
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "dashboard"
+
+		    Button:
+				text: "Update"
+				size_hint: .5, 0.1
+				pos_hint: {'x': .5, 'y': 0}
+				on_release: sm.transition.direction = 'right'
+				on_release: sm.current = "select_user"
+				on_release: root.update_user()
 
 <BillItemArtikel>:
 	id: bill_item_artikel

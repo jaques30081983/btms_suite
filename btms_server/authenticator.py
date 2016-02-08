@@ -37,83 +37,68 @@ import MySQLdb.cursors
 
 class MyAuthenticator(ApplicationSession):
 
-   USERDB1 = {
-      'ajvi': {
-         # these are required:
-         'secret': '12323',  # the secret/password to be used
-         'role': 'frontend'    # the auth role to be assigned when authentication succeeds
-      },
-      'hans': {
-         'authid': 'ID09125',  # assign a different auth ID during authentication
-         'secret': '123456',
-         'role': 'frontend'
-      },
-      'peter': {
-         # use salted passwords
-
-         # autobahn.wamp.auth.derive_key(secret.encode('utf8'), salt.encode('utf8')).decode('ascii')
-         'secret': 'prq7+YkJ1/KlW1X0YczMHw==',
-         'role': 'frontend',
-         'salt': 'salt123',
-         'iterations': 100,
-         'keylen': 16
-      }
-   }
+    @inlineCallbacks
+    def onJoin(self, details):
+        authpool = adbapi.ConnectionPool(
+            'MySQLdb',
+            db='btms',
+            user='btms',
+            passwd='test',
+            host='127.0.0.1',
+            cp_reconnect=True,
+            cursorclass=MySQLdb.cursors.DictCursor
+            )
 
 
+        yield authpool.start()
+        print("DB auth connection pool started")
 
-   @inlineCallbacks
-   def onJoin(self, details):
-      authpool = adbapi.ConnectionPool(
-                     'MySQLdb',
-                     db='btms',
-                     user='btms',
-                     passwd='test',
-                     host='127.0.0.1',
-                     cp_reconnect=True,
-                     cursorclass=MySQLdb.cursors.DictCursor
-                 )
+        ## we'll be doing all database access via this database connection pool
+        ##
+        self.dbauth = authpool
 
 
-      yield authpool.start()
-      print("DB auth connection pool started")
+        '''
+        result = yield self.dbauth.runQuery("SELECT user, secret, role FROM btms_users ORDER by user")
+        self.dbresults = result
 
-      ## we'll be doing all database access via this database connection pool
-      ##
-      self.dbauth = authpool
+        self.USERDB = {}
+
+        for row in self.dbresults:
+        self.USERDB[row['user']] = {}
+        self.USERDB[row['user']]['secret'] = row['secret']
+        self.USERDB[row['user']]['role'] = row['role']
+
+        print self.USERDB
+        '''
+        @inlineCallbacks
+        def authenticate(realm, authid, details):
+            print("authenticate called: realm = '{}', authid = '{}', details = '{}'".format(realm, authid, details))
+            #results = yield get_useres()
+            #get_useres()
+            #print results
+
+            result = yield self.dbauth.runQuery("SELECT user, secret, role FROM btms_users ORDER by user")
+            self.dbresults = result
+
+            self.USERDB = {}
+
+            for row in self.dbresults:
+                self.USERDB[row['user']] = {}
+                self.USERDB[row['user']]['secret'] = row['secret']
+                self.USERDB[row['user']]['role'] = row['role']
 
 
+            if authid in self.USERDB:
+                # return a dictionary with authentication information ...
+                returnValue(self.USERDB[authid])
+            else:
+                raise ApplicationError("com.btms.no_such_user", "could not authenticate session - no such user {}".format(authid))
 
-      result = yield self.dbauth.runQuery("SELECT user, secret, role FROM btms_users ORDER by user")
-      self.dbresults = result
-
-      self.USERDB = {}
-
-      for row in self.dbresults:
-         self.USERDB[row['user']] = {}
-         self.USERDB[row['user']]['secret'] = row['secret']
-         self.USERDB[row['user']]['role'] = row['role']
-
-      print self.USERDB
-
-      def authenticate(realm, authid, details):
-         print("authenticate called: realm = '{}', authid = '{}', details = '{}'".format(realm, authid, details))
-         #results = yield get_useres()
-         #get_useres()
-         #print results
-
-
-
-         if authid in self.USERDB:
-            # return a dictionary with authentication information ...
-            return self.USERDB[authid]
-         else:
-            raise ApplicationError("com.btms.no_such_user", "could not authenticate session - no such user {}".format(authid))
-
-      try:
-         yield self.register(authenticate, 'com.btms.authenticate')
-         print("custom WAMP-CRA authenticator registered")
-      except Exception as e:
-         print("could not register custom WAMP-CRA authenticator: {0}".format(e))
+        try:
+            yield self.register(authenticate, 'com.btms.authenticate')
+            print("custom WAMP-CRA authenticator registered")
+        except Exception as e:
+            print("could not register custom WAMP-CRA authenticator: {0}".format(e))
 
 
