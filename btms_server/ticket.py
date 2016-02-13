@@ -46,7 +46,7 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
 
     c = canvas.Canvas('../spool/ticket_'+ transaction_id +'.pdf')
-    c.setPageSize((8*cm, 16*cm))
+    c.setPageSize((8.2*cm, 15.2*cm))
     for row in t_result:
 
         date_day = dt.datetime.strptime(row['date'], "%Y-%m-%d")
@@ -61,28 +61,28 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         admission_time_1 = format(admission_time, '%H:%M')
         #c.drawImage("company_logo_01.png", 1*cm, 9*cm,6*cm,6*cm)
 
-        c.line(1*cm,8.7*cm,7*cm,8.7*cm)
+        #c.line(1*cm,8.7*cm,7*cm,8.7*cm)
 
-        c.drawString(1*cm,8*cm, event_description)
-        c.drawString(1*cm,7.5*cm,date_day_name+' '+row['date'])
-        c.drawString(1*cm,7.0*cm,'Beginn: '+ row['time'] +' Uhr')
-        c.drawString(1*cm,6.5*cm,'Einlass: '+ admission_time_1 +' Uhr')
+        c.drawString(1.1*cm,9*cm, event_description)
+        c.drawString(1.1*cm,8.5*cm,date_day_name+' '+row['date'])
+        c.drawString(1.1*cm,8.0*cm,'Beginn: '+ row['time'] +' Uhr')
+        c.drawString(1.1*cm,7.5*cm,'Einlass: '+ admission_time_1 +' Uhr')
 
-        c.line(1*cm,6.3*cm,7*cm,6.3*cm)
+        c.line(1.1*cm,7.3*cm,7.1*cm,7.3*cm)
 
-        c.drawString(1*cm,5.5*cm, cat_name[row['cat_id']])
+        c.drawString(1.1*cm,6.7*cm, cat_name[row['cat_id']])
         if row['seat'] == '0':
             seat_text = ' '
         else:
             seat_text = ', Sitz: '+ str(row['seat'])
             #seat_text = '1'
 
-        c.drawString(1*cm,5*cm,itm_title[int(row['item_id'])] + seat_text)
+        c.drawString(1.1*cm,6.2*cm,itm_title[int(row['item_id'])] + seat_text)
 
-        c.line(1*cm,4.5*cm,7*cm,4.5*cm)
+        c.line(1.1*cm,5.9*cm,7.1*cm,5.9*cm)
 
-        c.drawString(1*cm,3.7*cm,pri_name[int(row['price_id'])]['description'])
-        c.drawString(1*cm,2.5*cm,pri_name[int(row['price_id'])]['price'] +' '+ pri_name[int(row['price_id'])]['currency'])
+        c.drawString(1.1*cm,5.1*cm,pri_name[int(row['price_id'])]['description'])
+        c.drawString(1.1*cm,3.9*cm,pri_name[int(row['price_id'])]['price'] +' '+ pri_name[int(row['price_id'])]['currency'])
 
         #c.drawString(1*cm,7.0*cm,"DE 13405 Berlin")
         # draw a QR code
@@ -92,11 +92,11 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         height = bounds[3] - bounds[1]
         d = Drawing(45, 45, transform=[99./width,0,0,99./height,0,0])
         d.add(qr_code)
-        renderPDF.draw(d, c, 4*cm, 1.1*cm)
+        renderPDF.draw(d, c, 4*cm, 2.5*cm)
 
 
-        c.drawString(1*cm,1*cm,"TID: "+ row['tid'] + "_" + str(row['ticket_id']))
-
+        c.drawString(1.1*cm,2.4*cm,row['tid']+" "+str(row['ticket_id']))
+        c.line(1.1*cm,2.2*cm,7.1*cm,2.2*cm)
         c.showPage()
 
     c.save()

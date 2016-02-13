@@ -774,6 +774,10 @@ class BtmsRoot(BoxLayout):
             #self.ids.kv_release_con_button.disabled = boolean
             self.ids.kv_user_button.disabled = boolean
             self.ids.kv_dashboard_button.disabled = boolean
+            if boolean == False:
+                self.ids.kv_total_button.text = '0' + unichr(8364)
+                self.ids.kv_given_button.text = '0' + unichr(8364)
+                self.ids.kv_back_button.text =  '0' + unichr(8364)
 
         elif cmd == 'reservation':
             self.ids.event_btn.disabled = boolean
@@ -1185,10 +1189,78 @@ class BtmsRoot(BoxLayout):
             self.session.call(u'io.crossbar.btms.reservation.release', self.event_id, self.event_date, self.event_time)
 
     @inlineCallbacks
+    def add_contingent(self, cmd, *args):
+        if cmd == 0:
+            #Ask for title
+            popup_layout1 = FloatLayout(size_hint=[1, 1])
+            popup = Popup(title='Add Contingent', content=popup_layout1, size_hint=(.5, .4))
+            popup_layout1.add_widget(Label(text='Enter title for new Contingent of event ' + str(self.event_id) +' at '+ self.event_time + ' \n and select seats after hit "Add Contingent".', pos_hint={'x': .0, 'y': .7}, size_hint=[1, .2]))
+            self.contingent_new_title = TextInput(pos_hint={'x': 0, 'y': .4}, size_hint=[1, .2])
+            popup_layout1.add_widget(self.contingent_new_title)
+            popup_layout1.add_widget(Button(text='Select Seats',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.add_contingent, 1), on_release=popup.dismiss))
+            popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
+
+            popup.open()
+
+        elif cmd == 1:
+            #Insert main contingent in db and go in selection mode
+
+            result = yield self.session.call(u'io.crossbar.btms.contingent.add', 0, self.event_id, self.event_date_start, self.event_date_end, self.event_date, self.event_time, 0, self.contingent_new_title.text, 0, 0, self.user_id)
+            conti_id = result
+            print 'result of add_contingent_0', result
+
+            self.contingent_cmd = 2
+            self.ids.kv_release_con_button.state='down'
+            self.ids.kv_release_con_button.text='Add Contingent'
+
+            transaction_id = self.eventdatetime_id+str(conti_id)
+            transaction_id = filter(str.isalnum, str(transaction_id))
+            transaction_id = 'con'+str(transaction_id)
+            self.conti_id = conti_id
+            self.transaction_id = transaction_id
+            self.disable_buttons('contingent',True)
+
+        elif cmd == 2:
+            #Add new data for Contingent to db
+            self.ids.kv_release_con_button.state='normal'
+            self.ids.kv_release_con_button.text='Contingent'
+
+            #Collect Data
+            seat_trans_list = {}
+            for item_id, seats in self.seat_list.items():
+                for seat, status1 in seats.items():
+                    if status1 == 3:
+                        try:
+                            seat_trans_list[str(item_id)]
+                        except KeyError:
+                            seat_trans_list[str(item_id)] = {}
+                        seat_trans_list[str(item_id)][str(seat)] = 4
+
+
+            itm_cat_amount_list = {}
+            for cat_id, value in self.itm_cat_price_amount.iteritems():
+                itm_cat_amount_list[str(cat_id)] = {}
+                for price_id, value1 in value.iteritems():
+                    if value1['amount'] == 0:
+                        pass
+                    else:
+                        itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
+
+            self.session.call(u'io.crossbar.btms.contingent.add',1, self.event_id, self.event_date_start, self.event_date_end, self.event_date, self.event_time, self.conti_id, self.contingent_new_title.text, seat_trans_list, itm_cat_amount_list, self.user_id)
+
+            self.ids.kv_release_con_button.state='normal'
+            self.ids.kv_release_con_button.text='Contingent'
+            self.contingent_cmd = 0
+            self.disable_buttons('contingent',False)
+            self.reset_transaction()
+
+
+    @inlineCallbacks
     def contingent(self, cmd, conti_id, *args):
         if self.contingent_cmd == 0:
             if cmd == 0:
-                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0)
+                #Show Popup Menu
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0,0,0)
 
                 popup_layout1 = FloatLayout(size_hint=[1, 1])
                 popup = Popup(title='Contingent', content=popup_layout1, size_hint=(.5, .4))
@@ -1199,16 +1271,17 @@ class BtmsRoot(BoxLayout):
                     popup_layout2.add_widget(Button(text=row['title'], on_press=partial(self.contingent, 1, row['id']), on_release=popup.dismiss))
 
                 popup_layout1.add_widget(popup_layout2)
-                popup_layout1.add_widget(Button(text='Add Contingent',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent, 2, 0), on_release=popup.dismiss))
+                popup_layout1.add_widget(Button(text='Add Contingent',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.add_contingent,0), on_release=popup.dismiss))
                 popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
                 popup.open()
             elif cmd == 1:
+                #Release selection mode
                 self.contingent_cmd = 1
                 self.ids.kv_release_con_button.state='down'
                 self.ids.kv_release_con_button.text='Release Contingent'
                 self.conti_id = conti_id
 
-                result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id)
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id,self.event_date,self.event_time)
                 transaction_id = self.eventdatetime_id+str(conti_id)
                 transaction_id = filter(str.isalnum, str(transaction_id))
                 self.transaction_id = 'con'+str(transaction_id)
@@ -1294,15 +1367,9 @@ class BtmsRoot(BoxLayout):
 
                     self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
 
-            elif cmd == 2:
-                self.contingent_cmd = 2
-                self.ids.kv_release_con_button.state='down'
-                self.ids.kv_release_con_button.text='Add Contingent'
-                self.conti_id = 'con0'
-                self.transaction_id = self.conti_id
-                self.disable_buttons('contingent',True)
 
         elif self.contingent_cmd == 1:
+            #Send release to server
             self.ids.kv_release_con_button.state='normal'
             self.ids.kv_release_con_button.text='Contingent'
 
@@ -1336,58 +1403,8 @@ class BtmsRoot(BoxLayout):
             self.reset_transaction()
 
         elif self.contingent_cmd == 2:
-            #Ask for title
-            popup_layout1 = FloatLayout(size_hint=[1, 1])
-            popup = Popup(title='Add Contingent', content=popup_layout1, size_hint=(.5, .4))
-            popup_layout1.add_widget(Label(text='Enter title for new Contingent of event ' + str(self.event_id) +' at '+ self.event_time + ' .', pos_hint={'x': .0, 'y': .7}, size_hint=[1, .2]))
-            self.contingent_new_title = TextInput(pos_hint={'x': 0, 'y': .4}, size_hint=[1, .2])
-            popup_layout1.add_widget(self.contingent_new_title)
-            popup_layout1.add_widget(Button(text='Add',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent, 3, 0), on_release=popup.dismiss))
-            popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent, 4, 0), on_release=popup.dismiss))
-
-            popup.open()
-            self.contingent_cmd = 3
-        elif self.contingent_cmd == 3 and cmd == 3:
-            #Add to db
-            print 'conti 3'
-            self.ids.kv_release_con_button.state='normal'
-            self.ids.kv_release_con_button.text='Contingent'
-
-            #Collect Data
-            seat_trans_list = {}
-            for item_id, seats in self.seat_list.items():
-                for seat, status1 in seats.items():
-                    if status1 == 3:
-                        try:
-                            seat_trans_list[str(item_id)]
-                        except KeyError:
-                            seat_trans_list[str(item_id)] = {}
-                        seat_trans_list[str(item_id)][str(seat)] = 4
-
-
-            itm_cat_amount_list = {}
-            for cat_id, value in self.itm_cat_price_amount.iteritems():
-                itm_cat_amount_list[str(cat_id)] = {}
-                for price_id, value1 in value.iteritems():
-                    if value1['amount'] == 0:
-                        pass
-                    else:
-                        itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
-
-            self.session.call(u'io.crossbar.btms.contingent.add', self.event_id, self.event_date_start, self.event_date_end, self.event_date, self.event_time, self.conti_id, self.contingent_new_title.text, seat_trans_list, itm_cat_amount_list, self.user_id)
-
-            self.contingent_cmd = 0
-            self.disable_buttons('contingent',False)
-            self.reset_transaction()
-
-        elif self.contingent_cmd == 3 and cmd == 4:
-            #Cancel
-            print 'conti 4'
-            self.ids.kv_release_con_button.state='normal'
-            self.ids.kv_release_con_button.text='Contingent'
-            self.contingent_cmd = 0
-            self.disable_buttons('contingent',False)
-            self.reset_transaction()
+            #Insert new data of contingent in db
+            self.add_contingent(2)
 
     @inlineCallbacks
     def transact(self, opt, *args):
@@ -1783,34 +1800,57 @@ class BtmsRoot(BoxLayout):
     #@inlineCallbacks
     def clear(self,cat_id, *args):
         print 'pressed', cat_id
-        if self.transaction_id == 0:
-            pass
+
+        if self.contingent_cmd == 1:
+            #On Release Contingent
+            #Send release to server
+            self.ids.kv_release_con_button.state='normal'
+            self.ids.kv_release_con_button.text='Contingent'
+
+            #Reset Data
+
+            for item_id, seats in self.seat_list.items():
+                for seat, status1 in seats.items():
+                    if status1 == 3:
+                        itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[4]
+                        #itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[4]
+                        self.seat_list[str(item_id)][int(seat)] = 4
+
+
+            self.contingent_cmd = 0
+            self.disable_buttons('contingent',False)
+            self.reset_transaction()
+
         else:
-            boolean = False
-            for item_id, value in self.item_art_cat_list.iteritems():
-                    print item_id, value['art'], value['cat_id']
-                    if cat_id == value['cat_id'] or cat_id == 0:
-                        if value['art'] == 1:
-                            if boolean == False:
-                                #Collect Data
-                                seat_trans_list = {}
-                                for item_id1, seats in self.seat_list.items():
-                                    for seat, status1 in seats.items():
-                                        if status1 == 3:
-                                            try:
-                                                seat_trans_list[str(item_id1)]
-                                            except KeyError:
-                                                seat_trans_list[str(item_id1)] = {}
-                                            seat_trans_list[str(item_id1)][str(seat)] = 1
 
-                                self.select_seats(seat_trans_list, value['cat_id'])
-                                boolean = True
+            if self.transaction_id == 0:
+                pass
+            else:
+                boolean = False
+                for item_id, value in self.item_art_cat_list.iteritems():
+                        print item_id, value['art'], value['cat_id']
+                        if cat_id == value['cat_id'] or cat_id == 0:
+                            if value['art'] == 1:
+                                if boolean == False:
+                                    #Collect Data
+                                    seat_trans_list = {}
+                                    for item_id1, seats in self.seat_list.items():
+                                        for seat, status1 in seats.items():
+                                            if status1 == 3:
+                                                try:
+                                                    seat_trans_list[str(item_id1)]
+                                                except KeyError:
+                                                    seat_trans_list[str(item_id1)] = {}
+                                                seat_trans_list[str(item_id1)][str(seat)] = 1
 
-                        elif value['art'] == 2:
-                            self.ids.number_display_box.text = '0' #TODO Ugly hack
-                            self.update_bill(item_id, value['cat_id'], 0,2)
-            if cat_id == 0:
-                self.reset_transaction()
+                                    self.select_seats(seat_trans_list, value['cat_id'])
+                                    boolean = True
+
+                            elif value['art'] == 2:
+                                self.ids.number_display_box.text = '0' #TODO Ugly hack
+                                self.update_bill(item_id, value['cat_id'], 0,2)
+                if cat_id == 0:
+                    self.reset_transaction()
 
     @inlineCallbacks
     def get_events_dashboard(self, *args):
@@ -2013,7 +2053,7 @@ class BtmsRoot(BoxLayout):
 
         #Get Report
         self.ids.kv_dashboard_report_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
-        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, '', 'all')
+        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, 'all', '', self.user_id)
         self.ids.kv_dashboard_report_grid.clear_widgets(children=None)
         for key, value in results_report.iteritems():
             if key == 'all':
