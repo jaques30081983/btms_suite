@@ -685,6 +685,7 @@ class BtmsBackend(ApplicationSession):
             self.busy_transactions.remove(transaction_id)
         except ValueError:
             print 'Str Transaction Id not in busy list.'
+            print 'busy list:', self.busy_transactions
 
 
         if pre_res_art == 0:
@@ -707,13 +708,15 @@ class BtmsBackend(ApplicationSession):
         else:
             transaction_id = in_transaction_id
             verify_result = True
+        transaction_id = str(transaction_id)
         try:
             self.busy_transactions
         except AttributeError:
             self.busy_transactions = []
 
+
         if verify_result == True:
-            for transaction_id in self.busy_transactions:
+            if transaction_id in self.busy_transactions:
                 print'is in list', transaction_id
                 returnValue(2)
             else:
