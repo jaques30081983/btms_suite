@@ -296,13 +296,15 @@ class BtmsRoot(BoxLayout):
         def result_event_day(results):
 
 
-            event_date_match = 0
+            event_date_match = False
             date_id = 0
+
             event_date_itm = {}
             self.event_date_time_dict = {}
             event_itm = {}
 
             self.ids.event_date.clear_widgets()
+            date_now = dt.datetime.now().strftime('%Y-%m-%d')
 
             for row in results:
                 print 'event_date'
@@ -314,13 +316,15 @@ class BtmsRoot(BoxLayout):
                 date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
                 date_day_name = date_day.strftime("%a")
 
-
                 if date_id == 0:
                     date_id = row['id']
-                    self.ids.event_date_btn.text = date_day_name +' '+ row['date_day']
-                    #self.event_date = row['date_day']
-                    self.set_event_day_times(row['date_day'])
+                    first_event_date_day = row['date_day']
 
+
+                if row['date_day'] == date_now:
+                    self.ids.event_date_btn.text = date_day_name +' '+ row['date_day']
+                    self.set_event_day_times(row['date_day'])
+                    event_date_match = True
 
 
                 event_date_itm['event_date_btn_' + str(row['id'])] = Button(id=str(row['id']), text=date_day_name +' '+ row['date_day'],
@@ -332,6 +336,9 @@ class BtmsRoot(BoxLayout):
 
                 self.ids.event_date.add_widget(event_date_itm['event_date_btn_' + str(row['id'])])
 
+            if event_date_match == False:
+                self.ids.event_date_btn.text = date_day_name +' '+ first_event_date_day
+                self.set_event_day_times(first_event_date_day)
 
         try:
             results = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
@@ -359,6 +366,8 @@ class BtmsRoot(BoxLayout):
         #Set Time List
         event_times_list = []
         i=0
+        #event_time_match = False
+        #time_now = dt.datetime.now().strftime('%H:%M')
         for kv in self.event_date_time_dict[self.event_date].split(","):
             #key, value = kv.split(";")
 
@@ -368,7 +377,12 @@ class BtmsRoot(BoxLayout):
                 #Set Init Time
                 self.ids.event_time.text = kv
                 self.set_event_time(kv)
-            i = i+1
+                i= i+1
+
+        #if event_time_match == False:
+            #Set Init Time
+                #self.ids.event_time.text = first_event_time
+                #self.set_event_time(first_event_time)
 
         self.ids.event_time.values = event_times_list
 

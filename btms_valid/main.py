@@ -15,7 +15,7 @@ Featuring:
 '''
 
 
-__version__ = '15.10.24'
+__version__ = '16.02.15'
 
 from collections import namedtuple
 from kivy.lang import Builder

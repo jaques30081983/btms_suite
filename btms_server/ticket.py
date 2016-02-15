@@ -2,6 +2,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.graphics.barcode import eanbc, qr, usps
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
@@ -19,6 +20,7 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
     #print 'venue', v_result
     #print 'uid', user_id
 
+    styles = getSampleStyleSheet()
 
     #event
     for erow in e_result:
@@ -70,14 +72,18 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
         c.line(1.1*cm,7.3*cm,7.1*cm,7.3*cm)
 
-        c.drawString(1.1*cm,6.7*cm, cat_name[row['cat_id']])
+        c.drawString(1.1*cm,6.7*cm, cat_name[row['cat_id']]) #Categorie Name
         if row['seat'] == '0':
             seat_text = ' '
         else:
-            seat_text = ', Sitz: '+ str(row['seat'])
+            seat_text = ', Sitz: <b>'+ str(row['seat'])+'</b>'
             #seat_text = '1'
 
-        c.drawString(1.1*cm,6.2*cm,itm_title[int(row['item_id'])] + seat_text)
+        #c.drawString(1.1*cm,6.2*cm,itm_title[int(row['item_id'])] + seat_text)
+        block_name, block_number  = itm_title[int(row['item_id'])].split(' ', 1)
+        p = Paragraph('<font size=14>'+block_name+' <b>'+block_number+'</b>'+seat_text+'</font>',styles["Normal"])
+        p.wrapOn(c, 8.2*cm, 15.2*cm)
+        p.drawOn(c, 1.1*cm, 6.2*cm)
 
         c.line(1.1*cm,5.9*cm,7.1*cm,5.9*cm)
 
