@@ -30,20 +30,22 @@
 
 from twisted.enterprise import adbapi
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import task
 import MySQLdb.cursors
-from datetime import datetime
-from baluhn import generate, verify
-from ticket import createPdfTicket
-
-from server_stats import get_server_stats
 
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
+
+from baluhn import generate, verify
 import json
 import datetime as dt
+from datetime import datetime
 
 import cups
 conn = cups.Connection ()
+
+from ticket import createPdfTicket
+from server_stats import get_server_stats
 
 
 class BtmsBackend(ApplicationSession):
@@ -52,6 +54,7 @@ class BtmsBackend(ApplicationSession):
         ApplicationSession.__init__(self, config)
         self.init()
         #self.getVenueInit()
+
 
     def init(self):
         self._votes = {
@@ -425,13 +428,21 @@ class BtmsBackend(ApplicationSession):
     def blockItem(self, eventdatetime_id, item_id, user_id, cmd):
         if cmd == 0:
             try:
-                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
-                block = 1
-            except KeyError:
-                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
-                block = 1
+                self.item_list[eventdatetime_id][str(item_id)]['blocked_by']
 
-            self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, block)
+            except KeyError:
+                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = 0
+
+
+            if self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] == user_id or self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] == 0:
+                self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
+                sucess = True
+                self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, 1)
+            else:
+                sucess = False
+                print "block stat", self.item_list[eventdatetime_id][str(item_id)]['blocked_by']
+
+            return sucess
 
         elif cmd == 1:
             for key, value in self.item_list[eventdatetime_id].iteritems():
@@ -441,6 +452,7 @@ class BtmsBackend(ApplicationSession):
                         self.item_list[eventdatetime_id][str(key)]['blocked_by'] = 0
                 except KeyError:
                     pass
+            return True
 
 
 
@@ -731,10 +743,13 @@ class BtmsBackend(ApplicationSession):
                 if result == ():
                     returnValue(1)
                 else:
+                    for row in result:
+                        if row['status'] == 1:
+                            self.busy_transactions.append(transaction_id)
 
-                    self.busy_transactions.append(transaction_id)
-
-                    returnValue(result)
+                            returnValue(result)
+                        else:
+                            returnValue(3)
         else:
             returnValue(0)
 
@@ -835,14 +850,14 @@ class BtmsBackend(ApplicationSession):
             single_seat_list = {}
 
             i = 0
-            for item_id, seat_list in sorted(seat_trans_list.iteritems()):
+            for item_id, seat_list in sorted(seat_trans_list.iteritems(), key=lambda seat_trans_list: int(seat_trans_list[0])):
                 cat_id = self.item_list[edt_id][item_id]['cat_id']
                 try:
                     single_seat_list[cat_id]
                 except KeyError:
                     single_seat_list[cat_id] = {}
 
-                for seat, status in sorted(seat_list.iteritems()):
+                for seat, status in sorted(seat_list.iteritems(), key=lambda seat_list: int(seat_list[0])):
                     #if self.item_list[edt_id][item_id]['seats'][seat] == 2 and self.item_list[edt_id][item_id]['seats_user'][seat] == user_id:
                     single_seat_list[cat_id][i] = {}
                     single_seat_list[cat_id][i][item_id] = seat
@@ -1518,6 +1533,21 @@ class BtmsBackend(ApplicationSession):
         ## we'll be doing all database access via this database connection pool
         ##
         self.db = pool
+
+        ## Keep DB connection alive
+        @inlineCallbacks
+        def keepAliveDB():
+            try:
+                result = yield self.db.runQuery("SELECT (1)")
+                print "keep alive, db querry run", result
+
+            except Exception as err:
+                self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                print "DB Connection Error", err
+
+        l = task.LoopingCall(keepAliveDB)
+        l.start(60.0) # call every minute
+
 
         ## register all procedures on this class which have been
         ## decorated to register them for remoting.

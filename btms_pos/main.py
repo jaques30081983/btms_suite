@@ -21,7 +21,7 @@ from kivy.uix.floatlayout import FloatLayout
 from autobahn.twisted.wamp import ApplicationSession
 from autobahn.twisted.wamp import ApplicationRunner
 from autobahn.wamp import auth
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import defer
 #import msgpack
 from kivy.storage.jsonstore import JsonStore
@@ -83,6 +83,7 @@ class BtmsWampComponentAuth(ApplicationSession):
         self.subscribe(ui.on_block_item, u'io.crossbar.btms.item.block.action')
         self.subscribe(ui.on_select_seats, u'io.crossbar.btms.seats.select.action')
         self.subscribe(ui.on_set_unnumbered_seats, u'io.crossbar.btms.unnumbered_seats.set.action')
+        self.subscribe(ui.onLeaveRemote, u'io.crossbar.btms.onLeaveRemote')
 
 
 
@@ -92,6 +93,15 @@ class BtmsWampComponentAuth(ApplicationSession):
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
             ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeave: {}".format(details))
+        elif ui.logout_op == 1:
+            ui.ids.sm.current = 'login_user'
+
+    def onDisconnect(self):
+        details = ""
+        print("onDisconnect: {}".format(details))
+        if ui.logout_op == 0 or ui.logout_op == None:
+            ui.ids.sm.current = 'server_connect'
+            ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onDisconnect: {}".format(details))
         elif ui.logout_op == 1:
             ui.ids.sm.current = 'login_user'
 
@@ -158,6 +168,10 @@ class BtmsRoot(BoxLayout):
 
 
         #self.session.leave()
+    def onLeaveRemote(self,details):
+        ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
+        print details
+        self.session.leave()
 
     def get_users(self,results):
         user_list1 = []
@@ -518,72 +532,74 @@ class BtmsRoot(BoxLayout):
         bool = False
         while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
             bool = True
-            self.block_item(item_id, com)
-            self.ids.sale_item_list_box2.clear_widgets(children=None)
-            if com == 0:
-                #Create 2nd View
+            boolean = yield self.block_item(item_id, com)
+            print "block in switch", boolean
+            if boolean == True:
+                self.ids.sale_item_list_box2.clear_widgets(children=None)
+                if com == 0:
+                    #Create 2nd View
 
-                #Add additional row if its nessesary
-                if cols * rows < seats:
-                    rows = rows + 1
-
-
-                #Check if Numberbox are full
-                selected_seats = 0
-                if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
-                    amount = 0
-                    add_to_bill_toggle = 0
-                else:
-                    amount = int(self.ids.number_display_box.text)
-                    add_to_bill_toggle = 0
-
-                #Create Item with Seats
-                grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
-
-                preload= ImageButton(source=seat_stat_img[0]) #Workaround Kivy dont load directly
-
-                seat_select_list = {str(item_id):{}}
-
-                for i in range(0, seats):
-                    j= i + 1
-
-                    #try:
-                    #    self.seat_list[str(item_id)][j]
-                    #except KeyError:
-                    #    self.seat_list[str(item_id)][j] = 0
-                    seat_select_item = {str(item_id):{str(j):1}}
-                    if amount > 0:
-                        if self.seat_list[str(item_id)][j] == 0:
-                            #self.seat_list[str(item_id)][j] = 3
-                            seat_select_list[str(item_id)][str(j)] = 1
-
-                            amount = amount - 1
+                    #Add additional row if its nessesary
+                    if cols * rows < seats:
+                        rows = rows + 1
 
 
-                            selected_seats = selected_seats + 1
-                            if add_to_bill_toggle == 0:
-                                #first_seat = j
-                                add_to_bill_toggle = 1
+                    #Check if Numberbox are full
+                    selected_seats = 0
+                    if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
+                        amount = 0
+                        add_to_bill_toggle = 0
+                    else:
+                        amount = int(self.ids.number_display_box.text)
+                        add_to_bill_toggle = 0
 
-                    itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
-                        size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, cat_id))
-                    grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
+                    #Create Item with Seats
+                    grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
+
+                    preload= ImageButton(source=seat_stat_img[0]) #Workaround Kivy dont load directly
+
+                    seat_select_list = {str(item_id):{}}
+
+                    for i in range(0, seats):
+                        j= i + 1
+
+                        #try:
+                        #    self.seat_list[str(item_id)][j]
+                        #except KeyError:
+                        #    self.seat_list[str(item_id)][j] = 0
+                        seat_select_item = {str(item_id):{str(j):1}}
+                        if amount > 0:
+                            if self.seat_list[str(item_id)][j] == 0 or self.seat_list[str(item_id)][j] == 3:
+                                #self.seat_list[str(item_id)][j] = 3
+                                seat_select_list[str(item_id)][str(j)] = 1
+
+                                amount = amount - 1
 
 
-                self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(self.switch_item,1,'', '', item_id, cat_id, '', '')))
-                self.ids.sale_item_list_box2.add_widget(grid_layout2)
-                self.ids.sale_item_list_box2.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(self.switch_item,1,'', '', item_id, cat_id,'', '')))
-                self.ids.item_screen_manager.current = 'second_item_screen'
+                                selected_seats = selected_seats + 1
+                                if add_to_bill_toggle == 0:
+                                    #first_seat = j
+                                    add_to_bill_toggle = 1
 
-                if add_to_bill_toggle == 1:
+                        itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n \n \n',
+                            size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, cat_id))
+                        grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
 
-                    self.select_seats(seat_select_list, cat_id)
-                    self.ids.number_display_box.text = ''
-                    #self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
 
-            elif com == 1:
-                #Switch back to overview
-                self.ids.item_screen_manager.current = 'first_item_screen'
+                    self.ids.sale_item_list_box2.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(self.switch_item,1,'', '', item_id, cat_id, '', '')))
+                    self.ids.sale_item_list_box2.add_widget(grid_layout2)
+                    self.ids.sale_item_list_box2.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(self.switch_item,1,'', '', item_id, cat_id,'', '')))
+                    self.ids.item_screen_manager.current = 'second_item_screen'
+
+                    if add_to_bill_toggle == 1:
+
+                        self.select_seats(seat_select_list, cat_id)
+                        self.ids.number_display_box.text = ''
+                        #self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
+
+                elif com == 1:
+                    #Switch back to overview
+                    self.ids.item_screen_manager.current = 'first_item_screen'
 
     @inlineCallbacks
     def get_venue_status(self,venue_id,event_id):
@@ -710,10 +726,16 @@ class BtmsRoot(BoxLayout):
 
         except Exception as err:
             print "Error", err
-
+    @inlineCallbacks
     def block_item(self,item_id, cmd):
+        try:
+            result = yield self.session.call(u'io.crossbar.btms.item.block', self.eventdatetime_id, item_id, self.user_id, cmd)
+        except Exception as err:
+            print "Error", err
+        finally:
+            print "block result", result
+            returnValue(result)
 
-        self.session.call(u'io.crossbar.btms.item.block', self.eventdatetime_id, item_id, self.user_id, cmd)
 
     def on_block_item(self,eventdatetime_id, item_id, user_id, block):
         if eventdatetime_id == self.eventdatetime_id:
@@ -729,7 +751,27 @@ class BtmsRoot(BoxLayout):
                 itm['venue_item_user'+str(item_id)].text = ''
 
     def select_seats(self,seat_select_list, cat_id, *args):
-        self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, self.transaction_id, self.user_id)
+        if self.contingent_cmd == 1:
+            #Select deselect local in release contingent mode
+            for item_id, seat_list in seat_select_list.iteritems():
+                for seat, status in seat_list.iteritems():
+
+                    if self.seat_list[str(item_id)][int(seat)] == 4: #reserverd
+                        status = 3 #local selected
+                    elif self.seat_list[str(item_id)][int(seat)] == 3:
+                        status = 4
+                    else:
+                        status = self.seat_list[str(item_id)][int(seat)]
+
+                    itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                    itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                    self.seat_list[str(item_id)][int(seat)] = status
+
+
+                    self.update_bill(item_id, cat_id, 0, 1)
+
+        else:
+            self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, self.transaction_id, self.user_id)
 
     def on_select_seats(self,edt_id, seat_select_list, cat_id, tid, user_id):
         print 'on_select_seats',edt_id, seat_select_list, tid, user_id
@@ -913,7 +955,7 @@ class BtmsRoot(BoxLayout):
             if self.transaction_id == 0:
                 self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
             bool = False
-            while self.transaction_id >= 0 and bool == False: # Make shure damn transaction id is set
+            while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
                 bool = True
 
                 price_id = self.itm_cat_first_price[cat_id]
@@ -1023,37 +1065,40 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def reserve(self):
-        #Collect Data
-        seat_trans_list = {}
-        for item_id, seats in self.seat_list.items():
-            for seat, status1 in seats.items():
-                if status1 == 3:
-                    try:
-                        seat_trans_list[str(item_id)]
-                    except KeyError:
-                        seat_trans_list[str(item_id)] = {}
-                    seat_trans_list[str(item_id)][str(seat)] = 1
+        if self.transaction_id == 0 or self.transaction_id == None:
+            print 'No TID created'
+        else:
+            #Collect Data
+            seat_trans_list = {}
+            for item_id, seats in self.seat_list.items():
+                for seat, status1 in seats.items():
+                    if status1 == 3:
+                        try:
+                            seat_trans_list[str(item_id)]
+                        except KeyError:
+                            seat_trans_list[str(item_id)] = {}
+                        seat_trans_list[str(item_id)][str(seat)] = 1
 
 
-        itm_cat_amount_list = {}
-        for cat_id, value in self.itm_cat_price_amount.iteritems():
-            itm_cat_amount_list[str(cat_id)] = {}
-            for price_id, value1 in value.iteritems():
-                if value1['amount'] == 0:
-                    pass
-                else:
-                    itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
-        try:
-            results = yield self.session.call(u'io.crossbar.btms.reserve', self.event_id, self.event_date, self.event_time,
-                                              self.transaction_id, seat_trans_list, itm_cat_amount_list,
-                                              self.reservation_art, str(self.total_bill_price), self.user_id)
-            self.ids.res_number_display_box.text = str(results)
+            itm_cat_amount_list = {}
+            for cat_id, value in self.itm_cat_price_amount.iteritems():
+                itm_cat_amount_list[str(cat_id)] = {}
+                for price_id, value1 in value.iteritems():
+                    if value1['amount'] == 0:
+                        pass
+                    else:
+                        itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.reserve', self.event_id, self.event_date, self.event_time,
+                                                  self.transaction_id, seat_trans_list, itm_cat_amount_list,
+                                                  self.reservation_art, str(self.total_bill_price), self.user_id)
+                self.ids.res_number_display_box.text = str(results)
 
-        except Exception as err:
-            print "Error", err
+            except Exception as err:
+                print "Error", err
 
-        finally:
-            self.reset_transaction()
+            finally:
+                self.reset_transaction()
 
     @inlineCallbacks
     def retrieve(self, transaction_id, *args):
@@ -1077,6 +1122,10 @@ class BtmsRoot(BoxLayout):
         elif result == 2:
             print 'Already opened'
             self.ids.res_number_display_box.text = 'Yet opened'
+            self.ids.number_display_box.text = ''
+        elif result == 3:
+            print 'Already sold'
+            self.ids.res_number_display_box.text = 'Sold'
             self.ids.number_display_box.text = ''
         else:
             print 'verifyed and a Transaction', result
@@ -1397,6 +1446,12 @@ class BtmsRoot(BoxLayout):
                         except KeyError:
                             seat_trans_list[str(item_id)] = {}
                         seat_trans_list[str(item_id)][str(seat)] = 2
+                    if status1 == 4:
+                        try:
+                            seat_trans_list[str(item_id)]
+                        except KeyError:
+                            seat_trans_list[str(item_id)] = {}
+                        seat_trans_list[str(item_id)][str(seat)] = 0
 
 
             itm_cat_amount_list = {}
@@ -1834,7 +1889,8 @@ class BtmsRoot(BoxLayout):
             self.contingent_cmd = 0
             self.disable_buttons('contingent',False)
             self.reset_transaction()
-
+        elif self.retrive_status == True:
+            pass
         else:
 
             if self.transaction_id == 0:

@@ -102,7 +102,7 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
 
         c.drawString(1.1*cm,2.4*cm,row['tid']+" "+str(row['ticket_id']))
-        c.line(1.1*cm,2.2*cm,7.1*cm,2.2*cm)
+        #c.line(1.1*cm,2.2*cm,7.1*cm,2.2*cm)
         c.showPage()
 
     c.save()
