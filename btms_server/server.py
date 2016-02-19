@@ -974,8 +974,9 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.reservation.release')
     @inlineCallbacks
-    def releaseReservation(self, event_id, event_date, event_time):
+    def releaseReservation(self, event_id, event_date, event_time, user_id):
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
+
         try:
             self.busy_transactions
         except AttributeError:
@@ -985,16 +986,25 @@ class BtmsBackend(ApplicationSession):
 
 
         try:
-            result = yield self.db.runQuery("SELECT id, tid, item_id, art FROM btms_transactions WHERE "
+            result = yield self.db.runQuery("SELECT id, tid, item_id, cat_id, art, amount FROM btms_transactions WHERE "
                                             "event_id = '"+str(event_id)+"' AND date = '"+str(event_date)+"' AND "
                                             "time = '"+str(event_time)+"' AND status = '"+str(1)+"'")
             new_seat_select_list = {}
+            itm_cat_amount_list = {}
+            tid_old = 0
             for row in result:
 
                 if row['tid'] in self.busy_transactions:
                     print'is in list', row['tid']
                 else:
                     print 'not in list', row['tid']
+
+                    json_string = row['amount'].replace(';',':')
+                    json_string = json_string.replace('\\','')
+                    #json_string = '[' + json_string + ']'
+                    amount = json.loads(json_string)
+
+                    itm_cat_amount_list[row['cat_id']] = amount
                     #Numbered Seats
                     for item_id, value in self.item_list[edt_id].iteritems():
 
@@ -1021,6 +1031,10 @@ class BtmsBackend(ApplicationSession):
                     #Delete from db with status 1 and not busy
                     sql = "DELETE FROM btms_transactions WHERE id = '"+str(row['id'])+"'"
                     self.db.runOperation(sql)
+
+
+                    #Set from last iteration
+                    self.setJournal(row['tid'], event_id, event_date, event_time, 1220, 0, '0', '0', '0', 3, user_id)
 
 
         except Exception as err:
@@ -1308,13 +1322,18 @@ class BtmsBackend(ApplicationSession):
               " values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % (tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time)
         self.db.runOperation(sql)
         '''
-
-        sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time) " \
-                "values('"+str(tid)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
-                " '"+str(account)+"','"+amount+"','"+str(debit)+"','"+str(given)+"','"+str(back)+"','"+str(status)+"','"+str(user_id)+"','"+str(reg_date_time)+"') " \
-                "ON DUPLICATE KEY UPDATE account='"+str(account)+"', amount='"+amount+"', debit='"+str(debit)+"', given='"+str(given)+"', back='"+str(back)+"', " \
-                "status='"+str(status)+"', user_id='"+str(user_id)+"', reg_date_time='"+str(reg_date_time)+"' "
-        self.db.runOperation(sql)
+        if itm_cat_amount_list == 0:
+            #If release reservations
+            sql = "UPDATE btms_journal SET btms_journal.account='%s', btms_journal.status='%s', btms_journal.user_id='%s'" \
+                  " WHERE btms_journal.tid='%s' " % (account, status, user_id, tid)
+            self.db.runOperation(sql)
+        else:
+            sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time) " \
+                    "values('"+str(tid)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                    " '"+str(account)+"','"+amount+"','"+str(debit)+"','"+str(given)+"','"+str(back)+"','"+str(status)+"','"+str(user_id)+"','"+str(reg_date_time)+"') " \
+                    "ON DUPLICATE KEY UPDATE account='"+str(account)+"', amount='"+amount+"', debit='"+str(debit)+"', given='"+str(given)+"', back='"+str(back)+"', " \
+                    "status='"+str(status)+"', user_id='"+str(user_id)+"', reg_date_time='"+str(reg_date_time)+"' "
+            self.db.runOperation(sql)
 
 
     @wamp.register(u'io.crossbar.btms.report.get')
@@ -1343,6 +1362,8 @@ class BtmsBackend(ApplicationSession):
             report_result_dict['all']['m_sold_conti'] = 0
             report_result_dict['all']['m_total_pre'] = 0
             report_result_dict['all']['m_reserved'] = 0
+            report_result_dict['all']['m_not_visited'] = 0
+
 
             report_result_dict['all']['a_total_sold'] = 0
             report_result_dict['all']['a_sold_cash'] = 0
@@ -1350,9 +1371,15 @@ class BtmsBackend(ApplicationSession):
             report_result_dict['all']['a_sold_conti'] = 0
             report_result_dict['all']['a_total_pre'] = 0
             report_result_dict['all']['a_reserved'] = 0
+            report_result_dict['all']['a_not_visited'] = 0
 
             for row in results:
-                report_result_dict['all']['m_total_pre'] = report_result_dict['all']['m_total_pre'] + row['debit']
+                if row['status'] == 3:
+                    pass #Dont Count the not visited
+                else:
+                    #Money
+                    report_result_dict['all']['m_total_pre'] = report_result_dict['all']['m_total_pre'] + row['debit']
+
                 #Get Amount
                 json_string = row['amount'].replace(';',':')
                 json_string = json_string.replace('\\','')
@@ -1374,6 +1401,8 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['cat_'+str(cat)]['a_sold_conti'] = 0
                             report_result_dict['cat_'+str(cat)]['a_reserved'] = 0
                             report_result_dict['cat_'+str(cat)]['a_total_pre'] = 0
+                            report_result_dict['cat_'+str(cat)]['a_not_visited'] = 0
+
 
 
                             report_result_dict['cat_'+str(cat)]['m_total_sold'] = 0
@@ -1382,6 +1411,7 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['cat_'+str(cat)]['m_sold_conti'] = 0
                             report_result_dict['cat_'+str(cat)]['m_reserved'] = 0
                             report_result_dict['cat_'+str(cat)]['m_total_pre'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_not_visited'] = 0
 
 
 
@@ -1390,10 +1420,15 @@ class BtmsBackend(ApplicationSession):
                             total_amount = total_amount + value
                             cat_amount = cat_amount + value
 
+                        if row['status'] == 3:
+                            pass #Dont Count the not visited
+                        else:
+                            report_result_dict['cat_'+str(cat)]['a_total_pre'] = report_result_dict['cat_'+str(cat)]['a_total_pre'] + cat_amount
 
-                        report_result_dict['cat_'+str(cat)]['a_total_pre'] = report_result_dict['cat_'+str(cat)]['a_total_pre'] + cat_amount
-
-                    report_result_dict['all']['a_total_pre'] = report_result_dict['all']['a_total_pre'] + total_amount
+                    if row['status'] == 3:
+                        pass #Dont Count the not visited
+                    else:
+                        report_result_dict['all']['a_total_pre'] = report_result_dict['all']['a_total_pre'] + total_amount
 
                 except IndexError:
                     pass
@@ -1401,6 +1436,7 @@ class BtmsBackend(ApplicationSession):
                 if row['status'] == 2:
                     #Money
                     report_result_dict['all']['m_total_sold'] = report_result_dict['all']['m_total_sold'] + row['debit']
+                    #report_result_dict['cat_'+str(cat)]['m_total_pre'] = report_result_dict['cat_'+str(cat)]['m_total_pre'] + row['debit']
                     #Tickets
                     try:
                         item_amount[0]
@@ -1419,6 +1455,8 @@ class BtmsBackend(ApplicationSession):
                     if row['account'] == 1000:
                         #Money
                         report_result_dict['all']['m_sold_cash'] = report_result_dict['all']['m_sold_cash'] + row['debit']
+                        #report_result_dict['cat_'+str(cat)]['m_sold_cash'] = report_result_dict['cat_'+str(cat)]['m_sold_cash'] + row['debit']
+
 
                         #Tickets
                         try:
@@ -1438,6 +1476,7 @@ class BtmsBackend(ApplicationSession):
                     if row['account'] == 1200:
                         #Money
                         report_result_dict['all']['m_sold_card'] = report_result_dict['all']['m_sold_card'] + row['debit']
+                        #report_result_dict['cat_'+str(cat)]['m_sold_card'] = report_result_dict['cat_'+str(cat)]['m_sold_card'] + row['debit']
 
                         #Tickets
                         try:
@@ -1457,6 +1496,7 @@ class BtmsBackend(ApplicationSession):
                     if row['account'] == 1210:
                         #Money
                         report_result_dict['all']['m_sold_conti'] = report_result_dict['all']['m_sold_conti'] + row['debit']
+                        #report_result_dict['cat_'+str(cat)]['m_sold_conti'] = report_result_dict['cat_'+str(cat)]['m_sold_conti'] + row['debit']
 
                         #Tickets
                         try:
@@ -1476,6 +1516,7 @@ class BtmsBackend(ApplicationSession):
                 if row['status'] == 1:
                     #Money Pre
                     report_result_dict['all']['m_reserved'] = report_result_dict['all']['m_reserved'] + row['debit']
+                    #report_result_dict['cat_'+str(cat)]['m_reserved'] = report_result_dict['cat_'+str(cat)]['m_reserved'] + row['debit']
 
                     #Tickets
                     try:
@@ -1491,7 +1532,26 @@ class BtmsBackend(ApplicationSession):
                         report_result_dict['all']['a_reserved'] = report_result_dict['all']['a_reserved'] + total_amount
                     except IndexError:
                         pass
+                #Not visited
+                if row['status'] == 3:
+                    #Money Pre
+                    report_result_dict['all']['m_not_visited'] = report_result_dict['all']['m_not_visited'] + row['debit']
+                    #report_result_dict['cat_'+str(cat)]['m_not_visited'] = report_result_dict['cat_'+str(cat)]['m_not_visited'] + row['debit']
 
+                    #Tickets
+                    try:
+                        item_amount[0]
+                        total_amount = 0
+                        for cat, value in item_amount[0].iteritems():
+                            cat_amount = 0
+                            for price_id, value in value.iteritems():
+                                total_amount = total_amount + value
+                                cat_amount = cat_amount + value
+                            report_result_dict['cat_'+str(cat)]['a_not_visited'] = report_result_dict['cat_'+str(cat)]['a_not_visited'] + cat_amount
+
+                        report_result_dict['all']['a_not_visited'] = report_result_dict['all']['a_not_visited'] + total_amount
+                    except IndexError:
+                        pass
 
 
             returnValue(report_result_dict)

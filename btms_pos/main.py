@@ -33,6 +33,8 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.bubble import Bubble
 
+from plyer import notification
+
 from kivy.uix.textinput import TextInput
 from kivy.uix.progressbar import ProgressBar
 from functools import partial
@@ -1058,6 +1060,7 @@ class BtmsRoot(BoxLayout):
     def card(self, *args):
         #call ext api, like payleven, sumup, etc...
         self.ids.kv_card_button.text = 'n. a.'
+        #notification.notify(title='Connection Error', message='Database Connection Lost', app_name='BTMS', app_icon='/home/jaques5/workspace/btms_suite/btms_pos/images/btms_logo_01.png', timeout=5)
 
         def my_callback(dt):
             self.ids.kv_card_button.text = 'CARD'
@@ -1249,7 +1252,7 @@ class BtmsRoot(BoxLayout):
             popup_layout1.add_widget(Button(text='No',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
             popup.open()
         elif cmd == 1:
-            self.session.call(u'io.crossbar.btms.reservation.release', self.event_id, self.event_date, self.event_time)
+            self.session.call(u'io.crossbar.btms.reservation.release', self.event_id, self.event_date, self.event_time, self.user_id)
 
     @inlineCallbacks
     def add_contingent(self, cmd, *args):
@@ -2274,9 +2277,10 @@ class BtmsRoot(BoxLayout):
                 report_cat_name = 'All'
             else:
                 report_cat_name = self.report_cat_list[event_id][key]
-            self.ids.report_draw_list.add_widget(Button(text=report_cat_name, size_hint=[1, None], height=30))
-
-            report_grid = GridLayout(cols=5, size_hint=[1, None], height=80)
+            self.ids.report_draw_list.add_widget(ProgressBar(size_hint=[1, None], height=5))
+            self.ids.report_draw_list.add_widget(Label(text=report_cat_name, size_hint=[1, None], height=30))
+            self.ids.report_draw_list.add_widget(ProgressBar(size_hint=[1, None], height=5))
+            report_grid = GridLayout(cols=6, size_hint=[1, None], height=80)
 
             report_grid.add_widget(Label(text='Sold'))
             report_grid.add_widget(Label(text='Cash'))
@@ -2284,6 +2288,7 @@ class BtmsRoot(BoxLayout):
             report_grid.add_widget(Label(text='Cont.'))
             report_grid.add_widget(Label(text='Reserved'))
             report_grid.add_widget(Label(text='Expected'))
+            report_grid.add_widget(Label(text='Not vis.'))
 
 
             report_grid.add_widget(Label(text=str(value['a_total_sold'])))
@@ -2292,6 +2297,7 @@ class BtmsRoot(BoxLayout):
             report_grid.add_widget(Label(text=str(value['a_sold_conti'])))
             report_grid.add_widget(Label(text=str(value['a_reserved'])))
             report_grid.add_widget(Label(text=str(value['a_total_pre'])))
+            report_grid.add_widget(Label(text=str(value['a_not_visited'])))
 
 
             report_grid.add_widget(Label(text=str(value['m_total_sold'])+ unichr(8364)))
@@ -2300,6 +2306,7 @@ class BtmsRoot(BoxLayout):
             report_grid.add_widget(Label(text=str(value['m_sold_conti'])+ unichr(8364)))
             report_grid.add_widget(Label(text=str(value['m_reserved'])+ unichr(8364)))
             report_grid.add_widget(Label(text=str(value['m_total_pre'])+ unichr(8364)))
+            report_grid.add_widget(Label(text=str(value['m_not_visited'])+ unichr(8364)))
             self.ids.report_draw_list.add_widget(report_grid)
             #self.ids.report_draw_list.add_widget(Button(text=key +str(value), size_hint=[1, None], height=80))
 

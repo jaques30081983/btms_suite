@@ -32,7 +32,7 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 16.01.18
 
 # (list) Application requirements
-requirements = kivy,autobahn,twisted,msgpack-python
+requirements = kivy,autobahn,twisted,msgpack-python,plyer
 
 # (list) Garden requirements
 #garden_requirements =
@@ -47,7 +47,7 @@ icon.filename = %(source.dir)s/images/btms_logo_01.png
 orientation = landscape
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 1
+fullscreen = 0
 
 
 #
