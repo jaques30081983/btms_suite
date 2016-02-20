@@ -1510,7 +1510,7 @@
 		
 		
 
-<ImageButton@Button>:
+<ImageButton>:
 	source: root.source
 
 	Image:
@@ -1524,6 +1524,14 @@
 		align: 'right'
 		pos: root.pos
 		size: root.size
+
+<CLabel>:
+    canvas.before:
+        Color:
+            rgba: self.bgcolor
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
 	
 <ItemAmountButton>:

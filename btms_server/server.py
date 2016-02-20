@@ -1353,6 +1353,15 @@ class BtmsBackend(ApplicationSession):
             except Exception as err:
                 print "Error", err
 
+            #Get Prices
+            try:
+                prices = yield self.getPrices(event_id)
+                itm_price_list = {}
+                for prow in prices:
+                    print prow['id'], prow['price']
+                    itm_price_list[prow['id']] = prow['price']
+            except Exception as err:
+                print "Error", err
 
             report_result_dict = {}
             report_result_dict['all'] = {}
@@ -1416,14 +1425,19 @@ class BtmsBackend(ApplicationSession):
 
 
                         cat_amount = 0
+                        cat_price = 0
                         for price_id, value in value.iteritems():
                             total_amount = total_amount + value
                             cat_amount = cat_amount + value
+
+                            itm_price = float(itm_price_list[int(price_id)]) * value
+                            cat_price = cat_price + itm_price
 
                         if row['status'] == 3:
                             pass #Dont Count the not visited
                         else:
                             report_result_dict['cat_'+str(cat)]['a_total_pre'] = report_result_dict['cat_'+str(cat)]['a_total_pre'] + cat_amount
+                            report_result_dict['cat_'+str(cat)]['m_total_pre'] = report_result_dict['cat_'+str(cat)]['m_total_pre'] + cat_price
 
                     if row['status'] == 3:
                         pass #Dont Count the not visited
@@ -1436,17 +1450,22 @@ class BtmsBackend(ApplicationSession):
                 if row['status'] == 2:
                     #Money
                     report_result_dict['all']['m_total_sold'] = report_result_dict['all']['m_total_sold'] + row['debit']
-                    #report_result_dict['cat_'+str(cat)]['m_total_pre'] = report_result_dict['cat_'+str(cat)]['m_total_pre'] + row['debit']
                     #Tickets
                     try:
                         item_amount[0]
                         total_amount = 0
+
                         for cat, value in item_amount[0].iteritems():
                             cat_amount = 0
+                            cat_price = 0
                             for price_id, value in value.iteritems():
                                 total_amount = total_amount + value
-                                cat_amount = cat_amount + value
+
+                                itm_price = float(itm_price_list[int(price_id)]) * value
+                                cat_price = cat_price + itm_price
+
                             report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
+                            report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
 
                         report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
                     except IndexError:
@@ -1455,8 +1474,6 @@ class BtmsBackend(ApplicationSession):
                     if row['account'] == 1000:
                         #Money
                         report_result_dict['all']['m_sold_cash'] = report_result_dict['all']['m_sold_cash'] + row['debit']
-                        #report_result_dict['cat_'+str(cat)]['m_sold_cash'] = report_result_dict['cat_'+str(cat)]['m_sold_cash'] + row['debit']
-
 
                         #Tickets
                         try:
@@ -1464,12 +1481,20 @@ class BtmsBackend(ApplicationSession):
                             total_amount = 0
                             for cat, value in item_amount[0].iteritems():
                                 cat_amount = 0
+                                cat_price = 0
                                 for price_id, value in value.iteritems():
+                                    #Amount
                                     total_amount = total_amount + value
                                     cat_amount = cat_amount + value
+                                    #Money
+                                    itm_price = float(itm_price_list[int(price_id)]) * value
+                                    cat_price = cat_price + itm_price
+
                                 report_result_dict['cat_'+str(cat)]['a_sold_cash'] = report_result_dict['cat_'+str(cat)]['a_sold_cash'] + cat_amount
+                                report_result_dict['cat_'+str(cat)]['m_sold_cash'] = report_result_dict['cat_'+str(cat)]['m_sold_cash'] + cat_price
 
                             report_result_dict['all']['a_sold_cash'] = report_result_dict['all']['a_sold_cash'] + total_amount
+
                         except IndexError:
                             pass
                     #Sold Card
@@ -1484,10 +1509,16 @@ class BtmsBackend(ApplicationSession):
                             total_amount = 0
                             for cat, value in item_amount[0].iteritems():
                                 cat_amount = 0
+                                cat_price = 0
                                 for price_id, value in value.iteritems():
+                                    #Amount
                                     total_amount = total_amount + value
                                     cat_amount = cat_amount + value
+                                    #Money
+                                    itm_price = float(itm_price_list[int(price_id)]) * value
+                                    cat_price = cat_price + itm_price
                                 report_result_dict['cat_'+str(cat)]['a_sold_card'] = report_result_dict['cat_'+str(cat)]['a_sold_card'] + cat_amount
+                                report_result_dict['cat_'+str(cat)]['m_sold_card'] = report_result_dict['cat_'+str(cat)]['m_sold_card'] + cat_price
 
                             report_result_dict['all']['a_sold_card'] = report_result_dict['all']['a_sold_card'] + total_amount
                         except IndexError:
@@ -1496,7 +1527,6 @@ class BtmsBackend(ApplicationSession):
                     if row['account'] == 1210:
                         #Money
                         report_result_dict['all']['m_sold_conti'] = report_result_dict['all']['m_sold_conti'] + row['debit']
-                        #report_result_dict['cat_'+str(cat)]['m_sold_conti'] = report_result_dict['cat_'+str(cat)]['m_sold_conti'] + row['debit']
 
                         #Tickets
                         try:
@@ -1504,10 +1534,17 @@ class BtmsBackend(ApplicationSession):
                             total_amount = 0
                             for cat, value in item_amount[0].iteritems():
                                 cat_amount = 0
+                                cat_price = 0
                                 for price_id, value in value.iteritems():
+                                    #Amount
                                     total_amount = total_amount + value
                                     cat_amount = cat_amount + value
+                                    #Money
+                                    itm_price = float(itm_price_list[int(price_id)]) * value
+                                    cat_price = cat_price + itm_price
+
                                 report_result_dict['cat_'+str(cat)]['a_sold_conti'] = report_result_dict['cat_'+str(cat)]['a_sold_conti'] + cat_amount
+                                report_result_dict['cat_'+str(cat)]['m_sold_conti'] = report_result_dict['cat_'+str(cat)]['m_sold_conti'] + cat_price
 
                             report_result_dict['all']['a_sold_conti'] = report_result_dict['all']['a_sold_conti'] + total_amount
                         except IndexError:
@@ -1516,7 +1553,7 @@ class BtmsBackend(ApplicationSession):
                 if row['status'] == 1:
                     #Money Pre
                     report_result_dict['all']['m_reserved'] = report_result_dict['all']['m_reserved'] + row['debit']
-                    #report_result_dict['cat_'+str(cat)]['m_reserved'] = report_result_dict['cat_'+str(cat)]['m_reserved'] + row['debit']
+
 
                     #Tickets
                     try:
@@ -1524,10 +1561,17 @@ class BtmsBackend(ApplicationSession):
                         total_amount = 0
                         for cat, value in item_amount[0].iteritems():
                             cat_amount = 0
+                            cat_price = 0
                             for price_id, value in value.iteritems():
+                                #Amount
                                 total_amount = total_amount + value
                                 cat_amount = cat_amount + value
+                                #Money
+                                itm_price = float(itm_price_list[int(price_id)]) * value
+                                cat_price = cat_price + itm_price
+
                             report_result_dict['cat_'+str(cat)]['a_reserved'] = report_result_dict['cat_'+str(cat)]['a_reserved'] + cat_amount
+                            report_result_dict['cat_'+str(cat)]['m_reserved'] = report_result_dict['cat_'+str(cat)]['m_reserved'] + cat_price
 
                         report_result_dict['all']['a_reserved'] = report_result_dict['all']['a_reserved'] + total_amount
                     except IndexError:
@@ -1536,7 +1580,6 @@ class BtmsBackend(ApplicationSession):
                 if row['status'] == 3:
                     #Money Pre
                     report_result_dict['all']['m_not_visited'] = report_result_dict['all']['m_not_visited'] + row['debit']
-                    #report_result_dict['cat_'+str(cat)]['m_not_visited'] = report_result_dict['cat_'+str(cat)]['m_not_visited'] + row['debit']
 
                     #Tickets
                     try:
@@ -1544,10 +1587,17 @@ class BtmsBackend(ApplicationSession):
                         total_amount = 0
                         for cat, value in item_amount[0].iteritems():
                             cat_amount = 0
+                            cat_price = 0
                             for price_id, value in value.iteritems():
+                                #Amount
                                 total_amount = total_amount + value
                                 cat_amount = cat_amount + value
+                                #Money
+                                itm_price = float(itm_price_list[int(price_id)]) * value
+                                cat_price = cat_price + itm_price
+
                             report_result_dict['cat_'+str(cat)]['a_not_visited'] = report_result_dict['cat_'+str(cat)]['a_not_visited'] + cat_amount
+                            report_result_dict['cat_'+str(cat)]['m_not_visited'] = report_result_dict['cat_'+str(cat)]['m_not_visited'] + cat_price
 
                         report_result_dict['all']['a_not_visited'] = report_result_dict['all']['a_not_visited'] + total_amount
                     except IndexError:

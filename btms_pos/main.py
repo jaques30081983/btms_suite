@@ -18,6 +18,7 @@ from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.floatlayout import FloatLayout
+from kivy.properties import ListProperty
 from autobahn.twisted.wamp import ApplicationSession
 from autobahn.twisted.wamp import ApplicationRunner
 from autobahn.wamp import auth
@@ -2291,21 +2292,21 @@ class BtmsRoot(BoxLayout):
             report_grid.add_widget(Label(text='Not vis.'))
 
 
-            report_grid.add_widget(Label(text=str(value['a_total_sold'])))
+            report_grid.add_widget(CLabel(text=str(value['a_total_sold']),bgcolor=[.5,.4,.4,1]))
             report_grid.add_widget(Label(text=str(value['a_sold_cash'])))
             #report_grid.add_widget(Label(text=str(value['a_sold_card'])))
-            report_grid.add_widget(Label(text=str(value['a_sold_conti'])))
+            report_grid.add_widget(CLabel(text=str(value['a_sold_conti']),bgcolor=[.5,.4,.4,1]))
             report_grid.add_widget(Label(text=str(value['a_reserved'])))
-            report_grid.add_widget(Label(text=str(value['a_total_pre'])))
+            report_grid.add_widget(CLabel(text=str(value['a_total_pre']),bgcolor=[.5,.4,.4,1]))
             report_grid.add_widget(Label(text=str(value['a_not_visited'])))
 
 
-            report_grid.add_widget(Label(text=str(value['m_total_sold'])+ unichr(8364)))
+            report_grid.add_widget(CLabel(text=str(value['m_total_sold'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
             report_grid.add_widget(Label(text=str(value['m_sold_cash'])+ unichr(8364)))
             #report_grid.add_widget(Label(text=str(value['m_sold_card'])+ unichr(8364)))
-            report_grid.add_widget(Label(text=str(value['m_sold_conti'])+ unichr(8364)))
+            report_grid.add_widget(CLabel(text=str(value['m_sold_conti'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
             report_grid.add_widget(Label(text=str(value['m_reserved'])+ unichr(8364)))
-            report_grid.add_widget(Label(text=str(value['m_total_pre'])+ unichr(8364)))
+            report_grid.add_widget(CLabel(text=str(value['m_total_pre'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
             report_grid.add_widget(Label(text=str(value['m_not_visited'])+ unichr(8364)))
             self.ids.report_draw_list.add_widget(report_grid)
             #self.ids.report_draw_list.add_widget(Button(text=key +str(value), size_hint=[1, None], height=80))
@@ -2316,6 +2317,8 @@ class BtmsRoot(BoxLayout):
 class ImageButton(Button):
     pass
 
+class CLabel(Label):
+    bgcolor = ListProperty([0,0,0,1])
 class BtmsApp(App):
 
     def build(self):
