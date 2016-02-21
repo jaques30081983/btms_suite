@@ -1623,14 +1623,17 @@ class BtmsBackend(ApplicationSession):
             if cmd_print == 0:
                 returnValue(report_result_dict)
             elif cmd_print == 1:
-                print 'Print Report'
-                event_title = 'ZDH' #TODO
-                createPdfReport(self, event_id, event_title, venue_id, event_date, event_time, report_result_dict)
+                event_result = yield self.db.runQuery("SELECT id, title, description, date_start, date_end, admission FROM btms_events WHERE id = '"+str(event_id)+"' ")
+                categories_result = yield self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
+                prices_result = yield self.db.runQuery("SELECT id, name, price, description, cat_id, currency FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
 
-                #Print Report
+
+                createPdfReport(self, event_id, venue_id, event_date, event_time, report_result_dict,event_result,categories_result,prices_result)
+
+                #Create and print report
                 ticket_path = '../spool/report.pdf'
                 printer_returns = conn.printFile(printer, ticket_path, 'report_'+str(event_id)+'_'+event_date+'_'+event_time+'_'+str(user_id), {})
-                #printer_returns= 'report printed'
+
                 returnValue(printer_returns)
 
         elif cmd == 1:

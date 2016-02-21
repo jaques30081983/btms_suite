@@ -2354,7 +2354,7 @@ class BtmsRoot(BoxLayout):
                                 report_box.add_widget(Label(text='0'))
                     self.ids.report_draw_list.add_widget(report_box)
 
-            self.ids.report_draw_list.add_widget(Button(text='Price Details', size_hint=[1, None], height=30))
+            #self.ids.report_draw_list.add_widget(Button(text='Price Details', size_hint=[1, None], height=30))
 
             self.ids.report_draw_list.bind(minimum_height=self.ids.report_draw_list.setter('height'))
 
