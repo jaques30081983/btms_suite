@@ -45,6 +45,7 @@ import cups
 conn = cups.Connection ()
 
 from ticket import createPdfTicket
+from report import createPdfReport
 from server_stats import get_server_stats
 
 
@@ -1338,7 +1339,7 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.report.get')
     @inlineCallbacks
-    def getReport(self,cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id):
+    def getReport(self,cmd, event_id, venue_id, event_date, event_time, selected_user_id, cmd_print, printer, user_id):
         print cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id
         if cmd == 0:
             try:
@@ -1360,6 +1361,7 @@ class BtmsBackend(ApplicationSession):
                 for prow in prices:
                     print prow['id'], prow['price']
                     itm_price_list[prow['id']] = prow['price']
+
             except Exception as err:
                 print "Error", err
 
@@ -1372,6 +1374,7 @@ class BtmsBackend(ApplicationSession):
             report_result_dict['all']['m_total_pre'] = 0
             report_result_dict['all']['m_reserved'] = 0
             report_result_dict['all']['m_not_visited'] = 0
+            report_result_dict['all']['m_prices'] = {}
 
 
             report_result_dict['all']['a_total_sold'] = 0
@@ -1381,6 +1384,7 @@ class BtmsBackend(ApplicationSession):
             report_result_dict['all']['a_total_pre'] = 0
             report_result_dict['all']['a_reserved'] = 0
             report_result_dict['all']['a_not_visited'] = 0
+            report_result_dict['all']['a_prices'] = {}
 
             for row in results:
                 if row['status'] == 3:
@@ -1411,7 +1415,7 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['cat_'+str(cat)]['a_reserved'] = 0
                             report_result_dict['cat_'+str(cat)]['a_total_pre'] = 0
                             report_result_dict['cat_'+str(cat)]['a_not_visited'] = 0
-
+                            report_result_dict['cat_'+str(cat)]['a_prices'] = {}
 
 
                             report_result_dict['cat_'+str(cat)]['m_total_sold'] = 0
@@ -1421,17 +1425,21 @@ class BtmsBackend(ApplicationSession):
                             report_result_dict['cat_'+str(cat)]['m_reserved'] = 0
                             report_result_dict['cat_'+str(cat)]['m_total_pre'] = 0
                             report_result_dict['cat_'+str(cat)]['m_not_visited'] = 0
+                            report_result_dict['cat_'+str(cat)]['m_prices'] = {}
 
 
 
                         cat_amount = 0
                         cat_price = 0
                         for price_id, value in value.iteritems():
+                            #Amount
                             total_amount = total_amount + value
                             cat_amount = cat_amount + value
 
+                            #Money
                             itm_price = float(itm_price_list[int(price_id)]) * value
                             cat_price = cat_price + itm_price
+
 
                         if row['status'] == 3:
                             pass #Dont Count the not visited
@@ -1459,10 +1467,19 @@ class BtmsBackend(ApplicationSession):
                             cat_amount = 0
                             cat_price = 0
                             for price_id, value in value.iteritems():
+                                #Amount
                                 total_amount = total_amount + value
-
+                                try:
+                                    report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = report_result_dict['cat_'+str(cat)]['a_prices'][price_id] + value
+                                except KeyError:
+                                    report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = value
+                                #Money
                                 itm_price = float(itm_price_list[int(price_id)]) * value
                                 cat_price = cat_price + itm_price
+                                try:
+                                    report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = report_result_dict['cat_'+str(cat)]['m_prices'][price_id] + itm_price
+                                except KeyError:
+                                    report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = itm_price
 
                             report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
                             report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
@@ -1603,8 +1620,18 @@ class BtmsBackend(ApplicationSession):
                     except IndexError:
                         pass
 
+            if cmd_print == 0:
+                returnValue(report_result_dict)
+            elif cmd_print == 1:
+                print 'Print Report'
+                event_title = 'ZDH' #TODO
+                createPdfReport(self, event_id, event_title, venue_id, event_date, event_time, report_result_dict)
 
-            returnValue(report_result_dict)
+                #Print Report
+                ticket_path = '../spool/report.pdf'
+                printer_returns = conn.printFile(printer, ticket_path, 'report_'+str(event_id)+'_'+event_date+'_'+event_time+'_'+str(user_id), {})
+                #printer_returns= 'report printed'
+                returnValue(printer_returns)
 
         elif cmd == 1:
             print 'print report', printer

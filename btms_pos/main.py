@@ -2127,7 +2127,7 @@ class BtmsRoot(BoxLayout):
 
         #Get Report
         self.ids.kv_dashboard_report_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
-        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, 'all', '', self.user_id)
+        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, 'all', 0,'', self.user_id)
         self.ids.kv_dashboard_report_grid.clear_widgets(children=None)
         for key, value in results_report.iteritems():
             if key == 'all':
@@ -2168,151 +2168,207 @@ class BtmsRoot(BoxLayout):
 
 
     @inlineCallbacks
-    def get_reports(self, event_id, venue_id, event_date, event_time, user_id, *args):
-        self.ids.sm.current = "reports"
+    def get_reports(self, cmd, event_id, venue_id, event_date, event_time, user_id, *args):
+        if cmd == 0:
+            #Set for Print
+            self.report_event_id = 0
+            self.report_venue_id = 0
+            self.report_event_date = 0
+            self.report_event_time = 0
+            self.report_user_id  = 0
 
-        try:
-            self.report_cat_list
-        except AttributeError:
-            self.report_cat_list = {}
+            #Set Screen Manager
+            self.ids.sm.current = "reports"
 
-        #Get events for select list
-        if event_id == 0:
-            self.ids.report_select_event_list.clear_widgets(children=None)
-            results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+            try:
+                self.report_cat_list
+            except AttributeError:
+                self.report_cat_list = {}
 
-            for row in results_event:
-                if event_id == 0:
-                    event_id = row['id'] # Init Event
-                    venue_id = row['venue_id']
-                    self.ids.report_select_event_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.get_reports,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
+            #Get events for select list
+            if event_id == 0:
+                self.ids.report_select_event_list.clear_widgets(children=None)
+                results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+
+                for row in results_event:
+                    if event_id == 0:
+                        event_id = row['id'] # Init Event
+                        venue_id = row['venue_id']
+                        self.ids.report_select_event_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.get_reports,0,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
+                    else:
+                        self.ids.report_select_event_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.get_reports,0,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
+
+                    #Get Categorie Names of events
+                    try:
+                        self.report_cat_list[event_id]
+                    except KeyError:
+                        self.report_cat_list[event_id] = {}
+                        results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',row['venue_id'])
+                        for row in results_cat:
+                            self.report_cat_list[event_id]['cat_'+str(row['id'])] = row['name']
+
+
+
+
+
+                self.ids.report_select_event_list.bind(minimum_height=self.ids.report_select_event_list.setter('height'))
+
+            #Get Dates of event_id for select list
+            if event_date == 0:
+                self.ids.report_select_date_list.clear_widgets(children=None)
+                results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
+                self.report_event_date_time_dict = {}
+
+                for row in results_date:
+                    # Dates
+                    date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                    date_day_name = date_day.strftime("%a")
+                    if event_date == 0:
+                        event_date = row['date_day'] #Init Date
+                        self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                    else:
+                        self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+
+
+                    #Times
+                    self.report_event_date_time_dict[row['date_day']]= row['start_times']
+
+                self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
+
+            #Set Times for select list
+            if event_time == 0:
+                self.ids.report_select_time_list.clear_widgets(children=None)
+                for time in self.report_event_date_time_dict[event_date].split(","):
+                    if event_time == 0:
+                        event_time = time
+                        self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text=time, on_release=partial(self.get_reports,0,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
+                    else:
+                        self.ids.report_select_time_list.add_widget(ToggleButton(text=time, on_release=partial(self.get_reports,0,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
+
+
+                self.ids.report_select_time_list.bind(minimum_height=self.ids.report_select_time_list.setter('height'))
+            '''
+            #Get Categories of Event Venue
+            if event_cat == 0:
+                self.ids.report_select_cat_list.clear_widgets(children=None)
+                results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',venue_id)
+                for row in results_cat:
+                    if event_cat == 0:
+                        event_cat = row['id']
+                        self.ids.report_select_cat_list.add_widget(ToggleButton(state='down',text=row['name'],on_release=partial(self.get_reports,0,event_id,venue_id,event_date,event_time,row['id']), group='report_cat', size_hint=[1, None], height=40))
+                    else:
+                        self.ids.report_select_cat_list.add_widget(ToggleButton(text=row['name'],on_release=partial(self.get_reports,0,event_id,venue_id,event_date,event_time,row['id']), group='report_cat', size_hint=[1, None], height=40))
+
+                self.ids.report_select_cat_list.bind(minimum_height=self.ids.report_select_cat_list.setter('height'))
+
+            self.ids.report_draw_list.clear_widgets(children=None)
+            '''
+
+
+            #Get Categories of Event Venue
+            if user_id == 0:
+                self.ids.report_select_user_list.clear_widgets(children=None)
+                results_user = yield self.session.call(u'io.crossbar.btms.users.get')
+                for row in results_user:
+                    if user_id == 0:
+                        user_id = 'all'
+                        self.ids.report_select_user_list.add_widget(ToggleButton(state='down',text='all',on_release=partial(self.get_reports,0,event_id,venue_id,event_date,event_time,'all'), group='report_user', size_hint=[1, None], height=40))
+
+                    self.ids.report_select_user_list.add_widget(ToggleButton(text=row['user'],on_release=partial(self.get_reports,0,event_id,venue_id,event_date,event_time,row['id']), group='report_user', size_hint=[1, None], height=40))
+
+                self.ids.report_select_user_list.bind(minimum_height=self.ids.report_select_user_list.setter('height'))
+
+            #Get Report
+            self.ids.report_draw_list.add_widget(Label(text='loading...',size_hint=[1, 1]))
+
+            prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
+
+            results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, 0, '', self.user_id)
+            self.ids.report_draw_list.clear_widgets(children=None)
+            for cat, value in results_report.iteritems():
+                if cat == 'all':
+                    report_cat_name = 'All'
                 else:
-                    self.ids.report_select_event_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.get_reports,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
+                    report_cat_name = self.report_cat_list[event_id][cat]
 
-                #Get Categorie Names of events
-                try:
-                    self.report_cat_list[event_id]
-                except KeyError:
-                    self.report_cat_list[event_id] = {}
-                    results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',row['venue_id'])
-                    for row in results_cat:
-                        self.report_cat_list[event_id]['cat_'+str(row['id'])] = row['name']
+                self.ids.report_draw_list.add_widget(Label(text=report_cat_name, size_hint=[1, None], height=30))
+                self.ids.report_draw_list.add_widget(ProgressBar(size_hint=[1, None], height=5))
+                report_grid = GridLayout(cols=6, size_hint=[1, None], height=80)
+
+                report_grid.add_widget(Label(text='Sold'))
+                report_grid.add_widget(Label(text='Cash'))
+                #report_grid.add_widget(Label(text='Card'))
+                report_grid.add_widget(Label(text='Cont.'))
+                report_grid.add_widget(Label(text='Reserved'))
+                report_grid.add_widget(Label(text='Expected'))
+                report_grid.add_widget(Label(text='Us. Res.'))
 
 
+                report_grid.add_widget(CLabel(text=str(value['a_total_sold']),bgcolor=[.55,.5,.5,1]))
+                report_grid.add_widget(CLabel(text=str(value['a_sold_cash']),bgcolor=[.5,.45,.45,1]))
+                #report_grid.add_widget(Label(text=str(value['a_sold_card'])))
+                report_grid.add_widget(CLabel(text=str(value['a_sold_conti']),bgcolor=[.55,.5,.5,1]))
+                report_grid.add_widget(CLabel(text=str(value['a_reserved']),bgcolor=[.5,.5,.45,1]))
+                report_grid.add_widget(CLabel(text=str(value['a_total_pre']),bgcolor=[.5,.5,.5,1]))
+                report_grid.add_widget(CLabel(text=str(value['a_not_visited']),bgcolor=[.5,.5,.45,1]))
 
 
+                report_grid.add_widget(CLabel(text=str(value['m_total_sold'])+ unichr(8364),bgcolor=[.5,.4,.4,1]))
+                report_grid.add_widget(CLabel(text=str(value['m_sold_cash'])+ unichr(8364),bgcolor=[.4,.35,.35,1]))
+                #report_grid.add_widget(Label(text=str(value['m_sold_card'])+ unichr(8364)))
+                report_grid.add_widget(CLabel(text=str(value['m_sold_conti'])+ unichr(8364),bgcolor=[.45,.4,.4,1]))
+                report_grid.add_widget(CLabel(text=str(value['m_reserved'])+ unichr(8364),bgcolor=[.4,.4,.35,1]))
+                report_grid.add_widget(CLabel(text=str(value['m_total_pre'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
+                report_grid.add_widget(CLabel(text=str(value['m_not_visited'])+ unichr(8364),bgcolor=[.4,.4,.35,1]))
+                self.ids.report_draw_list.add_widget(report_grid)
 
-            self.ids.report_select_event_list.bind(minimum_height=self.ids.report_select_event_list.setter('height'))
-
-        #Get Dates of event_id for select list
-        if event_date == 0:
-            self.ids.report_select_date_list.clear_widgets(children=None)
-            results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
-            self.report_event_date_time_dict = {}
-
-            for row in results_date:
-                # Dates
-                date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
-                date_day_name = date_day.strftime("%a")
-                if event_date == 0:
-                    event_date = row['date_day'] #Init Date
-                    self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                #Prices
+                if cat == 'all':
+                    pass
                 else:
-                    self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                    #Price Names
+                    report_box = BoxLayout(size_hint=[1, None], height=30)
+                    for prow in prices:
+
+                        if cat == 'cat_'+str(prow['cat_id']):
+                            report_box.add_widget(Label(text=prow['name']))
+                    self.ids.report_draw_list.add_widget(report_box)
+                    #Price Amounts
+                    report_box = BoxLayout(size_hint=[1, None], height=30)
+                    for prow in prices:
+                        if cat == 'cat_'+str(prow['cat_id']):
+
+                            try:
+                                report_box.add_widget(Label(text=str(value['a_prices'][str(prow['id'])])))
+                            except KeyError:
+                                report_box.add_widget(Label(text='0'))
+                    self.ids.report_draw_list.add_widget(report_box)
+
+                    #Price Total
+                    report_box = BoxLayout(size_hint=[1, None], height=30)
+                    for prow in prices:
+                        if cat == 'cat_'+str(prow['cat_id']):
+                            try:
+                                report_box.add_widget(Label(text=str(value['m_prices'][str(prow['id'])])+ unichr(8364)))
+                            except KeyError:
+                                report_box.add_widget(Label(text='0'))
+                    self.ids.report_draw_list.add_widget(report_box)
+
+            self.ids.report_draw_list.add_widget(Button(text='Price Details', size_hint=[1, None], height=30))
+
+            self.ids.report_draw_list.bind(minimum_height=self.ids.report_draw_list.setter('height'))
+
+            #Set for Print
+            self.report_event_id = event_id
+            self.report_venue_id = venue_id
+            self.report_event_date = event_date
+            self.report_event_time = event_time
+            self.report_user_id  = user_id
 
 
-                #Times
-                self.report_event_date_time_dict[row['date_day']]= row['start_times']
-
-            self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
-
-        #Set Times for select list
-        if event_time == 0:
-            self.ids.report_select_time_list.clear_widgets(children=None)
-            for time in self.report_event_date_time_dict[event_date].split(","):
-                if event_time == 0:
-                    event_time = time
-                    self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text=time, on_release=partial(self.get_reports,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
-                else:
-                    self.ids.report_select_time_list.add_widget(ToggleButton(text=time, on_release=partial(self.get_reports,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
-
-
-            self.ids.report_select_time_list.bind(minimum_height=self.ids.report_select_time_list.setter('height'))
-        '''
-        #Get Categories of Event Venue
-        if event_cat == 0:
-            self.ids.report_select_cat_list.clear_widgets(children=None)
-            results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',venue_id)
-            for row in results_cat:
-                if event_cat == 0:
-                    event_cat = row['id']
-                    self.ids.report_select_cat_list.add_widget(ToggleButton(state='down',text=row['name'],on_release=partial(self.get_reports,event_id,venue_id,event_date,event_time,row['id']), group='report_cat', size_hint=[1, None], height=40))
-                else:
-                    self.ids.report_select_cat_list.add_widget(ToggleButton(text=row['name'],on_release=partial(self.get_reports,event_id,venue_id,event_date,event_time,row['id']), group='report_cat', size_hint=[1, None], height=40))
-
-            self.ids.report_select_cat_list.bind(minimum_height=self.ids.report_select_cat_list.setter('height'))
-
-        self.ids.report_draw_list.clear_widgets(children=None)
-        '''
-
-
-        #Get Categories of Event Venue
-        if user_id == 0:
-            self.ids.report_select_user_list.clear_widgets(children=None)
-            results_user = yield self.session.call(u'io.crossbar.btms.users.get')
-            for row in results_user:
-                if user_id == 0:
-                    user_id = 'all'
-                    self.ids.report_select_user_list.add_widget(ToggleButton(state='down',text='all',on_release=partial(self.get_reports,event_id,venue_id,event_date,event_time,'all'), group='report_user', size_hint=[1, None], height=40))
-
-                self.ids.report_select_user_list.add_widget(ToggleButton(text=row['user'],on_release=partial(self.get_reports,event_id,venue_id,event_date,event_time,row['id']), group='report_user', size_hint=[1, None], height=40))
-
-            self.ids.report_select_user_list.bind(minimum_height=self.ids.report_select_user_list.setter('height'))
-
-        #Get Report
-        self.ids.report_draw_list.add_widget(Label(text='loading...',size_hint=[1, 1]))
-        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, self.report_printer, self.user_id)
-        self.ids.report_draw_list.clear_widgets(children=None)
-        for key, value in results_report.iteritems():
-            if key == 'all':
-                report_cat_name = 'All'
-            else:
-                report_cat_name = self.report_cat_list[event_id][key]
-            self.ids.report_draw_list.add_widget(ProgressBar(size_hint=[1, None], height=5))
-            self.ids.report_draw_list.add_widget(Label(text=report_cat_name, size_hint=[1, None], height=30))
-            self.ids.report_draw_list.add_widget(ProgressBar(size_hint=[1, None], height=5))
-            report_grid = GridLayout(cols=6, size_hint=[1, None], height=80)
-
-            report_grid.add_widget(Label(text='Sold'))
-            report_grid.add_widget(Label(text='Cash'))
-            #report_grid.add_widget(Label(text='Card'))
-            report_grid.add_widget(Label(text='Cont.'))
-            report_grid.add_widget(Label(text='Reserved'))
-            report_grid.add_widget(Label(text='Expected'))
-            report_grid.add_widget(Label(text='Not vis.'))
-
-
-            report_grid.add_widget(CLabel(text=str(value['a_total_sold']),bgcolor=[.5,.4,.4,1]))
-            report_grid.add_widget(Label(text=str(value['a_sold_cash'])))
-            #report_grid.add_widget(Label(text=str(value['a_sold_card'])))
-            report_grid.add_widget(CLabel(text=str(value['a_sold_conti']),bgcolor=[.5,.4,.4,1]))
-            report_grid.add_widget(Label(text=str(value['a_reserved'])))
-            report_grid.add_widget(CLabel(text=str(value['a_total_pre']),bgcolor=[.5,.4,.4,1]))
-            report_grid.add_widget(Label(text=str(value['a_not_visited'])))
-
-
-            report_grid.add_widget(CLabel(text=str(value['m_total_sold'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
-            report_grid.add_widget(Label(text=str(value['m_sold_cash'])+ unichr(8364)))
-            #report_grid.add_widget(Label(text=str(value['m_sold_card'])+ unichr(8364)))
-            report_grid.add_widget(CLabel(text=str(value['m_sold_conti'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
-            report_grid.add_widget(Label(text=str(value['m_reserved'])+ unichr(8364)))
-            report_grid.add_widget(CLabel(text=str(value['m_total_pre'])+ unichr(8364),bgcolor=[.4,.4,.4,1]))
-            report_grid.add_widget(Label(text=str(value['m_not_visited'])+ unichr(8364)))
-            self.ids.report_draw_list.add_widget(report_grid)
-            #self.ids.report_draw_list.add_widget(Button(text=key +str(value), size_hint=[1, None], height=80))
-
-
-        self.ids.report_draw_list.bind(minimum_height=self.ids.report_draw_list.setter('height'))
+        elif cmd == 1:
+            results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, self.report_event_id, self.report_venue_id, self.report_event_date, self.report_event_time, self.report_user_id, 1, self.report_printer, self.user_id)
+            print results_report
 # Buttons
 class ImageButton(Button):
     pass

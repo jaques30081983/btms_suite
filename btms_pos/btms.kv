@@ -793,7 +793,7 @@
                         Button:
                             id: kv_reports_details
                             text: "Details"
-                            on_release: root.get_reports(0,0,0,0,0)
+                            on_release: root.get_reports(0,0,0,0,0,0)
 
 
                         Button:
@@ -1326,7 +1326,7 @@
                 text: "Print Report"
                 size_hint: 0.5, 0.1
                 pos_hint: {'x': .5, 'y': 0}
-                #on_release: root.create_events()
+                on_release: root.get_reports(1, 0, 0, 0, 0, 0)
 
         Screen:
 			name: 'add_user'
