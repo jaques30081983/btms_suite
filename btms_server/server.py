@@ -1645,7 +1645,34 @@ class BtmsBackend(ApplicationSession):
     def getServer(self):
         return get_server_stats()
 
+    @wamp.register(u'io.crossbar.btms.valid.validate')
+    @inlineCallbacks
+    def validate(self,qrcode, user_id):
+        transaction_id, ticket_id = qrcode.split('_', 1)
+        print 'tid and ticketid:',transaction_id, ticket_id
+        status = 5
+        try:
+            results = yield self.db.runQuery("SELECT id, status FROM btms_tickets " \
+                           "WHERE tid = '"+str(transaction_id)+"' AND ticket_id = '"+ticket_id+"' ")
+            for row in results:
+                status = row['status']
+                id = row['id']
+                print 'Ticket DBID:', row['id']
 
+            if status == 0:
+                sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
+                  "WHERE btms_tickets.id='%s'" % (1, user_id, id)
+                self.db.runOperation(sql)
+
+            if status == 3:
+                sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
+                  "WHERE btms_tickets.id='%s'" % (4, user_id, id)
+                self.db.runOperation(sql)
+
+        except Exception as Err:
+            print 'Error', Err
+
+        returnValue(status)
 
 
 

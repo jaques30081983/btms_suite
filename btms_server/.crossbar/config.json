@@ -46,10 +46,32 @@
                            "subscribe": true,
                            "call": true,
                            "register": true
+                        }
+                     ]
+                  },
+                  {
+                     "name": "admin",
+                     "permissions": [
+                        {
+                           "uri": "io.crossbar.admin.btms.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
                         },
                         {
-                           "uri": "com.example.topic2",
-                           "subscribe": false
+                           "uri": "io.crossbar.btms.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        },
+                        {
+                           "uri": "io.crossbar.btms.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
                         }
                      ]
                   },
@@ -62,18 +84,18 @@
                            "subscribe": true,
                            "call": true,
                            "register": true
-                        },
+                        }
+                     ]
+                  },
+                  {
+                     "name": "valid",
+                     "permissions": [
                         {
-                           "uri": "com.example.*",
-                           "publish": true
-                        },
-                        {
-                           "uri": "com.example.topic2",
-                           "publish": false
-                        },
-                        {
-                           "uri": "com.foobar.topic1",
-                           "publish": true
+                           "uri": "io.crossbar.btms.valid.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
                         }
                      ]
                   }

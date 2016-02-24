@@ -10,7 +10,7 @@ package.name = btms_valid
 package.domain = org.kivy
 
 # (str) Source code where the main.py live
-source.dir = /home/jaques2/workspace/btms_valid
+source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
 source.include_exts = py,png,jpg,kv,atlas
@@ -25,14 +25,14 @@ source.include_exts = py,png,jpg,kv,atlas
 #source.exclude_patterns = license,images/*/*.jpg
 
 # (str) Application versionning (method 1)
-version.regex = __version__ = '(.*)'
-version.filename = %(source.dir)s/main.py
+#version.regex = __version__ = '(.*)'
+#version.filename = %(source.dir)s/main.py
 
 # (str) Application versionning (method 2)
-#version = 15.10.24
+version = 16.02.23
 
 # (list) Application requirements
-requirements = kivy
+requirements = kivy,autobahn,twisted,msgpack-python
 
 # (str) Presplash of the application
 presplash.filename = %(source.dir)s/images/btms_valid_splash_01.png

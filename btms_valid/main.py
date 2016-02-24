@@ -1,37 +1,55 @@
-'''
-Qrcode example application
-==========================
+# -*- coding: iso-8859-15 -*-
+"""
+This is BTMS, Bigwood Ticket Management System,
+just reserve, sell and print tickets....
+"""
 
-Author: Mathieu Virbel <mat@meltingrocks.com>
+# copyright Jakob Laemmle, the GNU GENERAL PUBLIC LICENSE Version 2 license applies
 
-Featuring:
+# Kivy's install_twisted_reactor MUST be called early on!
 
-- Android camera initialization
-- Show the android camera into a Android surface that act as an overlay
-- New AndroidWidgetHolder that control any android view as an overlay
-- New ZbarQrcodeDetector that use AndroidCamera / PreviewFrame + zbar to
-  detect Qrcode.
+from kivy.support import install_twisted_reactor
+install_twisted_reactor()
 
-'''
+from kivy.app import App
+from kivy.clock import Clock
+#from kivy.factory import Factory
+#from kivy.properties import ObjectProperty
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.floatlayout import FloatLayout
+from kivy.properties import ListProperty
+from autobahn.twisted.wamp import ApplicationSession
+from autobahn.twisted.wamp import ApplicationRunner
+from autobahn.wamp import auth
+from twisted.internet.defer import inlineCallbacks, returnValue
+#from twisted.internet import defer
+#import msgpack
+from kivy.storage.jsonstore import JsonStore
+store = JsonStore('btms_config.json')
+from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.image import Image
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
+from kivy.uix.bubble import Bubble
 
+#from plyer import notification
 
-__version__ = '16.02.15'
+from kivy.uix.textinput import TextInput
+from kivy.uix.progressbar import ProgressBar
+from functools import partial
+import hashlib
+import datetime as dt
+import json
 
 from collections import namedtuple
-from kivy.lang import Builder
-from kivy.app import App
-from kivy.properties import ObjectProperty, ListProperty, BooleanProperty, \
-    NumericProperty
-from kivy.uix.widget import Widget
-from kivy.uix.anchorlayout import AnchorLayout
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.floatlayout import FloatLayout
-from kivy.graphics import Color, Line
-from kivy.uix.textinput import TextInput
+from kivy.properties import ObjectProperty, ListProperty, BooleanProperty, NumericProperty
 from jnius import autoclass, PythonJavaClass, java_method, cast
 from android.runnable import run_on_ui_thread
 from kivy.network.urlrequest import UrlRequest
 from functools import partial
+from kivy.uix.widget import Widget
 
 # preload java classes
 System = autoclass('java.lang.System')
@@ -48,6 +66,8 @@ Image = autoclass('net.sourceforge.zbar.Image')
 ImageFormat = autoclass('android.graphics.ImageFormat')
 LinearLayout = autoclass('android.widget.LinearLayout')
 Symbol = autoclass('net.sourceforge.zbar.Symbol')
+
+
 
 
 class PreviewCallback(PythonJavaClass):
@@ -74,7 +94,7 @@ class SurfaceHolderCallback(PythonJavaClass):
     def __init__(self, callback):
         super(SurfaceHolderCallback, self).__init__()
         self.callback = callback
- 
+
     @java_method('(Landroid/view/SurfaceHolder;III)V')
     def surfaceChanged(self, surface, fmt, width, height):
         self.callback(fmt, width, height)
@@ -82,7 +102,7 @@ class SurfaceHolderCallback(PythonJavaClass):
     @java_method('(Landroid/view/SurfaceHolder;)V')
     def surfaceCreated(self, surface):
         pass
- 
+
     @java_method('(Landroid/view/SurfaceHolder;)V')
     def surfaceDestroyed(self, surface):
         pass
@@ -186,7 +206,7 @@ class AndroidCamera(Widget):
         # internal, called when the android SurfaceView is ready
         # FIXME if the size is not handled by the camera, it will failed.
         global lampstate
-        
+
         params = self._android_camera.getParameters()
         params.setPreviewSize(width, height)
         params.setFocusMode(ParametersCam.FOCUS_MODE_CONTINUOUS_PICTURE)
@@ -197,7 +217,7 @@ class AndroidCamera(Widget):
 
         self._android_camera.setParameters(params)
         self._android_camera.setDisplayOrientation(90)
-		
+
         # now that we know the camera size, we'll create 2 buffers for faster
         # result (using Callback buffer approach, as described in Camera android
         # documentation)
@@ -234,13 +254,80 @@ class AndroidCamera(Widget):
             self._holder.pos = pos
 
 
-class ZbarQrcodeDetector(FloatLayout):
-    '''Widget that use the AndroidCamera and zbar to detect qrcode.
-    When found, the `symbols` will be updated
-    '''
+class BtmsValidWampComponentAuth(ApplicationSession):
+    """
+    A WAMP application component which is run from the Kivy UI.
+    """
+
+    def onConnect(self):
+        print("connected. joining realm {} as user {} ...".format(self.config.realm, btms_user))
+
+        self.join(self.config.realm, [u"wampcra"], btms_user)
+
+    def onChallenge(self, challenge):
+
+        print("authentication challenge received: {}".format(challenge))
+        if challenge.method == u"wampcra":
+            if u'salt' in challenge.extra:
+                key = auth.derive_key(btms_password.text.encode('utf8'),
+                    challenge.extra['salt'].encode('utf8'),
+                    challenge.extra.get('iterations', None),
+                    challenge.extra.get('keylen', None))
+            else:
+                key = btms_password.encode('utf8')
+            signature = auth.compute_wcs(key, challenge.extra['challenge'].encode('utf8'))
+            return signature.decode('ascii')
+        else:
+            raise Exception("don't know how to compute challenge for authmethod {}".format(challenge.method))
+
+    def onJoin(self, details):
+        print("auth session ready", self.config.extra)
+        global ui
+        # get the Kivy UI component this session was started from
+        ui = self.config.extra['ui']
+        ui.on_session(self)
+
+
+
+        # subscribe to WAMP PubSub events and call the Kivy UI component's
+        # function when such an event is received
+        #self.subscribe(ui.on_users_message, u'io.crossbar.btms.users.result')
+        self.subscribe(ui.on_venue_update, u'io.crossbar.btms.venue.update')
+        self.subscribe(ui.on_block_item, u'io.crossbar.btms.item.block.action')
+        self.subscribe(ui.on_select_seats, u'io.crossbar.btms.seats.select.action')
+        self.subscribe(ui.on_set_unnumbered_seats, u'io.crossbar.btms.unnumbered_seats.set.action')
+        self.subscribe(ui.onLeaveRemote, u'io.crossbar.btms.onLeaveRemote')
+
+
+
+
+    def onLeave(self, details):
+        print("onLeave: {}".format(details))
+        if ui.logout_op == 0 or ui.logout_op == None:
+            ui.ids.sm.current = 'server_connect'
+            ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeave: {}".format(details))
+        elif ui.logout_op == 1:
+            ui.ids.sm.current = 'login_user'
+
+    def onDisconnect(self):
+        details = ""
+        print("onDisconnect: {}".format(details))
+        if ui.logout_op == 0 or ui.logout_op == None:
+            ui.ids.sm.current = 'server_connect'
+            ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onDisconnect: {}".format(details))
+        elif ui.logout_op == 1:
+            ui.ids.sm.current = 'login_user'
+
+
+class BtmsValidRoot(BoxLayout):
+    """
+    The Root widget, defined in conjunction with the rule in btms.kv.
+    """
+    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_05.png')
+
     global lampstate
     lampstate = 0
-    camera_size = ListProperty([320, 240])
+    camera_size = ListProperty([720, 720])
 
     symbols = ListProperty([])
 
@@ -250,15 +337,67 @@ class ZbarQrcodeDetector(FloatLayout):
     Qrcode = namedtuple('Qrcode',
             ['type', 'data', 'bounds', 'quality', 'count'])
 
-    def __init__(self, **kwargs):
-        super(ZbarQrcodeDetector, self).__init__(**kwargs)
+    #def __init__(self, **kwargs):
+        #super(ZbarQrcodeDetector, self).__init__(**kwargs)
+
+
+
+
+
+
+    def start_wamp_component_auth(self, server_url, user, password):
+        global btms_user
+        global btms_password
+        btms_user = user
+        btms_password = hashlib.md5( password ).hexdigest()
+        self.logout_op = 0
+        """
+        Create a WAMP session and start the WAMP component
+        """
+        self.session = None
+
+        # adapt to fit the Crossbar.io instance you're using
+
+        url, realm = u"ws://"+server_url+"/ws", u"btmsserverauth"
+        store.put('settings', server_adress=server_url, ssl='0', user=user)
+        # Create our WAMP application component
+        runner = ApplicationRunner(url=url,
+                                   realm=realm,
+                                   extra=dict(ui=self))
+
+        # Start our WAMP application component without starting the reactor because
+        # that was already started by kivy
+        runner.run(BtmsValidWampComponentAuth, start_reactor=False)
+
+    @inlineCallbacks
+    def on_session(self, session):
+        """
+        Called from WAMP session when attached to Crossbar router.
+        """
+        self.session = session
+        self.ids.sm.current = 'work1'
+
+        results = yield self.session.call(u'io.crossbar.btms.users.get')
+        self.get_users(results)
+
+        self.ids.kv_user_button.text = btms_user
+        for row in results:
+            if row['user'] == btms_user: #TODO simply btms_user to user
+                self.user_id = row['id']
+                self.user = btms_user
+
+        #self.session.leave()
+
+
+        #Init Camera
         self._camera = AndroidCamera(
                 size=self.camera_size,
-                size_hint=(None, None),pos_hint={'x': .35, 'y': .8})
+                size_hint=(None,None),pos_hint={'x': .25, 'y': .5}, width=50)
+
         self._camera.bind(on_preview_frame=self._detect_qrcode_frame)
-        self.add_widget(self._camera)
-	self.qr_result = '0'
-	self._lamp = 0
+        self.ids.detector.add_widget(self._camera)
+        self.qr_result = '0'
+        self._lamp = 0
 
         # create a scanner used for detecting qrcode
         self._scanner = ImageScanner()
@@ -268,13 +407,48 @@ class ZbarQrcodeDetector(FloatLayout):
         self._scanner.setConfig(0, Config.Y_DENSITY, 3)
 
 
+    def onLeaveRemote(self,details):
+        ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
+        print details
+        self.session.leave()
+
+    def get_users(self,results):
+        user_list1 = []
+        self.user_list = {}
+        self.ids.kv_user_list.clear_widgets(children=None)
+        for row in results:
+            print row['user']
+            self.user_list[row['id']] = row['user']
+            user_list1.append(row['user'])
+            self.ids.kv_user_list.add_widget(Button(text=str(row['user']),on_release=partial(self.change_user,str(row['user']))))
+
+        store.put('userlist', user_list=user_list1)
+
+
+    def change_user(self,user,*args):
+        self.ids.kv_password_input.text = ''
+        self.ids.kv_user_input.text = user
+
+        self.ids.sm.current = 'server_connect'
+
+
+    def logout(self,op):
+        self.logout_op = op
+        self.ids.kv_password_input.text = ''
+        self.ids.kv_user_change.disabled = False
+        self.session.leave()
+
+        #self.ids.sm.current = 'login_user'
+
+
+
     def toggle_lamp(self):
         global lampstate
         if self._lamp == 1:
             self._lamp = 0
             self.ids.lamp_btn.text = 'Lamp Off'
             lampstate = 0
-            
+
         elif self._lamp == 0:
             self._lamp = 1
             self.ids.lamp_btn.text = 'Lamp On'
@@ -297,7 +471,7 @@ class ZbarQrcodeDetector(FloatLayout):
         barcode = Image(size.width, size.height, 'NV21')
         barcode.setData(data)
         barcode = barcode.convert('Y800')
-		
+
         result = self._scanner.scanImage(barcode)
 
         if result == 0:
@@ -309,7 +483,7 @@ class ZbarQrcodeDetector(FloatLayout):
         it = barcode.getSymbols().iterator()
         while it.hasNext():
             symbol = it.next()
-            qrcode = ZbarQrcodeDetector.Qrcode(
+            qrcode = BtmsValidRoot.Qrcode(
                 type=symbol.getType(),
                 data=symbol.getData(),
                 quality=symbol.getQuality(),
@@ -322,7 +496,7 @@ class ZbarQrcodeDetector(FloatLayout):
             self.validate()
         self.symbols = symbols
 
-
+    @inlineCallbacks
     def validate(self):
         global data_qr
         global data_qr_old
@@ -334,30 +508,38 @@ class ZbarQrcodeDetector(FloatLayout):
 
 
 
-        def result_validation(req, results):
+        def result_validation(status):
 
-            for row in results:
+            if status == 0:
+                status_text = 'Is valid ' + str(data_qr)
+                self.ids.result_label.background_color = [0,1,0,1]
+                self.ids.result_screen.background_color = [0,1,0,1]
+            elif status == 1:
+                status_text = 'Not valid ' + str(data_qr)
+                self.ids.result_label.background_color = [1,0,0,1]
+                self.ids.result_screen.background_color = [1,0,0,1]
+            elif status == 2:
+                status_text = 'Back to the office ' + str(data_qr)
+                self.ids.result_label.background_color = [1,1,0,1]
+                self.ids.result_screen.background_color = [1,1,0,1]
+            elif status == 3:
+                status_text = 'Valid VIP ' + str(data_qr)
+                self.ids.result_label.background_color = [0,1,0,1]
+                self.ids.result_screen.background_color = [0,1,0,1]
+            elif status == 4:
+                status_text = 'Not valid VIP ' + str(data_qr)
+                self.ids.result_label.background_color = [1,0,0,1]
+                self.ids.result_screen.background_color = [1,0,0,1]
+            elif status == 5:
+                status_text = 'Not in DB, not valid ' + str(data_qr)
+                self.ids.result_label.background_color = [1,0,0,1]
+                self.ids.result_screen.background_color = [1,0,0,1]
 
-                if row['status'] == 0:
-                    status_text = 'Is valid ' + str(data_qr)
-                    self.ids.result_label.background_color = [0,1,0,1]
-                elif row['status'] == 1:
-                    status_text = 'Not valid ' + str(data_qr)
-                    self.ids.result_label.background_color = [1,0,0,1]
-                elif row['status'] == 2:
-                    status_text = 'Back to the office ' + str(data_qr)
-                    self.ids.result_label.background_color = [1,1,0,1]
-                elif row['status'] == 3:
-                    status_text = 'Valid VIP ' + str(data_qr)
-                    self.ids.result_label.background_color = [0,1,0,1]
-                elif row['status'] == 4:
-                    status_text = 'Not valid VIP ' + str(data_qr)
-                    self.ids.result_label.background_color = [1,0,0,1]
-                elif row['status'] == 5:
-                    status_text = 'Not in DB, not valid ' + str(data_qr)
-                    self.ids.result_label.background_color = [1,0,0,1]
+            self.ids.result_label.text = status_text
 
-                self.ids.result_label.text = status_text
+            def my_callback(dt):
+                self.ids.result_screen.background_color = [1,1,1,1]
+            Clock.schedule_once(my_callback, .5)
 
         if len(data_qr) > 19:
 
@@ -366,20 +548,29 @@ class ZbarQrcodeDetector(FloatLayout):
             else:
 
                 data_qr_old = data_qr
-                working_server_adress = self.ids.kv_server_adress.text
-                session_id = '0'
+                #working_server_adress = self.ids.kv_server_adress.text
+                #session_id = '0'
 
-                req = UrlRequest(
-                        'http://' + working_server_adress + '/btms_backoffice/index.php?s=' + session_id + '&b=valid_ticket&tidid='
-                        + data_qr, result_validation)
+
+                try:
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.user_id)
+                    result_validation(results)
+                    #self.ids.result_label.text = str(results)
+
+                except Exception as err:
+                    print "Error", err
+
+                #req = UrlRequest(
+                #        'http://' + working_server_adress + '/btms_backoffice/index.php?s=' + session_id + '&b=valid_ticket&tidid='
+                #        + data_qr, result_validation)
 
 
 	def on_symbol(self, symbols):
 #		#print 'found', len(symbols), 'symbols'
 		for symbol in symbols:
 			self.qr_result= '- qrcode: {}'.format(symbol.data)
-			
-		
+
+
 		# stop the detector if we found a symbol.
 		# don't if you want continuous detection.
 		#detector.stop()
@@ -408,38 +599,37 @@ class ZbarQrcodeDetector(FloatLayout):
     '''
 
 
+
+
+
+class BtmsValidApp(App):
+
+    def build(self):
+        self.title = 'BTMS Valid 16.02a'
+        self.root = BtmsValidRoot()
+        self.root.ids.kv_user_change.disabled = True
+
+        if store.exists('settings'):
+            self.root.ids.kv_server_adress.text = store.get('settings')['server_adress']
+            self.root.ids.kv_user_input.text = store.get('settings')['user']
+            L = store.get('userlist')['user_list']
+            self.root.ids.kv_user_change.disabled = False
+            for user in L:
+                self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))
+
+
+        #self.start_wamp_component()
+
+        return self.root
+
+
+
+    def on_pause(self):
+        self.root.stop() #Stop Camera
+        return True
+
+    def on_resume(self):
+        pass
+
 if __name__ == '__main__':
-
-    qrcode_kv = '''
-BoxLayout:
-    orientation: 'vertical'
-
-    ZbarQrcodeDetector:
-        id: detector
-
-    Label:
-        text: '\\n'.join(map(repr, detector.symbols))
-        size_hint_y: None
-        height: '100dp'
-
-    BoxLayout:
-        size_hint_y: None
-        height: '48dp'
-
-        Button:
-            text: 'Scan a qrcode'
-            on_release: detector.start()
-        Button:
-            text: 'Stop detection'
-            on_release: detector.stop()
-        Button:
-            id: lamp_btn
-            text: 'Lamp 333'
-            on_release: detector.toggle_lamp()
-'''
-
-    class QrcodeExample(App):
-        def build(self):
-            #return Builder.load_string(qrcode_kv)
-			return self.root
-    QrcodeExample().run()
+    BtmsValidApp().run()
