@@ -172,14 +172,20 @@
 	
 		Screen:
 			name: 'login_user'
-			GridLayout:
-				id: kv_user_list
-				pos_hint: {'x': .1, 'y': .5}
-				size_hint_x: .8
-				size_hint_y: None
-				cols: 2
-				row_default_height: 50
-				spacing: 5
+			#FloatLayout:
+             #   size_hint: 1, 1
+              #  pos_hint: {'x': 0, 'y': 0}
+               # ScrollView:
+                #    size_hint: 1, 1
+                #TODO not working on android phone
+            GridLayout:
+                id: kv_user_list
+                size_hint: 1, 1
+                cols: 2
+                #row_default_height: '40dp'
+                padding: 0
+                spacing: '5dp'
+
 						
 				
 							
@@ -199,16 +205,16 @@
 
 			
             Button:
-                pos_hint: {'x': .05, 'y': .35}
-                size_hint: .9, .6
+                pos_hint: {'x': 0, 'y': .375}
+                size_hint: 1, .6
                 id: result_screen
                 text: ''
 
             Button:
-                pos_hint: {'x': 0, 'y': .225}
+                pos_hint: {'x': 0, 'y': .25}
                 size_hint: 1, .1
                 id: result_label
-                text: 'result'
+                text: ''
 
 
             Button:

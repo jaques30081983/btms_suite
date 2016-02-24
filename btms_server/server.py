@@ -933,7 +933,7 @@ class BtmsBackend(ApplicationSession):
                                       "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
                                       (transaction_id, ticket_id, event_id, event_date,
                                         event_time, item_id, cat_id, art, price_id,
-                                        seat, status, user_id)
+                                        seat, 0, user_id)
 
                 self.db.runOperation(sql)
         finally:

@@ -44,7 +44,7 @@ icon.filename = %(source.dir)s/images/btms_valid_logo_01.png
 orientation = portrait
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 1
+fullscreen = 0
 
 
 #
@@ -52,7 +52,7 @@ fullscreen = 1
 #
 
 # (list) Permissions
-android.permissions = CAMERA, INTERNET
+android.permissions = CAMERA, INTERNET, WAKE_LOCK
 
 # (int) Android API to use
 #android.api = 14
@@ -99,6 +99,9 @@ android.add_jars = %(source.dir)s/libs/android/zbar.jar
 # (list) Android additionnal libraries to copy into libs/armeabi
 android.add_libs_armeabi = %(source.dir)s/libs/android/*.so
 
+# (bool) Indicate whether the screen should stay on
+# Don't forget to add the WAKE_LOCK permission if you set this to True
+android.wakelock = True
 
 #
 # iOS specific

@@ -33,6 +33,7 @@ from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.bubble import Bubble
+from kivy.metrics import dp
 
 #from plyer import notification
 
@@ -303,6 +304,7 @@ class BtmsValidWampComponentAuth(ApplicationSession):
 
     def onLeave(self, details):
         print("onLeave: {}".format(details))
+        ui.stop()
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
             ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeave: {}".format(details))
@@ -311,6 +313,7 @@ class BtmsValidWampComponentAuth(ApplicationSession):
 
     def onDisconnect(self):
         details = ""
+        ui.stop()
         print("onDisconnect: {}".format(details))
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
@@ -327,6 +330,7 @@ class BtmsValidRoot(BoxLayout):
 
     global lampstate
     lampstate = 0
+
     camera_size = ListProperty([720, 720])
 
     symbols = ListProperty([])
@@ -376,6 +380,7 @@ class BtmsValidRoot(BoxLayout):
         """
         self.session = session
         self.ids.sm.current = 'work1'
+        self.camera_state = 0
 
         results = yield self.session.call(u'io.crossbar.btms.users.get')
         self.get_users(results)
@@ -392,7 +397,7 @@ class BtmsValidRoot(BoxLayout):
         #Init Camera
         self._camera = AndroidCamera(
                 size=self.camera_size,
-                size_hint=(None,None),pos_hint={'x': .25, 'y': .5}, width=50)
+                size_hint=(None,None),pos_hint={'x': .25, 'y': .55})
 
         self._camera.bind(on_preview_frame=self._detect_qrcode_frame)
         self.ids.detector.add_widget(self._camera)
@@ -420,8 +425,8 @@ class BtmsValidRoot(BoxLayout):
             print row['user']
             self.user_list[row['id']] = row['user']
             user_list1.append(row['user'])
-            self.ids.kv_user_list.add_widget(Button(text=str(row['user']),on_release=partial(self.change_user,str(row['user']))))
-
+            self.ids.kv_user_list.add_widget(Button(text=str(row['user']), on_release=partial(self.change_user,str(row['user'])),size_hint=[1, None], height=dp(60)))
+        self.ids.kv_user_list.bind(minimum_height=self.ids.kv_user_list.setter('height'))
         store.put('userlist', user_list=user_list1)
 
 
@@ -448,18 +453,29 @@ class BtmsValidRoot(BoxLayout):
             self._lamp = 0
             self.ids.lamp_btn.text = 'Lamp Off'
             lampstate = 0
+            if self.camera_state == 0:
+                pass
+            else:
+                self.stop()
+                self.start()
 
         elif self._lamp == 0:
             self._lamp = 1
             self.ids.lamp_btn.text = 'Lamp On'
             lampstate = 1
-
+            if self.camera_state == 0:
+                pass
+            else:
+                self.stop()
+                self.start()
 
     def start(self):
         self._camera.start()
+        self.camera_state = 1
 
     def stop(self):
         self._camera.stop()
+        self.camera_state = 0
 
     def _detect_qrcode_frame(self, instance, camera, data):
         global data_qr
@@ -615,8 +631,8 @@ class BtmsValidApp(App):
             L = store.get('userlist')['user_list']
             self.root.ids.kv_user_change.disabled = False
             for user in L:
-                self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))
-
+                self.root.ids.kv_user_list.add_widget(Button(text=user, on_release=partial(self.root.change_user,user),size_hint=[1, None], height=dp(40)))
+            self.root.ids.kv_user_list.bind(minimum_height=self.root.ids.kv_user_list.setter('height'))
 
         #self.start_wamp_component()
 
@@ -624,12 +640,13 @@ class BtmsValidApp(App):
 
 
 
-    def on_pause(self):
-        self.root.stop() #Stop Camera
-        return True
+    #def on_pause(self):
+        #self.root.stop() #Stop Camera
+        #return True
 
-    def on_resume(self):
-        pass
+    #def on_resume(self):
+        #self.root.stop() #Stop Camera
+    #TODO Pause and Resume not working if Camera is running
 
 if __name__ == '__main__':
     BtmsValidApp().run()
