@@ -76,7 +76,7 @@
                      ]
                   },
                   {
-                     "name": "frontend",
+                     "name": "user",
                      "permissions": [
                         {
                            "uri": "io.crossbar.btms.*",
@@ -92,6 +92,13 @@
                      "permissions": [
                         {
                            "uri": "io.crossbar.btms.valid.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        },
+                        {
+                           "uri": "io.crossbar.btms.users.get",
                            "publish": true,
                            "subscribe": true,
                            "call": true,

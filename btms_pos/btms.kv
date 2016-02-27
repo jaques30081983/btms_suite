@@ -678,6 +678,7 @@
 				text: "Dashboard"
 				on_release: sm.transition.direction = 'left'
 				on_release: sm.current = "dashboard"
+				on_press: root.permissions('dashboard')
 				on_press: root.get_printers()
 				on_press: root.get_reports_dashboard(0,0,0,0,0,0)
 				on_press: root.get_events_dashboard()
@@ -843,14 +844,14 @@
                             on_press: root.get_venues()
 
                         Button:
-                            id: kv_create_event
+                            id: kv_edit_event
                             text: "Edit"
                             #on_release: sm.transition.direction = 'left'
                             #on_release: sm.current = "create_event"
                             #on_press: root.get_venues()
 
                         Button:
-                            id: kv_create_event
+                            id: kv_delete_event
                             text: "Delete"
                             #on_release: sm.transition.direction = 'left'
                             #on_release: sm.current = "create_event"
@@ -1054,14 +1055,20 @@
                         pos_hint: {'x': 0.025, 'y': .025}
                         size_hint: .95, .15
                         Button:
-                            id: kv_create_event
+                            id: kv_server_restart
+                            text: "Restart"
+                            #on_release: sm.transition.direction = 'left'
+                            #on_release: sm.current = "create_event"
+                            #on_press: root.get_venues()
+                        Button:
+                            id: kv_server_reboot
                             text: "Reboot"
                             #on_release: sm.transition.direction = 'left'
                             #on_release: sm.current = "create_event"
                             #on_press: root.get_venues()
 
                         Button:
-                            id: kv_create_event
+                            id: kv_server_shutdown
                             text: "Shutdown"
                             #on_release: sm.transition.direction = 'left'
                             #on_release: sm.current = "create_event"

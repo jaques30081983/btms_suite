@@ -163,6 +163,11 @@ class BtmsRoot(BoxLayout):
             if row['user'] == btms_user: #TODO simply btms_user to user
                 self.user_id = row['id']
                 self.user = btms_user
+                self.user_role = row['role']
+                if self.user_role == 'admin' or self.user_role == 'user':
+                    pass
+                else:
+                    self.session.leave()
 
 
 
@@ -2369,6 +2374,43 @@ class BtmsRoot(BoxLayout):
         elif cmd == 1:
             results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, self.report_event_id, self.report_venue_id, self.report_event_date, self.report_event_time, self.report_user_id, 1, self.report_printer, self.user_id)
             print results_report
+
+
+    def permissions(self, cmd, *args):
+        if cmd == 'dashboard':
+            if self.user_role == 'admin':
+                self.ids.kv_create_event.disabled = False
+                self.ids.kv_edit_event.disabled = False
+                self.ids.kv_delete_event.disabled = False
+
+                self.ids.kv_venues_cat_price_create.disabled = False
+                self.ids.kv_venues_cat_price_edit.disabled = False
+                self.ids.kv_venues_cat_price_delete.disabled = False
+
+                self.ids.kv_users_add.disabled = False
+                self.ids.kv_users_edit_delete.disabled = False
+
+                self.ids.kv_server_restart.disabled = False
+                self.ids.kv_server_reboot.disabled = False
+                self.ids.kv_server_shutdown.disabled = False
+
+            else:
+                self.ids.kv_create_event.disabled = True
+                self.ids.kv_edit_event.disabled = True
+                self.ids.kv_delete_event.disabled = True
+
+                self.ids.kv_venues_cat_price_create.disabled = True
+                self.ids.kv_venues_cat_price_edit.disabled = True
+                self.ids.kv_venues_cat_price_delete.disabled = True
+
+                self.ids.kv_users_add.disabled = True
+                self.ids.kv_users_edit_delete.disabled = True
+
+                self.ids.kv_server_restart.disabled = True
+                self.ids.kv_server_reboot.disabled = True
+                self.ids.kv_server_shutdown.disabled = True
+
+
 # Buttons
 class ImageButton(Button):
     pass
