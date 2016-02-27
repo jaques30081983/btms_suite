@@ -54,6 +54,10 @@ class BtmsWampComponentAuth(ApplicationSession):
 
         self.join(self.config.realm, [u"wampcra"], btms_user)
 
+        global ui
+        # get the Kivy UI component this session was started from
+        ui = self.config.extra['ui']
+
     def onChallenge(self, challenge):
 
         print("authentication challenge received: {}".format(challenge))
@@ -72,9 +76,7 @@ class BtmsWampComponentAuth(ApplicationSession):
 
     def onJoin(self, details):
         print("auth session ready", self.config.extra)
-        global ui
         # get the Kivy UI component this session was started from
-        ui = self.config.extra['ui']
         ui.on_session(self)
 
 
@@ -92,19 +94,37 @@ class BtmsWampComponentAuth(ApplicationSession):
 
 
     def onLeave(self, details):
-        print("onLeave: {}".format(details))
+        print("onLeave 123:".format(details))
+        print details.reason
+        if details.reason == 'wamp.error.not_authorized':
+            ui.ids.kv_password_input.background_color = [1,0,0,1]
+            ui.ids.kv_password_input.text = ''
+            def my_callback(dt):
+                ui.ids.kv_password_input.background_color = [1,1,1,1]
+            Clock.schedule_once(my_callback, 1)
+
+        if details.reason == 'wamp.close.normal':
+            ui.ids.kv_user_input.background_color = [1,0,0,1]
+            ui.ids.kv_password_input.background_color = [1,0,0,1]
+            ui.ids.kv_password_input.text = ''
+            def my_callback(dt):
+                ui.ids.kv_password_input.background_color = [1,1,1,1]
+                ui.ids.kv_user_input.background_color = [1,1,1,1]
+            Clock.schedule_once(my_callback, 1)
+
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
-            ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeave: {}".format(details))
+            #ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeave: {}".format(details))
         elif ui.logout_op == 1:
             ui.ids.sm.current = 'login_user'
 
     def onDisconnect(self):
         details = ""
         print("onDisconnect: {}".format(details))
+
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
-            ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onDisconnect: {}".format(details))
+            #ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onDisconnect: {}".format(details))
         elif ui.logout_op == 1:
             ui.ids.sm.current = 'login_user'
 
@@ -177,7 +197,7 @@ class BtmsRoot(BoxLayout):
 
         #self.session.leave()
     def onLeaveRemote(self,details):
-        ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
+        #ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
         print details
         self.session.leave()
 
