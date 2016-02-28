@@ -134,7 +134,7 @@ class BtmsRoot(BoxLayout):
     The Root widget, defined in conjunction with the rule in btms.kv.
     """
     global seat_stat_img
-    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_05.png')
+    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_05.png', 'images/bet_sitz_30px_05.png')
 
 
     def start_wamp_component_auth(self, server_url, user, password):
@@ -784,10 +784,10 @@ class BtmsRoot(BoxLayout):
             for item_id, seat_list in seat_select_list.iteritems():
                 for seat, status in seat_list.iteritems():
 
-                    if self.seat_list[str(item_id)][int(seat)] == 4: #reserverd
+                    if self.seat_list[str(item_id)][int(seat)] == 5: #reserverd
                         status = 3 #local selected
                     elif self.seat_list[str(item_id)][int(seat)] == 3:
-                        status = 4
+                        status = 5
                     else:
                         status = self.seat_list[str(item_id)][int(seat)]
 
@@ -1475,7 +1475,7 @@ class BtmsRoot(BoxLayout):
                         except KeyError:
                             seat_trans_list[str(item_id)] = {}
                         seat_trans_list[str(item_id)][str(seat)] = 2
-                    if status1 == 4:
+                    if status1 == 5:
                         try:
                             seat_trans_list[str(item_id)]
                         except KeyError:

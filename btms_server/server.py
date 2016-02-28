@@ -1095,7 +1095,7 @@ class BtmsBackend(ApplicationSession):
 
             for item_id, seat_list in seat_trans_list.iteritems():
                 for seat, status in seat_list.iteritems():
-                    self.item_list[edt_id][item_id]['seats'][seat] = 2
+                    self.item_list[edt_id][item_id]['seats'][seat] = status
 
 
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, transaction_id, 0)
