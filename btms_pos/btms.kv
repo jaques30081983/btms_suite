@@ -847,8 +847,8 @@
                         Button:
                             id: kv_edit_event
                             text: "Edit"
-                            #on_release: sm.transition.direction = 'left'
-                            #on_release: sm.current = "create_event"
+                            on_release: sm.transition.direction = 'left'
+                            on_release: sm.current = "edit_event"
                             #on_press: root.get_venues()
 
                         Button:
@@ -1246,6 +1246,93 @@
 				on_release: root.create_events()
 				#on_release: sm.transition.direction = 'left'
 				#on_release: sm.current = "dashboard"
+
+		#####################
+		Screen:
+            name: 'edit_event'
+            GridLayout:
+                id: event_edit_titles_grid
+                pos_hint: {'x': 0, 'y': 0.95}
+                size_hint: 1, .05
+                padding: 0
+                spacing: 3
+                cols: 5
+                rows: None
+                Label:
+                    size_hint: .3, 1
+                    text: 'Event'
+                Label:
+                    size_hint: .3, 1
+                    text: 'Date'
+                Label:
+                    size_hint: .2, 1
+                    text: 'Start Times'
+                Label:
+                    size_hint: .2, 1
+                    text: 'Edit'
+                Label:
+                    text: 'Delete'
+
+            GridLayout:
+                id: event_edit_select_grid
+                pos_hint: {'x': 0, 'y': 0.1}
+                size_hint: 1, .85
+                padding: 0
+                spacing: 3
+                cols: 3
+                rows: None
+                #row_default_height: 10
+
+                ScrollView:
+                    size_hint: .15, 1
+                    #pos_hint: {'x': 0, 'y': .1}
+                    #scroll_timeout: 100
+                    #scroll_distance: 20
+                    GridLayout:
+                        id: event_edit_event_select_list
+                        size_hint: 1, None
+                        cols: 1
+                        row_default_height: 30
+
+                ScrollView:
+                    size_hint: .15, 1
+                    GridLayout:
+                        id: event_edit_date_select_list
+                        size_hint: 1, None
+                        cols: 1
+                        row_default_height: 30
+                        Button:
+                            text: "Back"
+                            size_hint: 1, 0.1
+                            pos_hint: {'x': 0, 'y': 0}
+                            on_release: sm.transition.direction = 'right'
+                            on_release: sm.current = "dashboard"
+
+                ScrollView:
+                    size_hint: .7, 1
+                    GridLayout:
+                        id: event_edit_date_select_list
+                        size_hint: 1, None
+                        cols: 1
+                        row_default_height: 30
+
+                        Button:
+                            text: "Back"
+                            size_hint: 1, 0.1
+                            pos_hint: {'x': 0, 'y': 0}
+                            on_release: sm.transition.direction = 'right'
+                            on_release: sm.current = "dashboard"
+
+            Button:
+                text: "Back"
+                size_hint: 1, 0.1
+                pos_hint: {'x': 0, 'y': 0}
+                on_release: sm.transition.direction = 'right'
+                on_release: sm.current = "dashboard"
+
+
+		#################
+
         Screen:
             name: 'reports'
             GridLayout:
