@@ -845,18 +845,18 @@
                             on_press: root.get_venues()
 
                         Button:
-                            id: kv_edit_event
+                            id: kv_edit_delete_event
                             text: "Edit"
                             on_release: sm.transition.direction = 'left'
-                            on_release: sm.current = "edit_event"
-                            #on_press: root.get_venues()
+                            on_release: sm.current = "edit_delete_events"
+                            on_release: root.edit_events(0,0,0,0,0,0)
 
                         Button:
-                            id: kv_delete_event
+                            id: kv_edit_delete_event
                             text: "Delete"
                             #on_release: sm.transition.direction = 'left'
-                            #on_release: sm.current = "create_event"
-                            #on_press: root.get_venues()
+                            #on_release: sm.current = "edit_delete_events"
+                            #on_release: root.edit_events(0,0,0,0,0,0)
 
                 FloatLayout:
                     size_hint: .3, .05
@@ -1249,9 +1249,9 @@
 
 		#####################
 		Screen:
-            name: 'edit_event'
+            name: 'edit_delete_events'
             GridLayout:
-                id: event_edit_titles_grid
+                id: event_edit_delete_titles_grid
                 pos_hint: {'x': 0, 'y': 0.95}
                 size_hint: 1, .05
                 padding: 0
@@ -1266,70 +1266,74 @@
                     text: 'Date'
                 Label:
                     size_hint: .2, 1
-                    text: 'Start Times'
+                    text: 'Edit / Delete'
                 Label:
                     size_hint: .2, 1
-                    text: 'Edit'
+                    text: ''
                 Label:
-                    text: 'Delete'
+                    text: ''
 
             GridLayout:
-                id: event_edit_select_grid
+                id: event_edit_delete_select_grid
                 pos_hint: {'x': 0, 'y': 0.1}
                 size_hint: 1, .85
                 padding: 0
                 spacing: 3
                 cols: 3
                 rows: None
-                #row_default_height: 10
+
 
                 ScrollView:
-                    size_hint: .15, 1
-                    #pos_hint: {'x': 0, 'y': .1}
-                    #scroll_timeout: 100
-                    #scroll_distance: 20
+                    size_hint: .25, 1
                     GridLayout:
-                        id: event_edit_event_select_list
+                        id: event_edit_delete_event_select_list
                         size_hint: 1, None
                         cols: 1
                         row_default_height: 30
 
                 ScrollView:
-                    size_hint: .15, 1
+                    size_hint: .25, 1
                     GridLayout:
-                        id: event_edit_date_select_list
+                        id: event_edit_delete_date_select_list
                         size_hint: 1, None
                         cols: 1
                         row_default_height: 30
-                        Button:
-                            text: "Back"
-                            size_hint: 1, 0.1
-                            pos_hint: {'x': 0, 'y': 0}
-                            on_release: sm.transition.direction = 'right'
-                            on_release: sm.current = "dashboard"
+
 
                 ScrollView:
-                    size_hint: .7, 1
+                    size_hint: .5, 1
                     GridLayout:
-                        id: event_edit_date_select_list
+                        id: event_edit_delete_work
                         size_hint: 1, None
-                        cols: 1
+                        cols: 2
                         row_default_height: 30
 
-                        Button:
-                            text: "Back"
-                            size_hint: 1, 0.1
-                            pos_hint: {'x': 0, 'y': 0}
-                            on_release: sm.transition.direction = 'right'
-                            on_release: sm.current = "dashboard"
+
 
             Button:
                 text: "Back"
-                size_hint: 1, 0.1
+                size_hint: .25, 0.1
                 pos_hint: {'x': 0, 'y': 0}
                 on_release: sm.transition.direction = 'right'
                 on_release: sm.current = "dashboard"
-
+            Button:
+                text: "Add"
+                size_hint: .25, 0.1
+                pos_hint: {'x': .25, 'y': 0}
+                on_release: sm.transition.direction = 'right'
+                on_release: sm.current = "dashboard"
+            Button:
+                text: "Update"
+                size_hint: .25, 0.1
+                pos_hint: {'x': .5, 'y': 0}
+                on_release: sm.transition.direction = 'right'
+                on_release: sm.current = "dashboard"
+            Button:
+                text: "Delete"
+                size_hint: .25, 0.1
+                pos_hint: {'x': .75, 'y': 0}
+                on_release: sm.transition.direction = 'right'
+                on_release: sm.current = "dashboard"
 
 		#################
 

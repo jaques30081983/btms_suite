@@ -32,6 +32,7 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.dropdown import DropDown
 from kivy.uix.bubble import Bubble
 
 from plyer import notification
@@ -1789,6 +1790,85 @@ class BtmsRoot(BoxLayout):
             print result
 
 
+    @inlineCallbacks
+    def edit_events(self, cmd, event_id, venue_id, event_date, event_time, user_id, *args):
+        if cmd == 0:
+            #Get events for select list
+            self.ids.event_edit_delete_event_select_list.clear_widgets(children=None)
+            results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+
+            for row in results_event:
+
+                if event_id == 0:
+
+                    event_id = row['id'] # Init Event
+                    venue_id = row['venue_id']
+                    self.ids.event_edit_delete_event_select_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.edit_events,1,row['id'],row['venue_id'],0,0,0), group='edit_events',size_hint=[1, None], height=40))
+                else:
+                    self.ids.event_edit_delete_event_select_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.edit_events,1,row['id'],row['venue_id'],0,0,0), group='edit_events',size_hint=[1, None], height=40))
+
+
+
+
+            self.ids.event_edit_delete_event_select_list.bind(minimum_height=self.ids.event_edit_delete_event_select_list.setter('height'))
+
+        if cmd == 0 or cmd == 1:
+            #Get Dates of event_id for select list
+            if event_date == 0:
+                self.ids.event_edit_delete_date_select_list.clear_widgets(children=None)
+                results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
+                self.report_event_date_time_dict = {}
+
+                for row in results_date:
+                    # Dates
+                    date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                    date_day_name = date_day.strftime("%a")
+
+                    self.ids.event_edit_delete_date_select_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.edit_events,2,event_id,venue_id,row['date_day'],0,0), group='events_date', size_hint= [1, None], height=40))
+
+
+                    #Times
+                    #self.report_event_delete_date_time_dict[row['date_day']]= row['start_times']
+
+                self.ids.event_edit_delete_date_select_list.bind(minimum_height=self.ids.event_edit_delete_date_select_list.setter('height'))
+
+        if cmd == 0 or cmd == 1:
+            results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+
+            for row in results_event:
+                print 'evenet id:', event_id, row['id']
+                if event_id == row['id']:
+                    self.ids.event_edit_delete_work.clear_widgets(children=None)
+
+                    self.ids.event_edit_delete_work.add_widget(Label(text='Title'))
+                    event_title_input = TextInput(text=row['title'], hint_text='Short Title')
+                    self.ids.event_edit_delete_work.add_widget(event_title_input )
+
+                    self.ids.event_edit_delete_work.add_widget(Label(text='Description'))
+                    event_description_input = TextInput(text=row['description'], hint_text='')
+                    self.ids.event_edit_delete_work.add_widget(event_description_input)
+
+                    self.ids.event_edit_delete_work.add_widget(Label(text='Venue'))
+                    event_venue_input = TextInput(text=str(row['venue_id']))
+                    self.ids.event_edit_delete_work.add_widget(event_venue_input)
+
+                    self.ids.event_edit_delete_work.add_widget(Label(text='Start/End Date'))
+                    event_date_layout = BoxLayout()
+                    event_start_date_input = TextInput(text=row['date_start'])
+                    event_end_date_input = TextInput(text=row['date_end'])
+                    event_date_layout.add_widget(event_start_date_input)
+                    event_date_layout.add_widget(event_end_date_input)
+                    self.ids.event_edit_delete_work.add_widget(event_date_layout)
+
+                    self.ids.event_edit_delete_work.add_widget(Label(text='Admission (hh:mm)'))
+                    event_admission_input = TextInput(text=row['admission'], hint_text='1:00')
+                    self.ids.event_edit_delete_work.add_widget(event_admission_input)
+
+            self.ids.event_edit_delete_work.bind(minimum_height=self.ids.event_edit_delete_work.setter('height'))
+
+
+        if cmd == 2:
+            self.ids.event_edit_delete_work.clear_widgets(children=None)
 
     @inlineCallbacks
     def get_journal(self, cmd):
@@ -2400,8 +2480,8 @@ class BtmsRoot(BoxLayout):
         if cmd == 'dashboard':
             if self.user_role == 'admin':
                 self.ids.kv_create_event.disabled = False
-                self.ids.kv_edit_event.disabled = False
-                self.ids.kv_delete_event.disabled = False
+                self.ids.kv_edit_delete_event.disabled = False
+
 
                 self.ids.kv_venues_cat_price_create.disabled = False
                 self.ids.kv_venues_cat_price_edit.disabled = False
@@ -2416,8 +2496,8 @@ class BtmsRoot(BoxLayout):
 
             else:
                 self.ids.kv_create_event.disabled = True
-                self.ids.kv_edit_event.disabled = True
-                self.ids.kv_delete_event.disabled = True
+                self.ids.kv_edit_delete_event.disabled = True
+
 
                 self.ids.kv_venues_cat_price_create.disabled = True
                 self.ids.kv_venues_cat_price_edit.disabled = True
