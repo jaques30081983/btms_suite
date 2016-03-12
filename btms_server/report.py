@@ -88,7 +88,7 @@ def createPdfReport(self,event_id, venue_id, event_date, event_time, report_resu
                          value['a_not_visited']])
 
             data.append([str(value['m_total_sold'])+ unichr(8364), str(value['m_sold_cash'])+ unichr(8364), str(value['m_sold_card'])+ unichr(8364),
-                         str(value['m_sold_conti'])+ unichr(8364), str(value['m_reserved'])+ unichr(8364), str(value['m_total_pre'])+ unichr(8364),
+                         '-', str(value['m_reserved'])+ unichr(8364), str(value['m_total_pre'])+ unichr(8364),
                          str(value['m_not_visited'])+ unichr(8364)])
 
 

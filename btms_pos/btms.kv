@@ -50,7 +50,7 @@
 
                     TextInput:
                         id: kv_server_adress
-                        text: "192.168.178.36:8080"
+                        text: ""
                         hint_text: "Server Adress: z.B. 192.168.178.1"
                         multiline: False
                         font_size: "30dp"
@@ -71,7 +71,7 @@
                             id: kv_user_input
                             size_hint_y: 1
                             size_hint_x: .7
-                            text: "jaques"
+                            text: ""
                             hint_text: "Username"
                             multiline: False
                             font_size: "30dp"
@@ -1316,24 +1316,23 @@
                 pos_hint: {'x': 0, 'y': 0}
                 on_release: sm.transition.direction = 'right'
                 on_release: sm.current = "dashboard"
+
             Button:
+                id: kv_event_edit_delete_add_button
                 text: "Add"
                 size_hint: .25, 0.1
                 pos_hint: {'x': .25, 'y': 0}
-                on_release: sm.transition.direction = 'right'
-                on_release: sm.current = "dashboard"
+                on_release: root.edit_events(3,0,0,0,0,0)
             Button:
                 text: "Update"
                 size_hint: .25, 0.1
                 pos_hint: {'x': .5, 'y': 0}
-                on_release: sm.transition.direction = 'right'
-                on_release: sm.current = "dashboard"
+                on_release: root.edit_events(4,0,0,0,0,0)
             Button:
                 text: "Delete"
                 size_hint: .25, 0.1
                 pos_hint: {'x': .75, 'y': 0}
-                on_release: sm.transition.direction = 'right'
-                on_release: sm.current = "dashboard"
+                on_release: root.edit_events(5,0,0,0,0,0)
 
 		#################
 

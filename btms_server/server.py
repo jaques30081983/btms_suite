@@ -33,6 +33,10 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.internet import task
 import MySQLdb.cursors
 
+from twistar.registry import Registry
+from twistar.dbobject import DBObject
+from twistar.dbconfig.mysql import ReconnectingMySQLConnectionPool
+
 from autobahn import wamp
 from autobahn.twisted.wamp import ApplicationSession
 
@@ -127,25 +131,50 @@ class BtmsBackend(ApplicationSession):
               (user_name, user_secret, 'frontend', user_firstname, user_lastname, user_email, user_phone)
         self.db.runOperation(sql)
 
-    @wamp.register(u'io.crossbar.btms.user.delete')
-    def deleteUser(self, user_id):
+
+    @wamp.register(u'io.crossbar.btms.events.add.date')
+    def addEventsDate(self,event_id, event_date, event_start_times, admission, user_id):
+        sql = "insert into btms_events(ref,date_day,start_times, admission, user_id) " \
+              "values('%s','%s','%s','%s','%s')" % \
+              (event_id, event_date, event_start_times, admission, user_id)
+        self.db.runOperation(sql)
+
+    @wamp.register(u'io.crossbar.btms.events.update.date')
+    def updateEventsDate(self,event_date_id, event_date, event_start_times, admission, user_id):
+        sql = "UPDATE btms_events SET btms_events.date_day='%s', btms_events.start_times='%s'," \
+              " btms_events.admission='%s', btms_events.user_id='%s' " \
+              "WHERE btms_events.id='%s'" % (event_date, event_start_times, admission, user_id, event_date_id)
+        d = self.db.runOperation(sql)
+        print 'updated'
+
+    @wamp.register(u'io.crossbar.btms.events.update.event')
+    def updateEvent(self,event_id, event_title, event_description, venue_id, date_start, date_end, admission, user_id):
+        sql = "UPDATE btms_events SET btms_events.title='%s', btms_events.description='%s', btms_events.date_start='%s'," \
+              " btms_events.date_end='%s', btms_events.admission='%s', btms_events.venue_id='%s', btms_events.user_id='%s' " \
+              "WHERE btms_events.id='%s'" % (event_title, event_description, date_start, date_end, admission, venue_id, user_id, event_id)
+        d = self.db.runOperation(sql)
+        print 'updated'
+
+    @wamp.register(u'io.crossbar.btms.events.delete.date')
+    def deleteEventsDate(self, event_date_id):
         #Delete from db
-        sql = "DELETE FROM btms_users WHERE id = '"+str(user_id)+"'"
+        sql = "DELETE FROM btms_events WHERE id = '"+str(event_date_id)+"'"
         self.db.runOperation(sql)
 
 
     @wamp.register(u'io.crossbar.btms.events.get')
     def getEvents(self):
-
         date_current = datetime.now().strftime('%Y-%m-%d')
-
-
         return self.db.runQuery("SELECT id, title, description, date_start, start_times, date_end, admission, venue_id FROM btms_events WHERE ref = '0' AND date_end >= '"+date_current+"' ORDER by date_end")
 
     @wamp.register(u'io.crossbar.btms.events.day')
     def getEventsDay(self,event_id):
-
         return self.db.runQuery("SELECT id, date_day, start_times FROM btms_events WHERE ref = '"+str(event_id)+"' ORDER by date_day")
+
+    @wamp.register(u'io.crossbar.btms.events.get.date')
+    def getEventsDate(self,date_id):
+        return self.db.runQuery("SELECT id, date_day, start_times, admission FROM btms_events WHERE id = '"+str(date_id)+"' ")
+
 
     @wamp.register(u'io.crossbar.btms.venues.get')
     def getVenues(self):
@@ -616,6 +645,7 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.reserve')
+    @inlineCallbacks
     def reserve(self, event_id, event_date, event_time, transaction_id,
                  seat_trans_list, itm_cat_amount_list, pre_res_art, debit, user_id):
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
@@ -654,9 +684,12 @@ class BtmsBackend(ApplicationSession):
                     "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
                     "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
                     "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
-
-            self.db.runOperation(sql)
-
+            try:
+                result = yield self.db.runOperation(sql)
+            except Exception as err:
+                self.item_list = {}
+                self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                print "DB Connection Error", err
             #elif retrive_status == True:
                 #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
                  #     " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
@@ -681,8 +714,12 @@ class BtmsBackend(ApplicationSession):
                       "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
                        "'"+str(item_id)+"','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
                       "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
-
-                self.db.runOperation(sql)
+                try:
+                    result = yield self.db.runOperation(sql)
+                except Exception as err:
+                    self.item_list = {}
+                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                    print "DB Connection Error", err
                 #elif retrive_status == True:
                     #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
                     #  " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
@@ -707,7 +744,8 @@ class BtmsBackend(ApplicationSession):
             transaction_id_part = transaction_id[-4:]
         elif pre_res_art == 2:
             transaction_id_part = transaction_id[-4:]
-        return transaction_id_part
+        #return transaction_id_part
+        returnValue(transaction_id_part)
 
 
     @wamp.register(u'io.crossbar.btms.retrieve')
@@ -807,7 +845,12 @@ class BtmsBackend(ApplicationSession):
                 "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
                 "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
                 "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"', status='2' "
-            self.db.runOperation(sql)
+            try:
+                result = yield self.db.runOperation(sql)
+            except Exception as err:
+                self.item_list = {}
+                self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                print "DB Connection Error", err
         #Get unnumbered seats and insert in db
 
         for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
@@ -840,8 +883,12 @@ class BtmsBackend(ApplicationSession):
                     "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
                     "'"+str(item_id)+"','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
                     "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"', status='2' "
-                self.db.runOperation(sql)
-
+                try:
+                    result = yield self.db.runOperation(sql)
+                except Exception as err:
+                    self.item_list = {}
+                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                    print "DB Connection Error", err
             except KeyError:
                 pass
 
@@ -1391,7 +1438,10 @@ class BtmsBackend(ApplicationSession):
                     pass #Dont Count the not visited
                 else:
                     #Money
-                    report_result_dict['all']['m_total_pre'] = report_result_dict['all']['m_total_pre'] + row['debit']
+                    if row['account'] == 1210:
+                        pass #No data available from resellers
+                    else:
+                        report_result_dict['all']['m_total_pre'] = report_result_dict['all']['m_total_pre'] + row['debit']
 
                 #Get Amount
                 json_string = row['amount'].replace(';',':')
@@ -1445,7 +1495,10 @@ class BtmsBackend(ApplicationSession):
                             pass #Dont Count the not visited
                         else:
                             report_result_dict['cat_'+str(cat)]['a_total_pre'] = report_result_dict['cat_'+str(cat)]['a_total_pre'] + cat_amount
-                            report_result_dict['cat_'+str(cat)]['m_total_pre'] = report_result_dict['cat_'+str(cat)]['m_total_pre'] + cat_price
+                            if row['account'] == 1210:
+                                pass #No data available from resellers
+                            else:
+                                report_result_dict['cat_'+str(cat)]['m_total_pre'] = report_result_dict['cat_'+str(cat)]['m_total_pre'] + cat_price
 
                     if row['status'] == 3:
                         pass #Dont Count the not visited
@@ -1457,36 +1510,45 @@ class BtmsBackend(ApplicationSession):
                 #Sold
                 if row['status'] == 2:
                     #Money
-                    report_result_dict['all']['m_total_sold'] = report_result_dict['all']['m_total_sold'] + row['debit']
+                    if row['account'] == 1210:
+                        pass #No data available from resellers
+                    else:
+                        report_result_dict['all']['m_total_sold'] = report_result_dict['all']['m_total_sold'] + row['debit']
                     #Tickets
-                    try:
-                        item_amount[0]
-                        total_amount = 0
-
-                        for cat, value in item_amount[0].iteritems():
-                            cat_amount = 0
-                            cat_price = 0
-                            for price_id, value in value.iteritems():
-                                #Amount
-                                total_amount = total_amount + value
-                                try:
-                                    report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = report_result_dict['cat_'+str(cat)]['a_prices'][price_id] + value
-                                except KeyError:
-                                    report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = value
-                                #Money
-                                itm_price = float(itm_price_list[int(price_id)]) * value
-                                cat_price = cat_price + itm_price
-                                try:
-                                    report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = report_result_dict['cat_'+str(cat)]['m_prices'][price_id] + itm_price
-                                except KeyError:
-                                    report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = itm_price
-
-                            report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
-                            report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
-
-                        report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
-                    except IndexError:
+                    if row['account'] == 1210:
                         pass
+                    else:
+                        try:
+                            item_amount[0]
+                            total_amount = 0
+
+                            for cat, value in item_amount[0].iteritems():
+                                cat_amount = 0
+                                cat_price = 0
+                                for price_id, value in value.iteritems():
+                                    #Amount
+                                    total_amount = total_amount + value
+                                    try:
+                                        report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = report_result_dict['cat_'+str(cat)]['a_prices'][price_id] + value
+                                    except KeyError:
+                                        report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = value
+                                    #Money
+                                    itm_price = float(itm_price_list[int(price_id)]) * value
+                                    cat_price = cat_price + itm_price
+                                    try:
+                                        report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = report_result_dict['cat_'+str(cat)]['m_prices'][price_id] + itm_price
+                                    except KeyError:
+                                        report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = itm_price
+
+                                report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
+                                if row['account'] == 1210:
+                                    pass #No data available from resellers
+                                else:
+                                    report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
+
+                            report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
+                        except IndexError:
+                            pass
                     #Sold Cash
                     if row['account'] == 1000:
                         #Money
@@ -1543,9 +1605,10 @@ class BtmsBackend(ApplicationSession):
                     #Sold Contingent
                     if row['account'] == 1210:
                         #Money
-                        report_result_dict['all']['m_sold_conti'] = report_result_dict['all']['m_sold_conti'] + row['debit']
+                        #report_result_dict['all']['m_sold_conti'] = report_result_dict['all']['m_sold_conti'] + row['debit']
 
                         #Tickets
+
                         try:
                             item_amount[0]
                             total_amount = 0
@@ -1561,15 +1624,20 @@ class BtmsBackend(ApplicationSession):
                                     cat_price = cat_price + itm_price
 
                                 report_result_dict['cat_'+str(cat)]['a_sold_conti'] = report_result_dict['cat_'+str(cat)]['a_sold_conti'] + cat_amount
-                                report_result_dict['cat_'+str(cat)]['m_sold_conti'] = report_result_dict['cat_'+str(cat)]['m_sold_conti'] + cat_price
+                                #report_result_dict['cat_'+str(cat)]['m_sold_conti'] = report_result_dict['cat_'+str(cat)]['m_sold_conti'] + cat_price
 
                             report_result_dict['all']['a_sold_conti'] = report_result_dict['all']['a_sold_conti'] + total_amount
                         except IndexError:
                             pass
+
+
                 #Reserved
                 if row['status'] == 1:
                     #Money Pre
-                    report_result_dict['all']['m_reserved'] = report_result_dict['all']['m_reserved'] + row['debit']
+                    if row['account'] == 1210:
+                        pass
+                    else:
+                        report_result_dict['all']['m_reserved'] = report_result_dict['all']['m_reserved'] + row['debit']
 
 
                     #Tickets
@@ -1589,14 +1657,19 @@ class BtmsBackend(ApplicationSession):
 
                             report_result_dict['cat_'+str(cat)]['a_reserved'] = report_result_dict['cat_'+str(cat)]['a_reserved'] + cat_amount
                             report_result_dict['cat_'+str(cat)]['m_reserved'] = report_result_dict['cat_'+str(cat)]['m_reserved'] + cat_price
-
-                        report_result_dict['all']['a_reserved'] = report_result_dict['all']['a_reserved'] + total_amount
+                        if row['account'] == 1210:
+                            pass
+                        else:
+                            report_result_dict['all']['a_reserved'] = report_result_dict['all']['a_reserved'] + total_amount
                     except IndexError:
                         pass
                 #Not visited
                 if row['status'] == 3:
                     #Money Pre
-                    report_result_dict['all']['m_not_visited'] = report_result_dict['all']['m_not_visited'] + row['debit']
+                    if row['account'] == 1210:
+                        pass
+                    else:
+                        report_result_dict['all']['m_not_visited'] = report_result_dict['all']['m_not_visited'] + row['debit']
 
                     #Tickets
                     try:
@@ -1615,8 +1688,10 @@ class BtmsBackend(ApplicationSession):
 
                             report_result_dict['cat_'+str(cat)]['a_not_visited'] = report_result_dict['cat_'+str(cat)]['a_not_visited'] + cat_amount
                             report_result_dict['cat_'+str(cat)]['m_not_visited'] = report_result_dict['cat_'+str(cat)]['m_not_visited'] + cat_price
-
-                        report_result_dict['all']['a_not_visited'] = report_result_dict['all']['a_not_visited'] + total_amount
+                        if row['account'] == 1210:
+                            pass
+                        else:
+                            report_result_dict['all']['a_not_visited'] = report_result_dict['all']['a_not_visited'] + total_amount
                     except IndexError:
                         pass
 
@@ -1683,7 +1758,7 @@ class BtmsBackend(ApplicationSession):
         ##
         # Connect to the DB
 
-        pool = adbapi.ConnectionPool(
+        Registry.DBPOOL = ReconnectingMySQLConnectionPool(
                         'MySQLdb',
                         db='btms',
                         user='btms',
@@ -1694,13 +1769,12 @@ class BtmsBackend(ApplicationSession):
                     )
 
 
-        yield pool.start()
+        #yield pool.start()
         print("DB connection pool started")
 
         ## we'll be doing all database access via this database connection pool
         ##
-        self.db = pool
-
+        self.db = Registry.DBPOOL
         ## Keep DB connection alive
         @inlineCallbacks
         def keepAliveDB():

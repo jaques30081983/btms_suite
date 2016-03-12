@@ -35,11 +35,15 @@ from twisted.enterprise import adbapi
 from twisted.internet.defer import inlineCallbacks, returnValue
 import MySQLdb.cursors
 
+from twistar.registry import Registry
+from twistar.dbobject import DBObject
+from twistar.dbconfig.mysql import ReconnectingMySQLConnectionPool
+
 class MyAuthenticator(ApplicationSession):
 
     @inlineCallbacks
     def onJoin(self, details):
-        authpool = adbapi.ConnectionPool(
+        Registry.DBPOOL = adbapi.ConnectionPool(
             'MySQLdb',
             db='btms',
             user='btms',
@@ -50,12 +54,12 @@ class MyAuthenticator(ApplicationSession):
             )
 
 
-        yield authpool.start()
+        #yield authpool.start()
         print("DB auth connection pool started")
 
         ## we'll be doing all database access via this database connection pool
         ##
-        self.dbauth = authpool
+        self.dbauth = Registry.DBPOOL
 
 
         '''

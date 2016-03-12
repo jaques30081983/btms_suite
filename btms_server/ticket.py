@@ -34,8 +34,10 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         cat_name[crow['id']] = crow['name']
     #venue
     itm_title = {}
+    itm_description = {}
     for vrow in v_result:
         itm_title[vrow['id']] = vrow['title']
+        itm_description[vrow['id']] = vrow['description']
 
     #prices
     pri_name = {}
@@ -52,6 +54,7 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
     for row in t_result:
 
         date_day = dt.datetime.strptime(row['date'], "%Y-%m-%d")
+        date_day_german = date_day.strftime("%d.%m.%Y")
         date_day_name = date_day.strftime("%A")
 
         event_start_time  = dt.datetime.strptime(row['time'], "%H:%M")
@@ -66,26 +69,32 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         #c.line(1*cm,8.7*cm,7*cm,8.7*cm)
 
         c.drawString(1.1*cm,9*cm, event_description)
-        c.drawString(1.1*cm,8.5*cm,date_day_name+' '+row['date'])
+
+        p = Paragraph('<font size=13>'+date_day_name+' <b>'+date_day_german+'</b></font>',styles["Normal"])
+        p.wrapOn(c, 8.2*cm, 15.2*cm)
+        p.drawOn(c, 1.1*cm, 8.5*cm)
+
+
+        #c.drawString(1.1*cm,8.5*cm,date_day_name+' '+date_day_german)
         c.drawString(1.1*cm,8.0*cm,'Beginn: '+ row['time'] +' Uhr')
         c.drawString(1.1*cm,7.5*cm,'Einlass: '+ admission_time_1 +' Uhr')
 
         c.line(1.1*cm,7.3*cm,7.1*cm,7.3*cm)
 
-        c.drawString(1.1*cm,6.7*cm, cat_name[row['cat_id']]) #Categorie Name
+        c.drawString(1.1*cm,6.8*cm, cat_name[row['cat_id']]) #Categorie Name
         if row['seat'] == '0':
             seat_text = ' '
         else:
-            seat_text = ', Sitz: <b>'+ str(row['seat'])+'</b>'
+            seat_text = ', Platz: <b>'+ str(row['seat'])+'</b>'
             #seat_text = '1'
 
         #c.drawString(1.1*cm,6.2*cm,itm_title[int(row['item_id'])] + seat_text)
-        block_name, block_number  = itm_title[int(row['item_id'])].split(' ', 1)
-        p = Paragraph('<font size=14>'+block_name+' <b>'+block_number+'</b>'+seat_text+'</font>',styles["Normal"])
-        p.wrapOn(c, 8.2*cm, 15.2*cm)
-        p.drawOn(c, 1.1*cm, 6.2*cm)
+        #block_name, block_number  = itm_title[int(row['item_id'])].split(' ', 1)
+        p1 = Paragraph('<font size=13><b>'+itm_description[int(row['item_id'])]+'</b>'+seat_text+'</font>',styles["Normal"])
+        p1.wrapOn(c, 8.2*cm, 15.2*cm)
+        p1.drawOn(c, 1.1*cm, 6.2*cm)
 
-        c.line(1.1*cm,5.9*cm,7.1*cm,5.9*cm)
+        c.line(1.1*cm,6*cm,7.1*cm,6*cm)
 
         c.drawString(1.1*cm,5.1*cm,pri_name[int(row['price_id'])]['description'])
         c.drawString(1.1*cm,3.9*cm,pri_name[int(row['price_id'])]['price'] +' '+ pri_name[int(row['price_id'])]['currency'])
@@ -98,15 +107,18 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         height = bounds[3] - bounds[1]
         d = Drawing(45, 45, transform=[99./width,0,0,99./height,0,0])
         d.add(qr_code)
-        renderPDF.draw(d, c, 4*cm, 2.5*cm)
+        renderPDF.draw(d, c, 4*cm, 2.8*cm)
 
+        p = Paragraph('<font size=8>'+row['tid']+" "+str(row['ticket_id'])+'</font>',styles["Normal"])
+        p.wrapOn(c, 8.2*cm, 15.2*cm)
+        p.drawOn(c, 1.1*cm, 2.8*cm)
 
-        c.drawString(1.1*cm,2.4*cm,row['tid']+" "+str(row['ticket_id']))
+        #c.drawString(1.1*cm,2.8*cm,row['tid']+" "+str(row['ticket_id']))
         #c.line(1.1*cm,2.2*cm,7.1*cm,2.2*cm)
         c.showPage()
 
     c.save()
-    return 'ticket created'
+    return True
 
 
 

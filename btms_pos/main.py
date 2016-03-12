@@ -814,7 +814,10 @@ class BtmsRoot(BoxLayout):
                         if status == 1: #reserverd
                             status = 3 #local selected
                         itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                        itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                        try:
+                            itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                        except KeyError:
+                            pass
                         self.seat_list[str(item_id)][int(seat)] = status
                         if status == 3 or status == 0:
                             self.update_bill(item_id, cat_id, 0, 1)
@@ -1543,7 +1546,7 @@ class BtmsRoot(BoxLayout):
                                               self.transaction_id, seat_trans_list, itm_cat_amount_list, status, account,
                                               str(self.total_bill_price), str(self.back_price),str(self.given_price),
                                               self.user_id)
-
+            print 'transact results', results
             #self.ids.number_display_box.text = results
 
         except Exception as err:
@@ -1791,8 +1794,9 @@ class BtmsRoot(BoxLayout):
 
 
     @inlineCallbacks
-    def edit_events(self, cmd, event_id, venue_id, event_date, event_time, user_id, *args):
+    def edit_events(self, cmd, event_id, venue_id, event_date, event_date_id, user_id, *args):
         if cmd == 0:
+            self.edit_events_add_boolean = False
             #Get events for select list
             self.ids.event_edit_delete_event_select_list.clear_widgets(children=None)
             results_event = yield self.session.call(u'io.crossbar.btms.events.get')
@@ -1800,7 +1804,6 @@ class BtmsRoot(BoxLayout):
             for row in results_event:
 
                 if event_id == 0:
-
                     event_id = row['id'] # Init Event
                     venue_id = row['venue_id']
                     self.ids.event_edit_delete_event_select_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.edit_events,1,row['id'],row['venue_id'],0,0,0), group='edit_events',size_hint=[1, None], height=40))
@@ -1814,6 +1817,8 @@ class BtmsRoot(BoxLayout):
 
         if cmd == 0 or cmd == 1:
             #Get Dates of event_id for select list
+            self.event_date_id_input = 0
+            self.event_id_input = event_id
             if event_date == 0:
                 self.ids.event_edit_delete_date_select_list.clear_widgets(children=None)
                 results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
@@ -1824,7 +1829,7 @@ class BtmsRoot(BoxLayout):
                     date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
                     date_day_name = date_day.strftime("%a")
 
-                    self.ids.event_edit_delete_date_select_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.edit_events,2,event_id,venue_id,row['date_day'],0,0), group='events_date', size_hint= [1, None], height=40))
+                    self.ids.event_edit_delete_date_select_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.edit_events,2,event_id,venue_id,row['date_day'],row['id'],0), group='events_date', size_hint= [1, None], height=40))
 
 
                     #Times
@@ -1833,42 +1838,160 @@ class BtmsRoot(BoxLayout):
                 self.ids.event_edit_delete_date_select_list.bind(minimum_height=self.ids.event_edit_delete_date_select_list.setter('height'))
 
         if cmd == 0 or cmd == 1:
+            #Show Event
             results_event = yield self.session.call(u'io.crossbar.btms.events.get')
-
+            self.event_id_input = event_id
             for row in results_event:
                 print 'evenet id:', event_id, row['id']
                 if event_id == row['id']:
                     self.ids.event_edit_delete_work.clear_widgets(children=None)
 
                     self.ids.event_edit_delete_work.add_widget(Label(text='Title'))
-                    event_title_input = TextInput(text=row['title'], hint_text='Short Title')
-                    self.ids.event_edit_delete_work.add_widget(event_title_input )
+                    self.event_title_input = TextInput(text=row['title'], hint_text='Short Title')
+                    self.ids.event_edit_delete_work.add_widget(self.event_title_input )
 
                     self.ids.event_edit_delete_work.add_widget(Label(text='Description'))
-                    event_description_input = TextInput(text=row['description'], hint_text='')
-                    self.ids.event_edit_delete_work.add_widget(event_description_input)
+                    self.event_description_input = TextInput(text=row['description'], hint_text='')
+                    self.ids.event_edit_delete_work.add_widget(self.event_description_input)
 
                     self.ids.event_edit_delete_work.add_widget(Label(text='Venue'))
-                    event_venue_input = TextInput(text=str(row['venue_id']))
-                    self.ids.event_edit_delete_work.add_widget(event_venue_input)
+                    self.event_venue_input = TextInput(text=str(row['venue_id']))
+                    self.ids.event_edit_delete_work.add_widget(self.event_venue_input)
 
                     self.ids.event_edit_delete_work.add_widget(Label(text='Start/End Date'))
                     event_date_layout = BoxLayout()
-                    event_start_date_input = TextInput(text=row['date_start'])
-                    event_end_date_input = TextInput(text=row['date_end'])
-                    event_date_layout.add_widget(event_start_date_input)
-                    event_date_layout.add_widget(event_end_date_input)
+                    self.event_start_date_input = TextInput(text=row['date_start'])
+                    self.event_end_date_input = TextInput(text=row['date_end'])
+                    event_date_layout.add_widget(self.event_start_date_input)
+                    event_date_layout.add_widget(self.event_end_date_input)
                     self.ids.event_edit_delete_work.add_widget(event_date_layout)
 
                     self.ids.event_edit_delete_work.add_widget(Label(text='Admission (hh:mm)'))
-                    event_admission_input = TextInput(text=row['admission'], hint_text='1:00')
-                    self.ids.event_edit_delete_work.add_widget(event_admission_input)
+                    self.event_admission_input = TextInput(text=row['admission'], hint_text='1:00')
+                    self.ids.event_edit_delete_work.add_widget(self.event_admission_input)
 
             self.ids.event_edit_delete_work.bind(minimum_height=self.ids.event_edit_delete_work.setter('height'))
 
 
         if cmd == 2:
+            #Show Event days
             self.ids.event_edit_delete_work.clear_widgets(children=None)
+            results_event = yield self.session.call(u'io.crossbar.btms.events.get.date', event_date_id)
+            self.event_date_id_input = event_date_id
+            for row in results_event:
+                self.ids.event_edit_delete_work.add_widget(Label(text='Date (yyyy-mm-dd)'))
+                self.event_date_input = TextInput(text=row['date_day'], hint_text='2016-03-02')
+                self.ids.event_edit_delete_work.add_widget(self.event_date_input)
+
+                self.ids.event_edit_delete_work.add_widget(Label(text='Start Times (hh:mm)'))
+                self.event_start_times_input = TextInput(text=row['start_times'], hint_text='19:30, 23:00')
+                self.ids.event_edit_delete_work.add_widget(self.event_start_times_input)
+
+                self.ids.event_edit_delete_work.add_widget(Label(text='Admission (hh:mm)'))
+                self.event_admission_input = TextInput(text=row['admission'], hint_text='1:00')
+                self.ids.event_edit_delete_work.add_widget(self.event_admission_input)
+
+        if cmd == 3:
+            #Add event days
+
+            if self.edit_events_add_boolean == False:
+                self.edit_events_add_boolean = True
+                self.ids.kv_event_edit_delete_add_button.state = 'down'
+
+                self.ids.event_edit_delete_work.clear_widgets(children=None)
+
+                self.ids.event_edit_delete_work.add_widget(Label(text='Date (yyyy-mm-dd)'))
+                self.event_date_input = TextInput(text='', hint_text='2016-03-02')
+                self.ids.event_edit_delete_work.add_widget(self.event_date_input)
+
+                self.ids.event_edit_delete_work.add_widget(Label(text='Start Times (hh:mm)'))
+                self.event_start_times_input = TextInput(text='', hint_text='19:30, 23:00')
+                self.ids.event_edit_delete_work.add_widget(self.event_start_times_input)
+
+                self.ids.event_edit_delete_work.add_widget(Label(text='Admission (hh:mm)'))
+                self.event_admission_input = TextInput(text='', hint_text='1:00')
+                self.ids.event_edit_delete_work.add_widget(self.event_admission_input)
+
+            elif self.edit_events_add_boolean == True:
+                self.ids.kv_event_edit_delete_add_button.state = 'normal'
+                self.edit_events_add_boolean = False
+                self.ids.event_edit_delete_work.clear_widgets(children=None)
+                self.ids.event_edit_delete_work.add_widget(Label(text='Added'))
+                result_update = yield self.session.call(u'io.crossbar.btms.events.add.date', self.event_id_input, self.event_date_input.text, self.event_start_times_input.text, self.event_admission_input.text, self.user_id)
+
+
+                self.ids.event_edit_delete_date_select_list.clear_widgets(children=None)
+                results_date = yield self.session.call(u'io.crossbar.btms.events.day',self.event_id_input)
+
+
+                for row in results_date:
+                    # Dates
+                    date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                    date_day_name = date_day.strftime("%a")
+
+                    self.ids.event_edit_delete_date_select_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.edit_events,2,self.event_id_input,venue_id,row['date_day'],row['id'],0), group='events_date', size_hint= [1, None], height=40))
+
+
+        if cmd == 4:
+            #Update event or event day
+            self.ids.event_edit_delete_work.clear_widgets(children=None)
+            if self.event_date_id_input == 0:
+                #Update event
+                self.ids.event_edit_delete_work.add_widget(Label(text='Updated Event '+str(self.event_id_input)))
+                result_update = yield self.session.call(u'io.crossbar.btms.events.update.event',self.event_id_input, self.event_title_input.text, self.event_description_input.text, self.event_venue_input.text, self.event_start_date_input.text, self.event_end_date_input.text, self.event_admission_input.text, self.user_id)
+
+                self.ids.event_edit_delete_event_select_list.clear_widgets(children=None)
+                results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+                for row in results_event:
+
+                    if event_id == 0:
+                        event_id = row['id'] # Init Event
+                        venue_id = row['venue_id']
+                        self.ids.event_edit_delete_event_select_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.edit_events,1,row['id'],row['venue_id'],0,0,0), group='edit_events',size_hint=[1, None], height=40))
+                    else:
+                        self.ids.event_edit_delete_event_select_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.edit_events,1,row['id'],row['venue_id'],0,0,0), group='edit_events',size_hint=[1, None], height=40))
+
+
+
+            else:
+                #Update event day
+                self.ids.event_edit_delete_work.add_widget(Label(text='Updated Day '+str(self.event_date_id_input)))
+                result_update = yield self.session.call(u'io.crossbar.btms.events.update.date',self.event_date_id_input, self.event_date_input.text, self.event_start_times_input.text, self.event_admission_input.text, self.user_id)
+
+            self.ids.event_edit_delete_date_select_list.clear_widgets(children=None)
+            results_date = yield self.session.call(u'io.crossbar.btms.events.day',self.event_id_input)
+
+
+            for row in results_date:
+                # Dates
+                date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                date_day_name = date_day.strftime("%a")
+
+                self.ids.event_edit_delete_date_select_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.edit_events,2,self.event_id_input,venue_id,row['date_day'],row['id'],0), group='events_date', size_hint= [1, None], height=40))
+
+
+        if cmd == 5:
+            #Delete event day
+            if self.event_date_id_input == 0:
+                pass
+            else:
+                #Delete event day
+                self.ids.event_edit_delete_work.clear_widgets(children=None)
+                self.ids.event_edit_delete_work.add_widget(Label(text='Delete Day '+str(self.event_date_id_input)))
+
+                result_update = yield self.session.call(u'io.crossbar.btms.events.delete.date',self.event_date_id_input)
+
+                self.ids.event_edit_delete_date_select_list.clear_widgets(children=None)
+                results_date = yield self.session.call(u'io.crossbar.btms.events.day',self.event_id_input)
+
+
+                for row in results_date:
+                    # Dates
+                    date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                    date_day_name = date_day.strftime("%a")
+
+                    self.ids.event_edit_delete_date_select_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.edit_events,2,self.event_id_input,venue_id,row['date_day'],row['id'],0), group='events_date', size_hint= [1, None], height=40))
+
 
     @inlineCallbacks
     def get_journal(self, cmd):
