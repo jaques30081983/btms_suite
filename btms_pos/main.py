@@ -384,6 +384,8 @@ class BtmsRoot(BoxLayout):
                 # Dates
                 date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
                 date_day_name = date_day.strftime("%a")
+                date_day_number = date_day.strftime("%w")
+
 
                 if date_id == 0:
                     date_id = row['id']
@@ -410,6 +412,11 @@ class BtmsRoot(BoxLayout):
                     self.set_event_day_times(row['date_day'])
                     event_date_match = True
 
+                if date_day_number == '6':
+                    self.event_date_itm['event_date_btn_' + str(row['date_day'])].background_color = [.7,.8,.9,1]
+
+                if date_day_number == '0':
+                    self.event_date_itm['event_date_btn_' + str(row['date_day'])].background_color = [.8,.9,1,1]
 
                 if row['date_day'] == date_now:
                     self.event_date_itm['event_date_btn_' + str(row['date_day'])].background_color = [1,.5,.5,1]
@@ -446,12 +453,30 @@ class BtmsRoot(BoxLayout):
             self.ids.event_date_btn.background_color = [1,.5,.5,1]
         else:
             self.ids.event_date_btn.background_color = [1,1,1,1]
+            date_day = dt.datetime.strptime(day, "%Y-%m-%d")
+            date_day_number = date_day.strftime("%w")
+            if date_day_number == '6':
+                self.ids.event_date_btn.background_color = [.7,.8,.9,1]
+
+            if date_day_number == '0':
+                self.ids.event_date_btn.background_color = [.8,.9,1,1]
+
+
+
+
 
         for key, value in self.event_date_itm.iteritems():
             if key == event_date_btn_now:
                 self.event_date_itm[key].background_color = [1,.5,.5,1]
             else:
                 self.event_date_itm[key].background_color = [1,1,1,1]
+                date_day = dt.datetime.strptime(key, "event_date_btn_%Y-%m-%d")
+                date_day_number = date_day.strftime("%w")
+                if date_day_number == '6':
+                    self.event_date_itm[key].background_color = [.7,.8,.9,1]
+
+                if date_day_number == '0':
+                    self.event_date_itm[key].background_color = [.8,.9,1,1]
 
         #event_date_itm['event_date_btn_' + str(row['id'])]
 

@@ -51,6 +51,12 @@ def createPdfReport(self,event_id, venue_id, event_date, event_time, report_resu
 
         c.drawString(8*cm,28.5*cm, date_day_name +' '+ event_date)
         c.drawString(8*cm,28*cm, event_time)
+
+        if event_time == 'all':
+             c.drawString(10*cm,28*cm, 'ON Date')
+        else:
+            c.drawString(10*cm,28*cm, 'FOR Date')
+
         c.drawString(18*cm,28.5*cm,"Page "+str(page))
         c.drawString(15.5*cm,28*cm,date_current)
 
