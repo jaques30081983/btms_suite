@@ -96,6 +96,7 @@ class MyAuthenticator(ApplicationSession):
             if authid in self.USERDB:
                 # return a dictionary with authentication information ...
                 returnValue(self.USERDB[authid])
+
             else:
                 raise ApplicationError("com.btms.no_such_user", "could not authenticate session - no such user {}".format(authid))
 

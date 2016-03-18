@@ -90,6 +90,7 @@ class BtmsWampComponentAuth(ApplicationSession):
         self.subscribe(ui.on_select_seats, u'io.crossbar.btms.seats.select.action')
         self.subscribe(ui.on_set_unnumbered_seats, u'io.crossbar.btms.unnumbered_seats.set.action')
         self.subscribe(ui.onLeaveRemote, u'io.crossbar.btms.onLeaveRemote')
+        self.subscribe(ui.on_logout_user, u'io.crossbar.btms.onLogoutUser')
 
 
 
@@ -190,6 +191,9 @@ class BtmsRoot(BoxLayout):
                 else:
                     self.session.leave()
 
+        #Maybe logout same user on a other client (LTP)
+        self.login_time = date_now = dt.datetime.now().strftime('%Y%m%d%H%M%S%f')
+        self.session.call(u'io.crossbar.btms.users.logout', self.user_id, self.login_time)
 
 
         results = yield self.session.call(u'io.crossbar.btms.events.get')
@@ -199,8 +203,30 @@ class BtmsRoot(BoxLayout):
         #self.session.leave()
     def onLeaveRemote(self,details):
         #ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
+        popup_layout1 = FloatLayout(size_hint=[1, 1])
+        popup = Popup(title='Logout', content=popup_layout1, size_hint=(.5, .4))
+        popup_layout1.add_widget(Label(text='Server lost connection to database, \n please wait few seconds and \n try to login again.',pos_hint={'x': .0, 'y': .6}, size_hint=[1, .2]))
+        popup_layout1.add_widget(Button(text='Ok',pos_hint={'x': .0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+        popup.open()
         print details
         self.session.leave()
+
+    def on_logout_user(self,user_id, login_time, details):
+        #ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
+        if self.login_time == login_time:
+            pass
+        else:
+            if user_id == self.user_id:
+                popup_layout1 = FloatLayout(size_hint=[1, 1])
+                popup = Popup(title='Logout', content=popup_layout1, size_hint=(.5, .4))
+                popup_layout1.add_widget(Label(text='Somebody login with the same user \n on other client, sorry!\n Login again with YOUR user name.',pos_hint={'x': .0, 'y': .6}, size_hint=[1, .2]))
+                popup_layout1.add_widget(Button(text='Ok',pos_hint={'x': .0, 'y': .0}, size_hint=[1, .2], on_release=popup.dismiss))
+                popup.open()
+
+                self.logout_op = 1
+
+                print 'user logout remotly with user_id', user_id
+                self.session.leave()
 
     def get_users(self,results):
         user_list1 = []
@@ -342,7 +368,7 @@ class BtmsRoot(BoxLayout):
             event_date_match = False
             date_id = 0
 
-            event_date_itm = {}
+            self.event_date_itm = {}
             self.event_date_time_dict = {}
             event_itm = {}
 
@@ -361,27 +387,36 @@ class BtmsRoot(BoxLayout):
 
                 if date_id == 0:
                     date_id = row['id']
+                    first_event_date_day_id = row['id']
                     first_event_date_day = row['date_day']
+                    first_event_date_day_name = date_day_name
 
+
+
+
+
+                self.event_date_itm['event_date_btn_' + str(row['date_day'])] = Button(id=str(row['id']), text=date_day_name +' '+ row['date_day'],
+                                                                            size_hint_y=None, height=44, font_size=20)
+                self.event_date_itm['event_date_btn_' + str(row['date_day'])].bind(
+                    on_release=lambda event_date_btn: self.ids.event_date.select(event_date_btn.text))
+                self.event_date_itm['event_date_btn_' + str(row['date_day'])].bind(
+                    on_release=partial(self.set_event_day_times, row['date_day']))
+
+                self.ids.event_date.add_widget(self.event_date_itm['event_date_btn_' + str(row['date_day'])])
 
                 if row['date_day'] == date_now:
                     self.ids.event_date_btn.text = date_day_name +' '+ row['date_day']
+                    self.ids.event_date_btn.background_color = [1,0,0,1]
                     self.set_event_day_times(row['date_day'])
                     event_date_match = True
 
 
-                event_date_itm['event_date_btn_' + str(row['id'])] = Button(id=str(row['id']), text=date_day_name +' '+ row['date_day'],
-                                                                            size_hint_y=None, height=44, font_size=20)
-                event_date_itm['event_date_btn_' + str(row['id'])].bind(
-                    on_release=lambda event_date_btn: self.ids.event_date.select(event_date_btn.text))
-                event_date_itm['event_date_btn_' + str(row['id'])].bind(
-                    on_release=partial(self.set_event_day_times, row['date_day']))
-
-                self.ids.event_date.add_widget(event_date_itm['event_date_btn_' + str(row['id'])])
+                if row['date_day'] == date_now:
+                    self.event_date_itm['event_date_btn_' + str(row['date_day'])].background_color = [1,.5,.5,1]
 
             if event_date_match == False:
-                self.ids.event_date_btn.text = date_day_name +' '+ first_event_date_day
-                self.set_event_day_times(first_event_date_day)
+                self.ids.event_date_btn.text = first_event_date_day_name +' '+ first_event_date_day
+                self.set_event_day_times( first_event_date_day)
 
         try:
             results = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
@@ -405,6 +440,20 @@ class BtmsRoot(BoxLayout):
         #Set Date
         self.event_date = day[-10:]
         self.loading(10, 'set event day times')
+        date_now = dt.datetime.now().strftime('%Y-%m-%d')
+        event_date_btn_now = 'event_date_btn_'+date_now
+        if day == date_now:
+            self.ids.event_date_btn.background_color = [1,.5,.5,1]
+        else:
+            self.ids.event_date_btn.background_color = [1,1,1,1]
+
+        for key, value in self.event_date_itm.iteritems():
+            if key == event_date_btn_now:
+                self.event_date_itm[key].background_color = [1,.5,.5,1]
+            else:
+                self.event_date_itm[key].background_color = [1,1,1,1]
+
+        #event_date_itm['event_date_btn_' + str(row['id'])]
 
         #Set Time List
         event_times_list = []
@@ -2355,7 +2404,7 @@ class BtmsRoot(BoxLayout):
 
         #Get Report
         self.ids.kv_dashboard_report_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
-        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, 'all', 0,'', self.user_id)
+        results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, 'all', 0,'',0, self.user_id)
         self.ids.kv_dashboard_report_grid.clear_widgets(children=None)
         for key, value in results_report.iteritems():
             if key == 'all':
@@ -2405,6 +2454,12 @@ class BtmsRoot(BoxLayout):
             self.report_event_time = 0
             self.report_user_id  = 0
 
+            try:
+                self.report_for_on_date
+            except AttributeError:
+                self.report_for_on_date = 0
+                self.ids.kv_report_for_date.state = 'down'
+
             #Set Screen Manager
             self.ids.sm.current = "reports"
 
@@ -2444,34 +2499,53 @@ class BtmsRoot(BoxLayout):
             #Get Dates of event_id for select list
             if event_date == 0:
                 self.ids.report_select_date_list.clear_widgets(children=None)
-                results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
-                self.report_event_date_time_dict = {}
+                if self.report_for_on_date == 1:
+                    results_date = yield self.session.call(u'io.crossbar.btms.journal.days',event_id)
+                    for day in results_date:
+                        # Dates
+                        date_day = dt.datetime.strptime(day, "%Y-%m-%d")
+                        date_day_name = date_day.strftime("%a")
+                        if event_date == 0:
+                            event_date = day #Init Date
+                            self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+day,on_release=partial(self.get_reports,0,event_id,venue_id,day,0,0), group='report_date', size_hint= [1, None], height=40))
+                        else:
+                            self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+day,on_release=partial(self.get_reports,0,event_id,venue_id,day,0,0), group='report_date', size_hint= [1, None], height=40))
 
-                for row in results_date:
-                    # Dates
-                    date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
-                    date_day_name = date_day.strftime("%a")
-                    if event_date == 0:
-                        event_date = row['date_day'] #Init Date
-                        self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
-                    else:
-                        self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                    self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
+
+                else:
+                    results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
+                    self.report_event_date_time_dict = {}
+
+                    for row in results_date:
+                        # Dates
+                        date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
+                        date_day_name = date_day.strftime("%a")
+                        if event_date == 0:
+                            event_date = row['date_day'] #Init Date
+                            self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                        else:
+                            self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
 
 
-                    #Times
-                    self.report_event_date_time_dict[row['date_day']]= row['start_times']
+                        #Times
+                        self.report_event_date_time_dict[row['date_day']]= row['start_times']
 
-                self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
+                    self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
 
             #Set Times for select list
             if event_time == 0:
                 self.ids.report_select_time_list.clear_widgets(children=None)
-                for time in self.report_event_date_time_dict[event_date].split(","):
-                    if event_time == 0:
-                        event_time = time
-                        self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text=time, on_release=partial(self.get_reports,0,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
-                    else:
-                        self.ids.report_select_time_list.add_widget(ToggleButton(text=time, on_release=partial(self.get_reports,0,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
+                if self.report_for_on_date == 1:
+                    self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text='all', on_release=partial(self.get_reports,0,event_id,venue_id,event_date,'all',0), group='report_time', size_hint=[1, None], height=40))
+                    event_time = 'all'
+                else:
+                    for time in self.report_event_date_time_dict[event_date].split(","):
+                        if event_time == 0:
+                            event_time = time
+                            self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text=time, on_release=partial(self.get_reports,0,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
+                        else:
+                            self.ids.report_select_time_list.add_widget(ToggleButton(text=time, on_release=partial(self.get_reports,0,event_id,venue_id,event_date,time,0), group='report_time', size_hint=[1, None], height=40))
 
 
                 self.ids.report_select_time_list.bind(minimum_height=self.ids.report_select_time_list.setter('height'))
@@ -2511,7 +2585,7 @@ class BtmsRoot(BoxLayout):
 
             prices = yield self.session.call(u'io.crossbar.btms.prices.get',event_id)
 
-            results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, 0, '', self.user_id)
+            results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, 0, '', self.report_for_on_date, self.user_id)
             self.ids.report_draw_list.clear_widgets(children=None)
             for cat, value in results_report.iteritems():
                 if cat == 'all':
@@ -2593,9 +2667,59 @@ class BtmsRoot(BoxLayout):
             self.report_event_time = event_time
             self.report_user_id  = user_id
 
-
         elif cmd == 1:
-            results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, self.report_event_id, self.report_venue_id, self.report_event_date, self.report_event_time, self.report_user_id, 1, self.report_printer, self.user_id)
+            if self.report_for_on_date == 0:
+                self.report_for_on_date = 1
+                print 'for on  = 1'
+                '''
+                #Events
+                self.ids.report_select_event_list.clear_widgets(children=None)
+                results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+
+                for row in results_event:
+                    self.ids.report_select_event_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.get_reports,0,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
+
+                    #Get Categorie Names of events
+                    try:
+                        self.report_cat_list[event_id]
+                    except KeyError:
+                        self.report_cat_list[event_id] = {}
+                        results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',row['venue_id'])
+                        for row in results_cat:
+                            self.report_cat_list[event_id]['cat_'+str(row['id'])] = row['name']
+                '''
+                '''
+                #Dates
+                self.ids.report_select_date_list.clear_widgets(children=None)
+                results_date = yield self.session.call(u'io.crossbar.btms.journal.days',self.report_event_id)
+
+
+                for day in results_date:
+                    # Dates
+                    date_day = dt.datetime.strptime(day, "%Y-%m-%d")
+                    date_day_name = date_day.strftime("%a")
+                    if event_date == 0:
+                        event_date = day #Init Date
+                        self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+day,on_release=partial(self.get_reports,0,event_id,venue_id,day,0,0), group='report_date', size_hint= [1, None], height=40))
+                    else:
+                        self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+day,on_release=partial(self.get_reports,0,event_id,venue_id,day,0,0), group='report_date', size_hint= [1, None], height=40))
+
+                self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
+
+                #Times
+                self.ids.report_select_time_list.clear_widgets(children=None)
+                self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text='all', on_release=partial(self.get_reports,0,event_id,venue_id,event_date,'all',0), group='report_time', size_hint=[1, None], height=40))
+                '''
+                self.get_reports(0, 0, 0, 0, 0, 0)
+
+            elif self.report_for_on_date == 1:
+                self.report_for_on_date = 0
+                print 'for on  = 0'
+
+                self.get_reports(0, 0, 0, 0, 0, 0)
+
+        elif cmd == 2:
+            results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, self.report_event_id, self.report_venue_id, self.report_event_date, self.report_event_time, self.report_user_id, 1, self.report_printer, self.report_for_on_date, self.user_id)
             print results_report
 
 
@@ -2603,7 +2727,8 @@ class BtmsRoot(BoxLayout):
         if cmd == 'dashboard':
             if self.user_role == 'admin':
                 self.ids.kv_create_event.disabled = False
-                self.ids.kv_edit_delete_event.disabled = False
+                self.ids.kv_edit_event.disabled = False
+                self.ids.kv_delete_event.disabled = False
 
 
                 self.ids.kv_venues_cat_price_create.disabled = False
@@ -2619,7 +2744,8 @@ class BtmsRoot(BoxLayout):
 
             else:
                 self.ids.kv_create_event.disabled = True
-                self.ids.kv_edit_delete_event.disabled = True
+                self.ids.kv_edit_event.disabled = True
+                self.ids.kv_delete_event.disabled = True
 
 
                 self.ids.kv_venues_cat_price_create.disabled = True

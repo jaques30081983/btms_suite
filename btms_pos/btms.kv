@@ -369,7 +369,7 @@
 			Button:
 				id: event_date_btn
 				pos_hint: {'x': .7, 'y': .87}
-				font_size: self.height * .6
+				font_size: self.height * .8
 				size_hint: .3, None
 				text: 'select...'
 				on_release: event_date.open(self)
@@ -845,14 +845,14 @@
                             on_press: root.get_venues()
 
                         Button:
-                            id: kv_edit_delete_event
+                            id: kv_edit_event
                             text: "Edit"
                             on_release: sm.transition.direction = 'left'
                             on_release: sm.current = "edit_delete_events"
                             on_release: root.edit_events(0,0,0,0,0,0)
 
                         Button:
-                            id: kv_edit_delete_event
+                            id: kv_delete_event
                             text: "Delete"
                             #on_release: sm.transition.direction = 'left'
                             #on_release: sm.current = "edit_delete_events"
@@ -1344,23 +1344,35 @@
                 size_hint: 1, .05
                 padding: 0
                 spacing: 3
-                cols: 5
+                cols: 7
                 rows: None
                 Label:
-                    size_hint: .3, 1
+                    size_hint: .15, 1
                     text: 'Event'
                 Label:
-                    size_hint: .3, 1
+                    size_hint: .15, 1
                     text: 'Date'
                 Label:
-                    size_hint: .2, 1
+                    size_hint: .1, 1
                     text: 'Time'
                 Label:
-                    size_hint: .2, 1
+                    size_hint: .1, 1
                     text: 'User'
                 Label:
+                    size_hint: .2, 1
                     text: 'Report'
-
+                ToggleButton:
+                    size_hint: .15, 1
+                    id: kv_report_for_date
+                    text: 'FOR Date'
+                    group: 'for_on_date'
+                    on_release: root.get_reports(1, 0, 0, 0, 0, 0)
+                ToggleButton:
+                    size_hint: .15, 1
+                    id: kv_report_on_date
+                    text: 'ON Date'
+                    group: 'for_on_date'
+                    on_release: root.get_reports(1, 0, 0, 0, 0, 0)
             GridLayout:
                 id: report_select_grid
                 pos_hint: {'x': 0, 'y': 0.1}
@@ -1424,7 +1436,7 @@
                 text: "Print Report"
                 size_hint: 0.5, 0.1
                 pos_hint: {'x': .5, 'y': 0}
-                on_release: root.get_reports(1, 0, 0, 0, 0, 0)
+                on_release: root.get_reports(2, 0, 0, 0, 0, 0)
 
         Screen:
 			name: 'add_user'

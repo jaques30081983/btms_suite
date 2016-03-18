@@ -171,6 +171,30 @@ class BtmsBackend(ApplicationSession):
     def getEventsDay(self,event_id):
         return self.db.runQuery("SELECT id, date_day, start_times FROM btms_events WHERE ref = '"+str(event_id)+"' ORDER by date_day")
 
+    @wamp.register(u'io.crossbar.btms.journal.days')
+    @inlineCallbacks
+    def getJournalDays(self,event_id):
+        days_list = []
+        if event_id == 'all':
+            results = yield self.db.runQuery("SELECT reg_date_time FROM btms_journal ORDER by reg_date_time")
+        else:
+            results = yield self.db.runQuery("SELECT reg_date_time FROM btms_journal WHERE event_id = '"+str(event_id)+"' ORDER by reg_date_time")
+
+
+
+        old_date = 0
+        for row in results:
+            date_time = row['reg_date_time']
+            date = date_time[:10]
+            if date == old_date:
+                pass
+            else:
+                days_list.append(date)
+                old_date = date
+        print days_list
+        returnValue(days_list)
+
+
     @wamp.register(u'io.crossbar.btms.events.get.date')
     def getEventsDate(self,date_id):
         return self.db.runQuery("SELECT id, date_day, start_times, admission FROM btms_events WHERE id = '"+str(date_id)+"' ")
@@ -1386,20 +1410,30 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.report.get')
     @inlineCallbacks
-    def getReport(self,cmd, event_id, venue_id, event_date, event_time, selected_user_id, cmd_print, printer, user_id):
-        print cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id
+    def getReport(self,cmd, event_id, venue_id, event_date, event_time, selected_user_id, cmd_print, printer, for_on_date, user_id):
+        print cmd, event_id, venue_id, event_date, event_time, selected_user_id, printer, user_id, for_on_date
         if cmd == 0:
             try:
                 if selected_user_id == 'all':
-                    results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
-                                   "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
-                                    " event_time = '"+event_time+"' ")
+                    if for_on_date == 0:
+                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                            "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                            " event_time = '"+event_time+"' ")
+                    elif for_on_date == 1:
+                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                            "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' ")
                 else:
-                    results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
-                                   "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
-                                    " event_time = '"+event_time+"' AND user_id = '"+str(selected_user_id)+"' ")
+                    if for_on_date == 0:
+                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                            "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                            " event_time = '"+event_time+"' AND user_id = '"+str(selected_user_id)+"' ")
+                    elif for_on_date == 1:
+                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                            "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' AND user_id = '"+str(selected_user_id)+"' ")
+
             except Exception as err:
                 print "Error", err
+                results = {}
 
             #Get Prices
             try:
@@ -1749,7 +1783,9 @@ class BtmsBackend(ApplicationSession):
 
         returnValue(status)
 
-
+    @wamp.register(u'io.crossbar.btms.users.logout')
+    def logout_users(self, user_id, login_time):
+        self.publish('io.crossbar.btms.onLogoutUser',user_id, login_time, 'log out users with same id')
 
     @inlineCallbacks
     def onJoin(self, details):
