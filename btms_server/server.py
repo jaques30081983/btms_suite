@@ -1549,40 +1549,42 @@ class BtmsBackend(ApplicationSession):
                     else:
                         report_result_dict['all']['m_total_sold'] = report_result_dict['all']['m_total_sold'] + row['debit']
                     #Tickets
-                    if row['account'] == 1210:
-                        pass
-                    else:
-                        try:
-                            item_amount[0]
-                            total_amount = 0
+                    try:
+                        item_amount[0]
+                        total_amount = 0
 
-                            for cat, value in item_amount[0].iteritems():
-                                cat_amount = 0
-                                cat_price = 0
-                                for price_id, value in value.iteritems():
-                                    #Amount
-                                    total_amount = total_amount + value
-                                    try:
-                                        report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = report_result_dict['cat_'+str(cat)]['a_prices'][price_id] + value
-                                    except KeyError:
-                                        report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = value
-                                    #Money
-                                    itm_price = float(itm_price_list[int(price_id)]) * value
-                                    cat_price = cat_price + itm_price
-                                    try:
-                                        report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = report_result_dict['cat_'+str(cat)]['m_prices'][price_id] + itm_price
-                                    except KeyError:
-                                        report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = itm_price
-
-                                report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
+                        for cat, value in item_amount[0].iteritems():
+                            cat_amount = 0
+                            cat_price = 0
+                            for price_id, value in value.iteritems():
+                                #Amount
+                                total_amount = total_amount + value
+                                cat_amount = cat_amount + value
+                                try:
+                                    report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = report_result_dict['cat_'+str(cat)]['a_prices'][price_id] + value
+                                except KeyError:
+                                    report_result_dict['cat_'+str(cat)]['a_prices'][price_id] = value
+                                #Money
                                 if row['account'] == 1210:
-                                    pass #No data available from resellers
+                                    itm_price = 0
                                 else:
-                                    report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
+                                    itm_price = float(itm_price_list[int(price_id)]) * value
 
-                            report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
-                        except IndexError:
-                            pass
+                                cat_price = cat_price + itm_price
+                                try:
+                                    report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = report_result_dict['cat_'+str(cat)]['m_prices'][price_id] + itm_price
+                                except KeyError:
+                                    report_result_dict['cat_'+str(cat)]['m_prices'][price_id] = itm_price
+
+                            report_result_dict['cat_'+str(cat)]['a_total_sold'] = report_result_dict['cat_'+str(cat)]['a_total_sold'] + cat_amount
+                            if row['account'] == 1210:
+                                pass #No data available from resellers
+                            else:
+                                report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
+
+                        report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
+                    except IndexError:
+                        pass
                     #Sold Cash
                     if row['account'] == 1000:
                         #Money
@@ -1756,30 +1758,58 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.valid.validate')
     @inlineCallbacks
-    def validate(self,qrcode, user_id):
-        transaction_id, ticket_id = qrcode.split('_', 1)
-        print 'tid and ticketid:',transaction_id, ticket_id
-        status = 5
-        try:
-            results = yield self.db.runQuery("SELECT id, status FROM btms_tickets " \
-                           "WHERE tid = '"+str(transaction_id)+"' AND ticket_id = '"+ticket_id+"' ")
-            for row in results:
-                status = row['status']
-                id = row['id']
-                print 'Ticket DBID:', row['id']
+    def validate(self,qrcode, vendor, user_id):
+        if vendor == 'btms':
+            transaction_id, ticket_id = qrcode.split('_', 1)
+            print 'tid and ticketid:',transaction_id, ticket_id
+            status = 5
+            try:
+                results = yield self.db.runQuery("SELECT id, status FROM btms_tickets " \
+                               "WHERE tid = '"+str(transaction_id)+"' AND ticket_id = '"+ticket_id+"' ")
+                for row in results:
+                    status = row['status']
+                    id = row['id']
+                    print 'Ticket DBID:', row['id']
 
-            if status == 0:
-                sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
-                  "WHERE btms_tickets.id='%s'" % (1, user_id, id)
-                self.db.runOperation(sql)
+                if status == 0:
+                    sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
+                      "WHERE btms_tickets.id='%s'" % (1, user_id, id)
+                    self.db.runOperation(sql)
 
-            if status == 3:
-                sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
-                  "WHERE btms_tickets.id='%s'" % (4, user_id, id)
-                self.db.runOperation(sql)
+                if status == 3:
+                    sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
+                      "WHERE btms_tickets.id='%s'" % (4, user_id, id)
+                    self.db.runOperation(sql)
 
-        except Exception as Err:
-            print 'Error', Err
+            except Exception as Err:
+                print 'Error', Err
+
+        else:
+            print 'Vendor / Code:', vendor, qrcode
+            status = 5
+            try:
+                results = yield self.db.runQuery("SELECT id, status FROM btms_tickets_external " \
+                               "WHERE ticket_id = '"+qrcode+"' ")
+                for row in results:
+                    status = row['status']
+                    id = row['id']
+                    print 'Ticket DBID:', row['id']
+
+                if status == 0:
+                    sql = "UPDATE btms_tickets_external SET btms_tickets_external.status='%s', btms_tickets_external.user='%s'  " \
+                      "WHERE btms_tickets_external.id='%s'" % (1, user_id, id)
+                    self.db.runOperation(sql)
+
+                if status == 5:
+                    sql = "insert into btms_tickets_external(ticket_id, vendor, status, user) " \
+                                      "values('%s','%s','%s','%s')" % \
+                                      (qrcode, vendor, 1, user_id)
+                    status = 0
+
+                    self.db.runOperation(sql)
+
+            except Exception as Err:
+                print 'Error', Err
 
         returnValue(status)
 

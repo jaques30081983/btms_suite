@@ -557,28 +557,59 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_screen.background_color = [1,1,1,1]
             Clock.schedule_once(my_callback, .5)
 
-        if len(data_qr) > 19:
+            def my_callback1(dt):
+                global data_qr_old
+                data_qr_old = 0
+            Clock.schedule_once(my_callback1, 1)
 
+        #Recognize Vendor
+        if len(data_qr) > 19 and '_' in data_qr:
+            #Btms
             if data_qr == data_qr_old:
                 pass
             else:
-
                 data_qr_old = data_qr
-                #working_server_adress = self.ids.kv_server_adress.text
-                #session_id = '0'
-
-
                 try:
-                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.user_id)
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,'btms',self.user_id)
                     result_validation(results)
-                    #self.ids.result_label.text = str(results)
-
                 except Exception as err:
                     print "Error", err
 
-                #req = UrlRequest(
-                #        'http://' + working_server_adress + '/btms_backoffice/index.php?s=' + session_id + '&b=valid_ticket&tidid='
-                #        + data_qr, result_validation)
+        elif len(data_qr) == 18:
+            #061027XL084901236C Ticketscript Barcode 18 len
+            if data_qr == data_qr_old:
+                pass
+            else:
+                data_qr_old = data_qr
+                try:
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,'ticketscript',self.user_id)
+                    result_validation(results)
+                except Exception as err:
+                    print "Error", err
+        elif len(data_qr) == 24 or len(data_qr) == 12:
+            #027397679200113380114700 Eventim Big Barcode 24 len
+            #063235099901 Eventim small Barcode 12 len
+            if data_qr == data_qr_old:
+                pass
+            else:
+                data_qr_old = data_qr
+                try:
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,'eventim',self.user_id)
+                    result_validation(results)
+                except Exception as err:
+                    print "Error", err
+
+        elif len(data_qr) == 10 or 'groupon' in data_qr:
+        #40A8B7433C Groupon Security Barcode 10 len
+            if data_qr == data_qr_old:
+                pass
+            else:
+                data_qr_old = data_qr
+                try:
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,'groupon',self.user_id)
+                    result_validation(results)
+                except Exception as err:
+                    print "Error", err
 
 
 	def on_symbol(self, symbols):
