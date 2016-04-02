@@ -34,6 +34,7 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.bubble import Bubble
 from kivy.metrics import dp
+from kivy.core.audio import SoundLoader
 
 #from plyer import notification
 
@@ -300,8 +301,6 @@ class BtmsValidWampComponentAuth(ApplicationSession):
         self.subscribe(ui.onLeaveRemote, u'io.crossbar.btms.onLeaveRemote')
 
 
-
-
     def onLeave(self, details):
         print("onLeave: {}".format(details))
         ui.stop()
@@ -345,6 +344,8 @@ class BtmsValidRoot(BoxLayout):
         #super(ZbarQrcodeDetector, self).__init__(**kwargs)
 
 
+    sound_beep = SoundLoader.load('sound/beep.wav')
+    sound_beep_wrong = SoundLoader.load('sound/beep_wrong.mp3')
 
 
 
@@ -530,26 +531,32 @@ class BtmsValidRoot(BoxLayout):
                 status_text = 'Is valid ' + str(data_qr)
                 self.ids.result_label.background_color = [0,1,0,1]
                 self.ids.result_screen.background_color = [0,1,0,1]
+                self.sound_beep.play()
             elif status == 1:
                 status_text = 'Not valid ' + str(data_qr)
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
+                self.sound_beep_wrong.play()
             elif status == 2:
                 status_text = 'Back to the office ' + str(data_qr)
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
+                self.sound_beep_wrong.play()
             elif status == 3:
                 status_text = 'Valid VIP ' + str(data_qr)
                 self.ids.result_label.background_color = [0,1,0,1]
                 self.ids.result_screen.background_color = [0,1,0,1]
+                self.sound_beep.play()
             elif status == 4:
                 status_text = 'Not valid VIP ' + str(data_qr)
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
+                self.sound_beep_wrong.play()
             elif status == 5:
                 status_text = 'Not in DB, not valid ' + str(data_qr)
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
+                self.sound_beep_wrong.play()
 
             self.ids.result_label.text = status_text
 
@@ -560,7 +567,7 @@ class BtmsValidRoot(BoxLayout):
             def my_callback1(dt):
                 global data_qr_old
                 data_qr_old = 0
-            Clock.schedule_once(my_callback1, 1)
+            Clock.schedule_once(my_callback1, 2)
 
         #Recognize Vendor
         if len(data_qr) > 19 and '_' in data_qr:

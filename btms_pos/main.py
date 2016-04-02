@@ -236,7 +236,7 @@ class BtmsRoot(BoxLayout):
             print row['user']
             self.user_list[row['id']] = row['user']
             user_list1.append(row['user'])
-            self.ids.kv_user_list.add_widget(Button(text=str(row['user']),on_release=partial(self.change_user,str(row['user']))))
+            self.ids.kv_user_list.add_widget(Button(text=str(row['user']),size_hint_y=1,on_release=partial(self.change_user,str(row['user']))))
 
         store.put('userlist', user_list=user_list1)
 
@@ -446,6 +446,7 @@ class BtmsRoot(BoxLayout):
     def set_event_day_times(self, day, *args):
         #Set Date
         self.event_date = day[-10:]
+        print 'SET EVENT DATE', self.event_date
         self.loading(10, 'set event day times')
         date_now = dt.datetime.now().strftime('%Y-%m-%d')
         event_date_btn_now = 'event_date_btn_'+date_now
@@ -631,6 +632,7 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def switch_item(self, com, cols, rows, item_id, cat_id, seats, title, *args):
         if self.transaction_id == 0:
+            self.disable_buttons('update_bill', True)
             self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
         bool = False
         while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
@@ -884,26 +886,31 @@ class BtmsRoot(BoxLayout):
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
                         print item_id, seat, status
-
-                        if status == 1: #reserverd
-                            status = 3 #local selected
-                        itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                        try:
-                            itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                        except KeyError:
-                            pass
-                        self.seat_list[str(item_id)][int(seat)] = status
-                        if status == 3 or status == 0:
-                            self.update_bill(item_id, cat_id, 0, 1)
+                        if len(str(status)) > 1:
+                            self.ids.res_number_display_box.text = str(status[-5:])
+                        else:
+                            if status == 1: #reserverd
+                                status = 3 #local selected
+                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                            try:
+                                itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                            except KeyError:
+                                pass
+                            self.seat_list[str(item_id)][int(seat)] = status
+                            if status == 3 or status == 0:
+                                self.update_bill(item_id, cat_id, 0, 1)
             else:
                 for item_id, seat_list in seat_select_list.iteritems():
                     for seat, status in seat_list.iteritems():
                         print item_id, seat, status
-                        try:
-                            self.seat_list[str(item_id)][int(seat)] = status
-                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                        except KeyError:
+                        if len(str(status)) > 1:
                             pass
+                        else:
+                            try:
+                                self.seat_list[str(item_id)][int(seat)] = status
+                                itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                            except KeyError:
+                                pass
 
     def set_unnumbered_seats(self, item_id, amount):
 
@@ -970,6 +977,7 @@ class BtmsRoot(BoxLayout):
             self.ids.kv_release_con_button.disabled = boolean
             self.ids.kv_user_button.disabled = boolean
             self.ids.kv_dashboard_button.disabled = boolean
+
 
 
     @inlineCallbacks
@@ -1130,8 +1138,9 @@ class BtmsRoot(BoxLayout):
 
     #@inlineCallbacks
     def cash(self, *args):
+        self.ids.kv_cash_button.disabled = True # Block double tap
         if self.transaction_id == 0:
-            pass
+            self.ids.kv_cash_button.disabled = False # Block double tap
         else:
             #Give, Back
             if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
@@ -1162,12 +1171,14 @@ class BtmsRoot(BoxLayout):
 
 
     def card(self, *args):
+        self.ids.kv_card_button.disabled = True # Block double tap
         #call ext api, like payleven, sumup, etc...
         self.ids.kv_card_button.text = 'n. a.'
         #notification.notify(title='Connection Error', message='Database Connection Lost', app_name='BTMS', app_icon='/home/jaques5/workspace/btms_suite/btms_pos/images/btms_logo_01.png', timeout=5)
 
         def my_callback(dt):
             self.ids.kv_card_button.text = 'CARD'
+            self.ids.kv_card_button.disabled = False
         Clock.schedule_once(my_callback, 2)
 
     @inlineCallbacks
@@ -1654,6 +1665,9 @@ class BtmsRoot(BoxLayout):
         #self.ids.kv_release_con_button.disabled = False
         #self.ids.kv_user_button.disabled = False
         #self.ids.kv_dashboard_button.disabled = False
+        self.ids.kv_cash_button.disabled = False
+        self.ids.kv_card_button.disabled = False
+
         self.disable_buttons(0,False)
 
         self.transaction_id = 0
@@ -1673,6 +1687,34 @@ class BtmsRoot(BoxLayout):
             print item_id, cat_id
             self.itm_price_amount[cat_id][item_id] = 0
             itm['venue_itm_label_amount'+str(item_id)].text = '0'
+
+
+    #@inlineCallbacks
+    def get_pos_displays(self, *args):
+
+        #Get Displays
+        '''
+        try:
+            pos_displays = yield self.session.call(u'io.crossbar.btms.posdisplays.get')
+            pos_displays_list = []
+            for display in pos_displays:
+                pos_displays_list.append(display)
+
+            self.ids.kv_report_display_spinner.values = pos_displays_list
+
+
+        except Exception as err:
+            print "Error", err
+        '''
+        pass
+
+
+
+    def set_pos_display(self, display, *args):
+        #self.pos_display = display
+        #store.put('displays',display=self.pos_display)
+        pass
+
 
 
     @inlineCallbacks
@@ -2200,7 +2242,7 @@ class BtmsRoot(BoxLayout):
         else:
 
             if self.transaction_id == 0:
-                pass
+                self.disable_buttons('update_bill',False)
             else:
                 boolean = False
                 for item_id, value in self.item_art_cat_list.iteritems():
@@ -2804,7 +2846,7 @@ class BtmsApp(App):
             L = store.get('userlist')['user_list']
             self.root.ids.kv_user_change.disabled = False
             for user in L:
-                self.root.ids.kv_user_list.add_widget(Button(text=user,on_release=partial(self.root.change_user,user)))
+                self.root.ids.kv_user_list.add_widget(Button(text=user,size_hint_y=1,on_release=partial(self.root.change_user,user)))
 
         if store.exists('printers'):
             self.root.ticket_printer = store.get('printers')['ticket']

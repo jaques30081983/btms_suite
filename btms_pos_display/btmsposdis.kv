@@ -1,0 +1,251 @@
+#:kivy 1.9
+
+<BtmsValidRoot>:
+	orientation: 'vertical'
+	canvas.before:
+        Color:
+            rgb: .6, .6, .6
+        Rectangle:
+            size: self.size
+            source: 'images/background.png'
+
+	ScreenManager:
+		id: sm
+		
+		Screen:
+			name: 'server_connect'
+			AnchorLayout:
+				anchor_x: "center"
+				anchor_y: "center"
+			
+                BoxLayout:
+                    id: kv_login_list
+
+                    size_hint_x: .8
+                    size_hint_y: .8
+                    orientation: 'vertical'
+                    spacing: 10
+
+                    TextInput:
+                        id: kv_server_adress
+                        text: "192.168.178.36:8080"
+                        hint_text: "Server Adress: z.B. 192.168.178.1"
+                        multiline: False
+                        font_size: "30dp"
+                        on_text_validate: root.start_wamp_component(kv_server_adress.text)
+                    #TextInput:
+                    #    id: kv_user_log
+                    #    size_hint_y: .5
+                    #    size_hint_x: 1
+                    #    hint_text: "log..."
+                    #    multiline: True
+                    #    font_size: "12dp"
+
+                    BoxLayout:
+                        id: kv_user_select
+
+                        TextInput:
+                            id: kv_user_input
+                            size_hint_y: 1
+                            size_hint_x: .7
+                            text: "jaques"
+                            hint_text: "Username"
+                            multiline: False
+                            font_size: "30dp"
+
+                            on_text_validate: root.start_wamp_component_auth(kv_server_adress.text, kv_user_input.text, kv_password_input.text)
+                        Button:
+                            id: kv_user_change
+                            text: 'change'
+                            size_hint_y: 1
+                            size_hint_x: .3
+                            font_size: "15dp"
+                            on_release: sm.current = 'login_user'
+
+                    TextInput:
+                        id: kv_password_input
+                        size_hint_y: 1
+                        text:
+                        password: True
+                        multiline: False
+                        font_size: "50dp"
+
+                        on_text_validate: root.start_wamp_component_auth(kv_server_adress.text, kv_user_input.text, kv_password_input.text)
+
+
+                    GridLayout:
+                        cols: 3
+                        size_hint_y: 3
+
+                        Button:
+                            text: "7"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .53}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "7";
+
+                        Button:
+                            text: "8"
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .53}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "8";
+
+                        Button:
+                            text: "9"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .53}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "9";
+
+                        Button:
+                            text: "4"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .43}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "4";
+
+                        Button:
+                            text: "5"
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .43}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "5";
+
+                        Button:
+                            text: "6"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .43}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "6";
+
+
+                        Button:
+                            text: "1"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .33}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "1";
+
+                        Button:
+                            text: "2"
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .33}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "2";
+
+                        Button:
+                            text: "3"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .33}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "3";
+
+
+                        Button:
+                            text: "0"
+                            font_size: "30dp"
+                            pos_hint: {'x': .7, 'y': .23}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += "0";
+
+                        Button:
+                            text: "."
+                            font_size: "30dp"
+                            pos_hint: {'x': .8, 'y': .23}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text += ".";
+
+                        Button:
+                            text: "CL"
+                            font_size: "30dp"
+                            pos_hint: {'x': .9, 'y': .23}
+                            size_hint: .1, .1
+                            on_release: kv_password_input.text = "";
+
+
+                    Button:
+                        id: kv_login_button
+                        size_hint_y: 1
+                        text: 'login'
+                        on_release: root.start_wamp_component_auth(kv_server_adress.text, kv_user_input.text, kv_password_input.text)
+	
+		Screen:
+			name: 'login_user'
+			#FloatLayout:
+             #   size_hint: 1, 1
+              #  pos_hint: {'x': 0, 'y': 0}
+               # ScrollView:
+                #    size_hint: 1, 1
+                #TODO not working on android phone
+            GridLayout:
+                id: kv_user_list
+                size_hint: 1, 1
+                cols: 2
+                #row_default_height: '40dp'
+                padding: 0
+                spacing: '5dp'
+
+						
+				
+							
+							
+		Screen:
+			name: 'login_auth'
+			AnchorLayout:
+				anchor_x: "center"
+				anchor_y: "center"
+				
+					
+
+						
+		Screen:
+			name: 'work1'
+			id: detector
+
+			
+            Button:
+                pos_hint: {'x': 0, 'y': .375}
+                size_hint: 1, .6
+                id: result_screen
+                text: ''
+
+            Button:
+                pos_hint: {'x': 0, 'y': .25}
+                size_hint: 1, .1
+                id: result_label
+                text: ''
+
+
+            Button:
+                pos_hint: {'x': .0, 'y': .125}
+                size_hint: 1, .1
+                id: 'test'
+                #text: 'test'
+                text: '\\n'.join(map(repr, root.symbols))
+
+
+
+            BoxLayout:
+                size_hint_y: None
+                pos_hint: {'x': .0, 'y': .0}
+                size_hint: 1, .1
+
+                Button:
+                    text: 'Scan'
+                    on_release: root.start()
+
+                Button:
+                    text: 'Stop'
+                    on_release: root.stop()
+                ToggleButton:
+                    id: lamp_btn
+                    text: 'Lamp'
+                    on_release: root.toggle_lamp()
+
+
+                Button:
+                    id: kv_user_button
+                    text: "User"
+                    on_release: root.logout(1)
+

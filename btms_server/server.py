@@ -515,6 +515,7 @@ class BtmsBackend(ApplicationSession):
         print seat_select_list
         new_seat_select_list = {}
 
+
         for item_id, seat_list in seat_select_list.iteritems():
 
             new_seat_select_list[item_id] = {}
@@ -536,7 +537,7 @@ class BtmsBackend(ApplicationSession):
                         print 'seat is now free', item_id, seat, status
                     else:
                         print 'seat is occupied', item_id, seat, status, tid, self.item_list[edt_id][item_id]['seats_tid'][seat]
-
+                        new_seat_select_list[item_id][seat] = self.item_list[edt_id][item_id]['seats_tid'][seat]
 
         self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, tid, user_id)
 
@@ -575,7 +576,27 @@ class BtmsBackend(ApplicationSession):
         self.publish('io.crossbar.btms.venue.update', blocks)
 
 
+    @wamp.register(u'io.crossbar.btms.pos.displays.reg')
+    def regPosDisplays(self,display):
+        try:
+            self.pos_displays
+        except AttributeError:
+            self.pos_displays = {}
 
+        self.pos_displays[display] = 1
+
+
+    @wamp.register(u'io.crossbar.btms.pos.displays.get')
+    def getPosDisplays(self):
+        try:
+            self.pos_displays
+        except AttributeError:
+            self.pos_displays = {}
+        return self.pos_displays
+
+    @wamp.register(u'io.crossbar.btms.pos.displays.msg')
+    def msgPosDisplays(self,display,msg):
+        self.publish('io.crossbar.btms.pos.displays.msg.send', msg)
 
 
     @wamp.register(u'io.crossbar.btms.printers.get')
@@ -585,6 +606,8 @@ class BtmsBackend(ApplicationSession):
             print printer, printers[printer]["device-uri"]
 
         return printers
+
+
 
     @wamp.register(u'io.crossbar.btms.ticket.print')
     def printTicket(self,printer,transaction_id, user_name):

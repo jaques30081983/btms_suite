@@ -13,7 +13,7 @@ package.domain = org.kivy
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,wav,mp3
+source.include_exts = py,png,jpg,kv,atlas
 
 # (list) Source files to exclude (let empty to not exclude anything)
 #source.exclude_exts = spec
@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas,wav,mp3
 #version.filename = %(source.dir)s/main.py
 
 # (str) Application versionning (method 2)
-version = 16.03.23
+version = 16.02.23
 
 # (list) Application requirements
 requirements = kivy,autobahn,twisted,msgpack-python

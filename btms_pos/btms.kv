@@ -1016,10 +1016,19 @@
                             text: "select"
                             id: kv_report_printer_spinner
                             on_text: root.set_printer('report',self.text)
+                        Label:
+                            text: "Display"
+                            size_hint: .3, 1
+
+                        Spinner:
+                            text: "select"
+                            id: kv_report_display_spinner
+                            on_text: root.set_pos_display(self.text)
                     Button:
                         id: kv_reports
-                        text: "Reload Printers"
+                        text: "Reload Printers / Displays"
                         on_release: root.get_printers()
+                        on_release: root.get_pos_displays()
 
                         pos_hint: {'x': 0.025, 'y': .025}
                         size_hint: .95, .15
