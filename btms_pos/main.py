@@ -2819,7 +2819,7 @@ class BtmsRoot(BoxLayout):
             if self.user_role == 'admin':
                 self.ids.kv_create_event.disabled = False
                 self.ids.kv_edit_event.disabled = False
-                self.ids.kv_delete_event.disabled = False
+
 
 
                 self.ids.kv_venues_cat_price_create.disabled = False
@@ -2836,7 +2836,7 @@ class BtmsRoot(BoxLayout):
             else:
                 self.ids.kv_create_event.disabled = True
                 self.ids.kv_edit_event.disabled = True
-                self.ids.kv_delete_event.disabled = True
+
 
 
                 self.ids.kv_venues_cat_price_create.disabled = True
