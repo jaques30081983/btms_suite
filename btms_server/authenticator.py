@@ -33,6 +33,7 @@ from autobahn.wamp.exception import ApplicationError
 
 from twisted.enterprise import adbapi
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet import task
 import MySQLdb.cursors
 
 from twistar.registry import Registry
@@ -60,6 +61,20 @@ class MyAuthenticator(ApplicationSession):
         ## we'll be doing all database access via this database connection pool
         ##
         self.dbauth = Registry.DBPOOL
+
+        ## Keep DB connection alive
+        @inlineCallbacks
+        def keepAliveDB():
+            try:
+                result = yield self.dbauth.runQuery("SELECT (1)")
+                print "keep alive, db auth querry run", result
+
+            except Exception as err:
+                self.publish('io.crossbar.btms.onLeaveRemote','Auth DB connection closed')
+                print "Auth DB Connection Error", err
+
+        l = task.LoopingCall(keepAliveDB)
+        l.start(60.0) # call every minute
 
 
         '''

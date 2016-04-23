@@ -762,12 +762,14 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def get_categories(self, venue_id, prices, *args):
         def result_categories(results):
+            self.cat_list = {}
             self.itm_price = {}
             self.itm_cat_price_amount = {}
             self.itm_price_amount = {}
             self.itm_cat_first_price = {}
             self.total_cat_price_list = {}
             for row in results:
+                self.cat_list[row['id']] = row['name']
                 self.itm_cat_price_amount[row['id']] = {}
                 self.itm_price_amount[row['id']] = {}
                 self.itm_price[row['id']] = {}
@@ -1127,6 +1129,34 @@ class BtmsRoot(BoxLayout):
 
         self.ids.kv_total_button.text = str(self.total_bill_price) + unichr(8364)
 
+        #Generate message for POS display
+        pos_disp_message = {}
+        pos_disp_message['total_price'] = self.total_bill_price
+
+        msg_cat_amount_list = {}
+        for cat_id, value in self.itm_cat_price_amount.iteritems():
+            for price_id, value1 in value.iteritems():
+
+                try:
+                    msg_cat_amount_list[cat_id] = msg_cat_amount_list[cat_id] + value1['amount']
+                except KeyError:
+                    msg_cat_amount_list[cat_id] = value1['amount']
+
+        pos_disp_message['info'] = ''
+        for cat_id, name in self.cat_list.iteritems():
+            if msg_cat_amount_list[cat_id] == 0:
+                pass
+            else:
+                if pos_disp_message['info'] == '':
+                    ub = ''
+                else:
+                    ub = '\n'
+                pos_disp_message['info'] = pos_disp_message['info'] + ub + str(msg_cat_amount_list[cat_id]) + ' x ' +  name
+
+
+        self.msg_pos_display(pos_disp_message)
+
+        print pos_disp_message
 
         #self.seat_select_list = {str(item_id):{str(seat):1}}
         #self.select_seats(self.seat_select_list)
@@ -1689,32 +1719,24 @@ class BtmsRoot(BoxLayout):
             itm['venue_itm_label_amount'+str(item_id)].text = '0'
 
 
-    #@inlineCallbacks
+    @inlineCallbacks
     def get_pos_displays(self, *args):
-
         #Get Displays
-        '''
         try:
-            pos_displays = yield self.session.call(u'io.crossbar.btms.posdisplays.get')
-            pos_displays_list = []
-            for display in pos_displays:
-                pos_displays_list.append(display)
-
-            self.ids.kv_report_display_spinner.values = pos_displays_list
-
-
+            pos_displays = yield self.session.call(u'io.crossbar.btms.pos.displays.get')
+            self.ids.kv_display_spinner.values = pos_displays
         except Exception as err:
             print "Error", err
-        '''
-        pass
-
 
 
     def set_pos_display(self, display, *args):
-        #self.pos_display = display
-        #store.put('displays',display=self.pos_display)
-        pass
+        self.pos_display = display
+        store.put('displays',display=self.pos_display)
 
+
+    def msg_pos_display(self, msg, *args):
+
+        self.session.call(u'io.crossbar.btms.pos.displays.msg', self.pos_display, msg)
 
 
     @inlineCallbacks
@@ -2857,7 +2879,9 @@ class BtmsApp(App):
             self.root.ids.kv_ticket_printer_spinner.text = self.root.ticket_printer
             self.root.ids.kv_bon_printer_spinner.text = store.get('printers')['bon']
             self.root.ids.kv_report_printer_spinner.text = store.get('printers')['report']
-
+        if store.exists('displays'):
+            self.pos_display = store.get('displays')['display']
+            self.root.ids.kv_display_spinner.text = store.get('displays')['display']
         #self.start_wamp_component()
 
         return self.root

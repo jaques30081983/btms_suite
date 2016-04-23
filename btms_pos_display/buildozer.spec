@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = BTMS Valid
+title = BTMS Pos Display
 
 # (str) Package name
-package.name = btms_valid
+package.name = btms_pos_disp
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.kivy
@@ -35,16 +35,16 @@ version = 16.02.23
 requirements = kivy,autobahn,twisted,msgpack-python
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/images/btms_valid_splash_01.png
+presplash.filename = %(source.dir)s/images/btms_pos_disp_splash_01.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/images/btms_valid_logo_01.png
+icon.filename = %(source.dir)s/images/btms_pos_disp_logo_01.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
-orientation = portrait
+orientation = landscape
 
 # (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
+fullscreen = 1
 
 
 #
@@ -52,7 +52,7 @@ fullscreen = 0
 #
 
 # (list) Permissions
-android.permissions = CAMERA, INTERNET, WAKE_LOCK
+android.permissions = INTERNET, WAKE_LOCK
 
 # (int) Android API to use
 #android.api = 14
@@ -80,7 +80,7 @@ android.permissions = CAMERA, INTERNET, WAKE_LOCK
 # since extra jars can slow down the build process. Allows wildcards matching,
 # for example: OUYA-ODK/libs/*.jar
 #android.add_jars = foo.jar;bar.jar;path/to/more/*.jar
-android.add_jars = %(source.dir)s/libs/android/zbar.jar
+#android.add_jars = %(source.dir)s/libs/android/zbar.jar
 
 # (str) python-for-android branch to use, if not master, useful to try
 # not yet merged features.
@@ -97,7 +97,7 @@ android.add_jars = %(source.dir)s/libs/android/zbar.jar
 #android.manifest.intent_filters = 
 
 # (list) Android additionnal libraries to copy into libs/armeabi
-android.add_libs_armeabi = %(source.dir)s/libs/android/*.so
+#android.add_libs_armeabi = %(source.dir)s/libs/android/*.so
 
 # (bool) Indicate whether the screen should stay on
 # Don't forget to add the WAKE_LOCK permission if you set this to True

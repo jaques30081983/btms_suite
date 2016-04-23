@@ -686,6 +686,7 @@
 				on_press: root.get_venues_dashboard()
                 on_press: root.get_users_dashboard()
                 on_press: root.get_server_dashboard()
+                on_press: root.get_pos_displays()
 				pos_hint: {'x': .525, 'y': .0}
 				size_hint: .165, .05
 				
@@ -1022,10 +1023,10 @@
 
                         Spinner:
                             text: "select"
-                            id: kv_report_display_spinner
+                            id: kv_display_spinner
                             on_text: root.set_pos_display(self.text)
                     Button:
-                        id: kv_reports
+                        id: kv_load_printer_displays
                         text: "Reload Printers / Displays"
                         on_release: root.get_printers()
                         on_release: root.get_pos_displays()

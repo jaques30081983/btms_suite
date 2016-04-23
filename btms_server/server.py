@@ -577,13 +577,23 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.pos.displays.reg')
-    def regPosDisplays(self,display):
+    def regPosDisplays(self,display_new, display_old):
         try:
             self.pos_displays
         except AttributeError:
-            self.pos_displays = {}
+            self.pos_displays = []
 
-        self.pos_displays[display] = 1
+        if display_new in self.pos_displays:
+            pass
+        else:
+            self.pos_displays.append(display_new)
+        if display_old == '':
+            pass
+        else:
+            try:
+                self.pos_displays.remove(display_old)
+            except ValueError:
+                pass
 
 
     @wamp.register(u'io.crossbar.btms.pos.displays.get')
@@ -591,12 +601,14 @@ class BtmsBackend(ApplicationSession):
         try:
             self.pos_displays
         except AttributeError:
-            self.pos_displays = {}
+            self.pos_displays = []
+
         return self.pos_displays
 
     @wamp.register(u'io.crossbar.btms.pos.displays.msg')
     def msgPosDisplays(self,display,msg):
-        self.publish('io.crossbar.btms.pos.displays.msg.send', msg)
+        print display, msg
+        self.publish('io.crossbar.btms.pos.displays.msg.send', display, msg)
 
 
     @wamp.register(u'io.crossbar.btms.printers.get')
