@@ -156,11 +156,37 @@ class BtmsBackend(ApplicationSession):
         print 'updated'
 
     @wamp.register(u'io.crossbar.btms.events.delete.date')
-    def deleteEventsDate(self, event_date_id):
+    def deleteEventsDate(self, event_date_id, event_date, event_id):
         #Delete from db
+
+        #Contingents
+        sql = "DELETE FROM btms_contingents WHERE date_day LIKE '"+str(event_date)+"' AND event_id = '"+str(event_id)+"'"
+        self.db.runOperation(sql)
+
+        #Counter
+        sql = "DELETE FROM btms_counter WHERE date LIKE '"+str(event_date)+"' AND event_id = '"+str(event_id)+"'"
+        self.db.runOperation(sql)
+
+        #Events
         sql = "DELETE FROM btms_events WHERE id = '"+str(event_date_id)+"'"
         self.db.runOperation(sql)
 
+        #Journal
+        sql = "DELETE FROM btms_journal WHERE event_date LIKE '"+str(event_date)+"' AND event_id = '"+str(event_id)+"'"
+        self.db.runOperation(sql)
+
+        #Tickets
+        sql = "DELETE FROM btms_tickets WHERE date LIKE '"+str(event_date)+"' AND event_id = '"+str(event_id)+"'"
+        self.db.runOperation(sql)
+
+        #External Tickets
+        sql = "DELETE FROM btms_tickets_external WHERE log LIKE '"+str(event_date)+'%'+"'"
+        self.db.runOperation(sql)
+
+
+        #Transactions
+        sql = "DELETE FROM btms_transactions WHERE date LIKE '"+str(event_date)+"' AND event_id = '"+str(event_id)+"'"
+        self.db.runOperation(sql)
 
     @wamp.register(u'io.crossbar.btms.events.get')
     def getEvents(self):

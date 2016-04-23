@@ -847,17 +847,12 @@
 
                         Button:
                             id: kv_edit_event
-                            text: "Edit"
+                            text: "Edit / Delete"
                             on_release: sm.transition.direction = 'left'
                             on_release: sm.current = "edit_delete_events"
                             on_release: root.edit_events(0,0,0,0,0,0)
 
-                        Button:
-                            id: kv_delete_event
-                            text: "Delete"
-                            #on_release: sm.transition.direction = 'left'
-                            #on_release: sm.current = "edit_delete_events"
-                            #on_release: root.edit_events(0,0,0,0,0,0)
+
 
                 FloatLayout:
                     size_hint: .3, .05

@@ -2016,6 +2016,8 @@ class BtmsRoot(BoxLayout):
             self.ids.event_edit_delete_work.clear_widgets(children=None)
             results_event = yield self.session.call(u'io.crossbar.btms.events.get.date', event_date_id)
             self.event_date_id_input = event_date_id
+            self.event_date_selected = event_date
+            self.event_id_selected = event_id
             for row in results_event:
                 self.ids.event_edit_delete_work.add_widget(Label(text='Date (yyyy-mm-dd)'))
                 self.event_date_input = TextInput(text=row['date_day'], hint_text='2016-03-02')
@@ -2115,9 +2117,9 @@ class BtmsRoot(BoxLayout):
             else:
                 #Delete event day
                 self.ids.event_edit_delete_work.clear_widgets(children=None)
-                self.ids.event_edit_delete_work.add_widget(Label(text='Delete Day '+str(self.event_date_id_input)))
+                self.ids.event_edit_delete_work.add_widget(Label(text='Delete Day '+str(self.event_date_id_input)+', '+self.event_date_selected+', '+ str(self.event_id_selected)))
 
-                result_update = yield self.session.call(u'io.crossbar.btms.events.delete.date',self.event_date_id_input)
+                result_update = yield self.session.call(u'io.crossbar.btms.events.delete.date',self.event_date_id_input, self.event_date_selected, self.event_id_selected)
 
                 self.ids.event_edit_delete_date_select_list.clear_widgets(children=None)
                 results_date = yield self.session.call(u'io.crossbar.btms.events.day',self.event_id_input)
