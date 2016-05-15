@@ -189,9 +189,12 @@ class BtmsBackend(ApplicationSession):
         self.db.runOperation(sql)
 
     @wamp.register(u'io.crossbar.btms.events.get')
-    def getEvents(self):
-        date_current = datetime.now().strftime('%Y-%m-%d')
-        return self.db.runQuery("SELECT id, title, description, date_start, start_times, date_end, admission, venue_id FROM btms_events WHERE ref = '0' AND date_end >= '"+date_current+"' ORDER by date_end")
+    def getEvents(self,cmd):
+        if cmd == 0:
+            date_current = datetime.now().strftime('%Y-%m-%d')
+            return self.db.runQuery("SELECT id, title, description, date_start, start_times, date_end, admission, venue_id FROM btms_events WHERE ref = '0' AND date_end >= '"+date_current+"' ORDER by date_end")
+        elif cmd == 1:
+            return self.db.runQuery("SELECT id, title, description, date_start, start_times, date_end, admission, venue_id FROM btms_events WHERE ref = '0' ORDER by date_end")
 
     @wamp.register(u'io.crossbar.btms.events.day')
     def getEventsDay(self,event_id):
@@ -1191,11 +1194,11 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.contingents.get')
     @inlineCallbacks
-    def getContingents(self,cmd, conti_id, event_date, event_time):
+    def getContingents(self,cmd, conti_id, event_id, event_date, event_time):
         if cmd == 0:
             try:
                 #TODO WHERE event_id and time
-                result = yield self.db.runQuery("SELECT id, title FROM btms_contingents WHERE ref = '0' ORDER by id")
+                result = yield self.db.runQuery("SELECT id, title FROM btms_contingents WHERE ref = '0' AND event_id = '"+str(event_id)+"' ORDER by id")
             except Exception as err:
                 print "Error", err
             finally:
@@ -1224,10 +1227,20 @@ class BtmsBackend(ApplicationSession):
         if seat_trans_list == {}:
             pass
         else:
+            new_seat_trans_list = {}
 
             for item_id, seat_list in seat_trans_list.iteritems():
                 for seat, status in seat_list.iteritems():
                     self.item_list[edt_id][item_id]['seats'][seat] = status
+                    try:
+                        new_seat_trans_list[item_id]
+                    except KeyError:
+                        new_seat_trans_list[item_id] = {}
+
+                    if status == 0:
+                        pass
+                    else:
+                        new_seat_trans_list[item_id][seat] = status
 
 
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, transaction_id, 0)
@@ -1235,7 +1248,10 @@ class BtmsBackend(ApplicationSession):
             cat_id = self.item_list[edt_id][item_id]['cat_id']
             amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
             art = '1'
-            seats = json.dumps(seat_trans_list, separators=(',',';'))
+
+
+
+            seats = json.dumps(new_seat_trans_list, separators=(',',';'))
             #if retrive_status == False:
             '''
             sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
@@ -1477,20 +1493,38 @@ class BtmsBackend(ApplicationSession):
             try:
                 if selected_user_id == 'all':
                     if for_on_date == 0:
-                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
-                            "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
-                            " event_time = '"+event_time+"' ")
+                        if event_date == 'all':
+                            results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"'")
+                        else:
+                            results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                                " event_time = '"+event_time+"' ")
+
                     elif for_on_date == 1:
-                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
-                            "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' ")
+                        if event_date == 'all':
+                            results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"'")
+                        else:
+                            results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' ")
                 else:
                     if for_on_date == 0:
-                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
-                            "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
-                            " event_time = '"+event_time+"' AND user_id = '"+str(selected_user_id)+"' ")
+                        if event_date == 'all':
+                            results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"' AND user_id = '"+str(selected_user_id)+"' ")
+                        else:
+                            results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
+                                " event_time = '"+event_time+"' AND user_id = '"+str(selected_user_id)+"' ")
                     elif for_on_date == 1:
-                        results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
-                            "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' AND user_id = '"+str(selected_user_id)+"' ")
+                        if event_date == 'all':
+                            results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"' AND user_id = '"+str(selected_user_id)+"' ")
+
+                        else:
+                            results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
+                                "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' AND user_id = '"+str(selected_user_id)+"' ")
 
             except Exception as err:
                 print "Error", err
@@ -1528,7 +1562,21 @@ class BtmsBackend(ApplicationSession):
             report_result_dict['all']['a_not_visited'] = 0
             report_result_dict['all']['a_prices'] = {}
 
+
+            report_date_dict = {}
+
+
             for row in results:
+                if event_date == 'all':
+                    try:
+                        report_date_dict[row['event_date']]
+                    except KeyError:
+                        report_date_dict[row['event_date']] = {}
+                        report_date_dict[row['event_date']]['sold'] = 0
+                        report_date_dict[row['event_date']]['reserved'] = 0
+                        report_date_dict[row['event_date']]['unsold_reserved'] = 0
+                        report_date_dict[row['event_date']]['sold_contingent'] = 0
+
                 if row['status'] == 3:
                     pass #Dont Count the not visited
                 else:
@@ -1644,6 +1692,11 @@ class BtmsBackend(ApplicationSession):
                                 report_result_dict['cat_'+str(cat)]['m_total_sold'] = report_result_dict['cat_'+str(cat)]['m_total_sold'] + cat_price
 
                         report_result_dict['all']['a_total_sold'] = report_result_dict['all']['a_total_sold'] + total_amount
+
+                        if event_date == 'all':
+                            report_date_dict[row['event_date']]['sold'] = report_date_dict[row['event_date']]['sold'] + total_amount
+
+
                     except IndexError:
                         pass
                     #Sold Cash
@@ -1724,6 +1777,10 @@ class BtmsBackend(ApplicationSession):
                                 #report_result_dict['cat_'+str(cat)]['m_sold_conti'] = report_result_dict['cat_'+str(cat)]['m_sold_conti'] + cat_price
 
                             report_result_dict['all']['a_sold_conti'] = report_result_dict['all']['a_sold_conti'] + total_amount
+
+                            if event_date == 'all':
+                                report_date_dict[row['event_date']]['sold_contingent'] = report_date_dict[row['event_date']]['sold_contingent'] + total_amount
+
                         except IndexError:
                             pass
 
@@ -1758,6 +1815,8 @@ class BtmsBackend(ApplicationSession):
                             pass
                         else:
                             report_result_dict['all']['a_reserved'] = report_result_dict['all']['a_reserved'] + total_amount
+                            if event_date == 'all':
+                                report_date_dict[row['event_date']]['reserved'] = report_date_dict[row['event_date']]['reserved'] + total_amount
                     except IndexError:
                         pass
                 #Not visited
@@ -1789,6 +1848,8 @@ class BtmsBackend(ApplicationSession):
                             pass
                         else:
                             report_result_dict['all']['a_not_visited'] = report_result_dict['all']['a_not_visited'] + total_amount
+                            if event_date == 'all':
+                                report_date_dict[row['event_date']]['unsold_reserved'] = report_date_dict[row['event_date']]['unsold_reserved'] + total_amount
                     except IndexError:
                         pass
 
@@ -1800,7 +1861,7 @@ class BtmsBackend(ApplicationSession):
                 prices_result = yield self.db.runQuery("SELECT id, name, price, description, cat_id, currency FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
 
 
-                createPdfReport(self, event_id, venue_id, event_date, event_time, report_result_dict,event_result,categories_result,prices_result)
+                createPdfReport(self, event_id, venue_id, event_date, event_time, report_result_dict,event_result,categories_result,prices_result,report_date_dict,selected_user_id)
 
                 #Create and print report
                 ticket_path = '../spool/report.pdf'

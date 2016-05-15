@@ -196,7 +196,7 @@ class BtmsRoot(BoxLayout):
         self.session.call(u'io.crossbar.btms.users.logout', self.user_id, self.login_time)
 
 
-        results = yield self.session.call(u'io.crossbar.btms.events.get')
+        results = yield self.session.call(u'io.crossbar.btms.events.get',0)
         self.get_events(results)
 
 
@@ -1471,7 +1471,7 @@ class BtmsRoot(BoxLayout):
         if self.contingent_cmd == 0:
             if cmd == 0:
                 #Show Popup Menu
-                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0,0,0)
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0,self.event_id,0,0)
 
                 popup_layout1 = FloatLayout(size_hint=[1, 1])
                 popup = Popup(title='Contingent', content=popup_layout1, size_hint=(.5, .4))
@@ -1492,7 +1492,7 @@ class BtmsRoot(BoxLayout):
                 self.ids.kv_release_con_button.text='Release Contingent'
                 self.conti_id = conti_id
 
-                result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id,self.event_date,self.event_time)
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',1,conti_id,self.event_id,self.event_date,self.event_time)
                 transaction_id = self.eventdatetime_id+str(conti_id)
                 transaction_id = filter(str.isalnum, str(transaction_id))
                 self.transaction_id = 'con'+str(transaction_id)
@@ -1937,7 +1937,7 @@ class BtmsRoot(BoxLayout):
             self.edit_events_add_boolean = False
             #Get events for select list
             self.ids.event_edit_delete_event_select_list.clear_widgets(children=None)
-            results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+            results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
 
             for row in results_event:
 
@@ -1977,7 +1977,7 @@ class BtmsRoot(BoxLayout):
 
         if cmd == 0 or cmd == 1:
             #Show Event
-            results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+            results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
             self.event_id_input = event_id
             for row in results_event:
                 print 'evenet id:', event_id, row['id']
@@ -2081,7 +2081,7 @@ class BtmsRoot(BoxLayout):
                 result_update = yield self.session.call(u'io.crossbar.btms.events.update.event',self.event_id_input, self.event_title_input.text, self.event_description_input.text, self.event_venue_input.text, self.event_start_date_input.text, self.event_end_date_input.text, self.event_admission_input.text, self.user_id)
 
                 self.ids.event_edit_delete_event_select_list.clear_widgets(children=None)
-                results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+                results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
                 for row in results_event:
 
                     if event_id == 0:
@@ -2297,7 +2297,7 @@ class BtmsRoot(BoxLayout):
     @inlineCallbacks
     def get_events_dashboard(self, *args):
         self.ids.kv_dashboard_events_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
-        results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+        results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
         self.ids.kv_dashboard_events_grid.clear_widgets(children=None)
         for row in results_event:
             self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['title'],size_hint=[1, None], height=20))
@@ -2562,7 +2562,7 @@ class BtmsRoot(BoxLayout):
             #Get events for select list
             if event_id == 0:
                 self.ids.report_select_event_list.clear_widgets(children=None)
-                results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+                results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
 
                 for row in results_event:
                     if event_id == 0:
@@ -2574,12 +2574,12 @@ class BtmsRoot(BoxLayout):
 
                     #Get Categorie Names of events
                     try:
-                        self.report_cat_list[event_id]
+                        self.report_cat_list[row['id']]
                     except KeyError:
-                        self.report_cat_list[event_id] = {}
-                        results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',row['venue_id'])
-                        for row in results_cat:
-                            self.report_cat_list[event_id]['cat_'+str(row['id'])] = row['name']
+                        self.report_cat_list[row['id']] = {}
+                    results_cat = yield self.session.call(u'io.crossbar.btms.categories.get',row['venue_id'])
+                    for row1 in results_cat:
+                        self.report_cat_list[row['id']]['cat_'+str(row1['id'])] = row1['name']
 
 
 
@@ -2601,6 +2601,7 @@ class BtmsRoot(BoxLayout):
                             self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+day,on_release=partial(self.get_reports,0,event_id,venue_id,day,0,0), group='report_date', size_hint= [1, None], height=40))
                         else:
                             self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+day,on_release=partial(self.get_reports,0,event_id,venue_id,day,0,0), group='report_date', size_hint= [1, None], height=40))
+                    self.ids.report_select_date_list.add_widget(ToggleButton(text='all',on_release=partial(self.get_reports,0,event_id,venue_id,'all',0,0), group='report_date', size_hint= [1, None], height=40))
 
                     self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
 
@@ -2618,16 +2619,16 @@ class BtmsRoot(BoxLayout):
                         else:
                             self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
 
-
                         #Times
                         self.report_event_date_time_dict[row['date_day']]= row['start_times']
+                    self.ids.report_select_date_list.add_widget(ToggleButton(text='all',on_release=partial(self.get_reports,0,event_id,venue_id,'all',0,0), group='report_date', size_hint= [1, None], height=40))
 
                     self.ids.report_select_date_list.bind(minimum_height=self.ids.report_select_date_list.setter('height'))
 
             #Set Times for select list
             if event_time == 0:
                 self.ids.report_select_time_list.clear_widgets(children=None)
-                if self.report_for_on_date == 1:
+                if self.report_for_on_date == 1 or event_date == 'all':
                     self.ids.report_select_time_list.add_widget(ToggleButton(state='down',text='all', on_release=partial(self.get_reports,0,event_id,venue_id,event_date,'all',0), group='report_time', size_hint=[1, None], height=40))
                     event_time = 'all'
                 else:
@@ -2765,7 +2766,7 @@ class BtmsRoot(BoxLayout):
                 '''
                 #Events
                 self.ids.report_select_event_list.clear_widgets(children=None)
-                results_event = yield self.session.call(u'io.crossbar.btms.events.get')
+                results_event = yield self.session.call(u'io.crossbar.btms.events.get',0)
 
                 for row in results_event:
                     self.ids.report_select_event_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.get_reports,0,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))

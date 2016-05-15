@@ -12,11 +12,21 @@ from reportlab.lib import colors
 from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.shapes import Drawing
 import datetime as dt
+
+from reportlab.graphics.charts.lineplots import GridLinePlot
+from reportlab.lib.colors import Color
+from reportlab.graphics.charts.legends import LineLegend
+from reportlab.graphics.shapes import Drawing, _DrawingEditorMixin
+from reportlab.lib.validators import Auto
+from reportlab.graphics.charts.axes import NormalDateXValueAxis
+
+
+
 import locale
 locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
 
 
-def createPdfReport(self,event_id, venue_id, event_date, event_time, report_result_dict, e_result, c_result, p_result):
+def createPdfReport(self,event_id, venue_id, event_date, event_time, report_result_dict, e_result, c_result, p_result, report_date_dict,selected_user_id):
     styles = getSampleStyleSheet()
     date_current = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -40,9 +50,11 @@ def createPdfReport(self,event_id, venue_id, event_date, event_time, report_resu
 
     def header(page):
         #Header
-
-        date_day = dt.datetime.strptime(event_date, "%Y-%m-%d")
-        date_day_name = date_day.strftime("%A")
+        if event_date == 'all':
+            date_day_name = 'all'
+        else:
+            date_day = dt.datetime.strptime(event_date, "%Y-%m-%d")
+            date_day_name = date_day.strftime("%A")
 
         c.drawString(1*cm,28.5*cm, event_title)
         c.drawString(1*cm,28*cm,event_date_start +' - '+event_date_end)
@@ -51,11 +63,15 @@ def createPdfReport(self,event_id, venue_id, event_date, event_time, report_resu
 
         c.drawString(8*cm,28.5*cm, date_day_name +' '+ event_date)
         c.drawString(8*cm,28*cm, event_time)
-
-        if event_time == 'all':
-             c.drawString(10*cm,28*cm, 'ON Date')
+        if event_date == 'all':
+            c.drawString(10*cm,28*cm, 'Total')
         else:
-            c.drawString(10*cm,28*cm, 'FOR Date')
+            if event_time == 'all':
+                 c.drawString(10*cm,28*cm, 'ON Date')
+            else:
+                c.drawString(10*cm,28*cm, 'FOR Date')
+
+        c.drawString(12.5*cm,28*cm, 'User ' + str(selected_user_id))
 
         c.drawString(18*cm,28.5*cm,"Page "+str(page))
         c.drawString(15.5*cm,28*cm,date_current)
@@ -196,6 +212,145 @@ def createPdfReport(self,event_id, venue_id, event_date, event_time, report_resu
         d.wrapOn(c, 5*cm, 5*cm)
         d.drawOn(c, 1*cm, 1*cm)
         '''
+        if event_date == 'all':
+            data = []
+            sold = []
+            reserved = []
+            unsold_reserved = []
+            sold_contingent = []
+
+            for key, value in sorted(report_date_dict.iteritems(), key=lambda report_date_dict: report_date_dict[0]):
+                date_day_dt = dt.datetime.strptime(key, "%Y-%m-%d")
+                date_day = date_day_dt.strftime("%Y%m%d")
+
+                sold.append((int(date_day), value['sold']))
+
+                reserved.append((int(date_day),value['reserved']))
+
+                unsold_reserved.append((int(date_day),value['unsold_reserved']))
+
+                sold_contingent.append((int(date_day),value['sold_contingent']))
+
+
+            data.append(sold)
+            data.append(reserved)
+            data.append(unsold_reserved)
+            data.append(sold_contingent)
+
+            print data
+
+            # sample data
+            _colors    = Color(.90,0,0), Color(.801961,.801961,0), Color(.380392,.380392,0), Color(.580392,0,0)
+            _catNames  = 'Sold', 'Reserved', 'Unsold Reserved', 'Contingents'
+
+            d = Drawing(400, 200)
+            # adding the actual chart here.
+            plot = GridLinePlot()
+            plot.y                             = 50
+            plot.x                             = 15
+            plot.width                         = 525
+            plot.height                        = 125
+            plot.xValueAxis.xLabelFormat       = '{ddd} {dd}. {mm}.'
+            plot.lineLabels.fontSize           = 6
+            plot.lineLabels.boxStrokeWidth     = 0.5
+            plot.lineLabels.visible            = 1
+            plot.lineLabels.boxAnchor          = 'c'
+            plot.lineLabels.angle              = 0
+            plot.lineLabelNudge                = 10
+            plot.joinedLines                   = 1
+            plot.lines.strokeWidth             = 1.5
+            plot.lines[0].strokeColor          = _colors[0]
+            plot.lines[1].strokeColor          = _colors[1]
+            plot.lines[2].strokeColor          = _colors[2]
+            plot.lines[3].strokeColor          = _colors[3]
+            #sample data
+            plot.data = data
+            '''
+            plot.data  = [[(20010630, 1000),
+                           (20011231, 101),
+                           (20020630, 100.05),
+                           (20021231, 102),
+                           (20030630, 103),
+                           (20031230, 104),
+                           (20040630, 99.200000000000003),
+                           (20041231, 99.099999999999994)],
+
+                          [(20010630, 100.8),
+                           (20011231, 100.90000000000001),
+                           (20020630, 100.2),
+                           (20021231, 100.09999999999999),
+                           (20030630, 100),
+                           (20031230, 100.05),
+                           (20040630, 99.900000000000006),
+                           (20041231, 99.799999999999997)],
+
+                          [(20010630, 99.700000000000003),
+                           (20011231, 99.799999999999997),
+                           (20020630, 100),
+                           (20021231, 100.01000000000001),
+                           (20030630, 95),
+                           (20031230, 90),
+                           (20040630, 85),
+                           (20041231, 80)]]
+            '''
+            # y axis
+            plot.yValueAxis.tickRight              = 0
+            plot.yValueAxis.maximumTicks           = 10
+            #plot.yValueAxis.leftAxisPercent        = 0
+            plot.yValueAxis.tickLeft               = 5
+            plot.yValueAxis.valueMax               = None
+            plot.yValueAxis.valueMin               = None
+            plot.yValueAxis.rangeRound             = 'both'
+            plot.yValueAxis.requiredRange          = 30
+            plot.yValueAxis.valueSteps             = None
+            plot.yValueAxis.valueStep              = None
+            plot.yValueAxis.forceZero              = 0
+            plot.yValueAxis.labels.fontSize        = 7
+            plot.yValueAxis.labels.dy              = 0
+            plot.yValueAxis.avoidBoundFrac         = 0.1
+            # x axis
+            plot.xValueAxis.labels.fontName        = 'Helvetica'
+            plot.xValueAxis.labels.fontSize        = 7
+            plot.xValueAxis.valueSteps             = None
+            plot.xValueAxis.dailyFreq              = 0
+            plot.xValueAxis.gridStrokeWidth        = 0.25
+            plot.xValueAxis.labels.angle           = 90
+            plot.xValueAxis.maximumTicks           = 20
+            plot.xValueAxis.tickDown               = 3
+            plot.xValueAxis.dailyFreq              = 0
+            plot.xValueAxis.bottomAxisLabelSlack   = 0
+            plot.xValueAxis.minimumTickSpacing     = 10
+            plot.xValueAxis.visibleGrid            = 0
+            plot.xValueAxis.gridEnd                =   0
+            plot.xValueAxis.gridStart              = 0
+            plot.xValueAxis.labels.angle           = 45
+            plot.xValueAxis.labels.boxAnchor       = 'e'
+            plot.xValueAxis.labels.dx              = 0
+            plot.xValueAxis.labels.dy              = -5
+
+            # adding legend
+            legend = LineLegend()
+            legend.boxAnchor       = 'sw'
+            legend.x               = 20
+            legend.y               = -2
+            legend.columnMaximum   = 1
+            legend.yGap            = 0
+            legend.deltax          = 50
+            legend.deltay          = 0
+            legend.dx              = 10
+            legend.dy              = 1.5
+            legend.fontSize        = 7
+            legend.alignment       = 'right'
+            legend.dxTextSpace     = 5
+            legend.colorNamePairs  = [(_colors[i], _catNames[i]) for i in xrange(len(plot.data))]
+
+            d.add(plot)
+            d.add(legend)
+
+            d.wrapOn(c, 18*cm, 5*cm)
+            d.drawOn(c, 1*cm, 1*cm)
+
+
         c.showPage()
 
 
