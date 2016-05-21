@@ -570,7 +570,7 @@ class BtmsRoot(BoxLayout):
                         row['row'] = row['row'] + 1
 
                     grid_layout1 = (
-                    GridLayout(pos_hint={'x': .0, 'y': -.095}, size_hint=[1, 1], padding=10, spacing=3, cols=row['col'],
+                    GridLayout(pos_hint={'x': .0, 'y': 0}, size_hint=[1, .8], padding=4, spacing=2, cols=row['col'],
                                rows=row['row']))
 
                     for i in range(0, (row['seats'])):
@@ -588,6 +588,28 @@ class BtmsRoot(BoxLayout):
 
                 if row['art'] == 2:
                     # Unnumbered Seats
+                    self.unnumbered_seat_list[row['id']] = row['cat_id']
+
+                    float_layout1 = FloatLayout(size_hint=[0.325, .003])
+                    itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], text=row['title'],
+                                                    on_release=partial(self.update_bill, row['id'], row['cat_id'],0,2))
+
+                    float_layout1.add_widget(itm['venue_item_'+row_id])
+                    itm['venue_item_seats_'+row_id] = row['seats']
+
+                    itm['venue_itm_pbar_'+row_id] = ProgressBar(pos_hint={'x': .01, 'y': -0.20}, size_hint=[.98, 1],
+                                    value=0, max=row['seats'])
+                    float_layout1.add_widget(itm['venue_itm_pbar_'+row_id])
+
+                    itm['venue_itm_label_'+row_id] = Label(text=str(row['seats']), pos_hint={'x': .0, 'y': -.35}, size_hint=[1, 1])
+                    float_layout1.add_widget(itm['venue_itm_label_'+row_id])
+
+                    itm['venue_itm_label_amount'+row_id] = Label(text='0', pos_hint={'x': .0, 'y': .30}, size_hint=[1, 1], font_size=self.width * 0.03)
+                    float_layout1.add_widget(itm['venue_itm_label_amount'+row_id])
+                    self.ids.sale_item_list_box.add_widget(float_layout1)
+
+                if row['art'] == 3:
+                    # Numbered Blocks
                     self.unnumbered_seat_list[row['id']] = row['cat_id']
 
                     float_layout1 = FloatLayout(size_hint=[0.325, .003])
@@ -1486,6 +1508,20 @@ class BtmsRoot(BoxLayout):
                 popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
                 popup.open()
             elif cmd == 1:
+                #Show Popup Menu
+                date_now = dt.datetime.now().strftime('%Y-%m-%d')
+
+                if date_now == self.event_date:
+                    self.contingent(2,conti_id)
+                else:
+                    popup_layout1 = FloatLayout(size_hint=[1, 1])
+                    popup = Popup(title='Contingent', content=popup_layout1, size_hint=(.5, .4))
+                    popup_layout1.add_widget(Label(text='You are going to release NOT today !!! \n\nShure to release contingent \nof event ' + str(self.event_id) +' at '+ self.event_date +', '+ self.event_time + ' ?!', pos_hint={'x': .0, 'y': .6}, size_hint=[1, .2]))
+                    popup_layout1.add_widget(Button(text='OK',pos_hint={'x': 0, 'y': .0}, size_hint=[.5, .2], on_press=partial(self.contingent,2,conti_id), on_release=popup.dismiss))
+                    popup_layout1.add_widget(Button(text='Cancel',pos_hint={'x': .5, 'y': .0}, size_hint=[.5, .2], on_release=popup.dismiss))
+                    popup.open()
+
+            elif cmd == 2:
                 #Release selection mode
                 self.contingent_cmd = 1
                 self.ids.kv_release_con_button.state='down'
@@ -2611,13 +2647,21 @@ class BtmsRoot(BoxLayout):
 
                     for row in results_date:
                         # Dates
+                        date_now = dt.datetime.now().strftime('%Y-%m-%d')
+
                         date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
                         date_day_name = date_day.strftime("%a")
                         if event_date == 0:
                             event_date = row['date_day'] #Init Date
-                            self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                            if row['date_day'] == date_now:
+                                self.ids.report_select_date_list.add_widget(ToggleButton(background_color = [1,.5,.5,1], state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                            else:
+                                self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
                         else:
-                            self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                            if row['date_day'] == date_now:
+                                self.ids.report_select_date_list.add_widget(ToggleButton(background_color = [1,.5,.5,1], text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                            else:
+                                self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
 
                         #Times
                         self.report_event_date_time_dict[row['date_day']]= row['start_times']
