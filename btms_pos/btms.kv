@@ -263,6 +263,7 @@
 		Screen:
 			name: 'work1'
 			event_title: event_title.__self__
+			event_title_cf: event_title_cf.__self__
 			event_date: event_date.__self__
 			
 			ScreenManager:     
@@ -690,6 +691,21 @@
 				pos_hint: {'x': .525, 'y': .0}
 				size_hint: .165, .05
 				
+        Screen:
+            name: 'third_item_screen'
+
+            BoxLayout:
+                id: sale_item_list_box3
+                pos_hint: {'x': .0, 'y': 0}
+                size_hint: 1, 1
+                orientation: 'vertical'
+                spacing: 5
+
+
+                Button:
+                    text: "Back"
+                    size_hint: 1, 0.03
+                    on_release: sm.current = "work1"
 
 
 		Screen:
@@ -1236,6 +1252,23 @@
                     TextInput:
                         id: kv_create_event_sun_times
                         hint_text: "19:00"
+                    Label:
+				        text: "Copy prices from:"
+
+                    Button:
+                        id: event_btn_cf
+                        text: 'select...'
+                        on_release: event_title_cf.open(self)
+
+                        background_normal: 'atlas://data/images/defaulttheme/spinner'
+                        background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+                        background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+
+                    DropDown:
+                        id: event_title_cf
+                        font_size: self.height * .35
+                        on_select: event_btn_cf.text = '{}'.format(args[1])
+                        on_parent: self.dismiss()
 
 		    Button:
 				text: "Back"
@@ -1625,9 +1658,8 @@
 		
 		
 
-<ImageButton>:
+<ImageButton@Button>:
 	source: root.source
-
 	Image:
 		source: root.source
 		pos: root.pos

@@ -15,7 +15,14 @@
                      "name": "anonymous",
                      "permissions": [
                         {
-                           "uri": "io.crossbar.btms.vote.*",
+                           "uri": "io.crossbar.btms.report.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
+                        },
+                         {
+                           "uri": "io.crossbar.btms.event.*",
                            "publish": true,
                            "subscribe": true,
                            "call": true,
@@ -119,7 +126,7 @@
                "paths": {
                   "/": {
                      "type": "static",
-                     "directory": "../workspace/btms_suite/btms_server/web"
+                     "directory": "../web"
                   },
                   "ws": {
                      "type": "websocket",
@@ -148,6 +155,12 @@
                "classname": "server.BtmsBackend",
                "realm": "btmsserverauth",
                "role": "backend"
+            },
+            {
+               "type": "class",
+               "classname": "server.BtmsBackend",
+               "realm": "btmsserver",
+               "role": "anonymous"
             }
          ]
       }

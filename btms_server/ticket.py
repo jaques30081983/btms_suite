@@ -35,9 +35,18 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
     #venue
     itm_title = {}
     itm_description = {}
+    itm_col = {}
+    itm_row = {}
+    itm_seats = {}
+    itm_space = {}
+
     for vrow in v_result:
         itm_title[vrow['id']] = vrow['title']
         itm_description[vrow['id']] = vrow['description']
+        itm_col[vrow['id']] = vrow['col']
+        itm_row[vrow['id']] = vrow['row']
+        itm_seats[vrow['id']] = vrow['seats']
+        itm_space[vrow['id']] = vrow['space']
 
     #prices
     pri_name = {}
@@ -82,11 +91,54 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         c.line(1.1*cm,7.3*cm,7.1*cm,7.3*cm)
 
         c.drawString(1.1*cm,6.8*cm, cat_name[row['cat_id']]) #Categorie Name
-        if row['seat'] == '0':
-            seat_text = ' '
-        else:
+        seat_text = '0'
+        if row['art'] == 1:
             seat_text = ', Platz: <b>'+ str(row['seat'])+'</b>'
-            #seat_text = '1'
+
+        elif row['art'] == 2:
+            seat_text = ' '
+
+        elif row['art'] == 3:
+
+            cols = itm_col[int(row['item_id'])]
+            rows = itm_row[int(row['item_id'])]
+            seats = itm_seats[int(row['item_id'])]
+            space = itm_space[int(row['item_id'])]
+
+
+            #Add additional row if its nessesary
+            if cols * rows < seats:
+                rows = rows + 1
+
+            #Add additional col for Row Name
+            cols = cols + 1
+
+            #Extend seats for row description
+            seats = seats + rows
+
+            space = space.split(',')
+            k = 0
+            j= 0
+            matrix = cols * rows
+            for i in range(0, matrix):
+                if k == 0 or k == cols:
+                    #Set row name
+                    row_name = str(space[i])
+                    k =0
+                else:
+                    if space[i] == '0':
+                        pass
+                    else:
+
+                        j= j + 1
+
+                        if str(j) == row['seat']:
+                            seat_text = ', R. <b>'+ str(row_name)+'</b>, Pl. <b>'+ str(space[i])+'</b>'
+
+                k = k +1
+
+
+
 
         #c.drawString(1.1*cm,6.2*cm,itm_title[int(row['item_id'])] + seat_text)
         #block_name, block_number  = itm_title[int(row['item_id'])].split(' ', 1)

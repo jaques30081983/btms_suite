@@ -128,7 +128,7 @@ class BtmsBackend(ApplicationSession):
 
         sql = "insert into btms_users(user, secret, role, first_name, second_name, email, mobile) " \
               "values('%s','%s','%s','%s','%s','%s','%s')" % \
-              (user_name, user_secret, 'frontend', user_firstname, user_lastname, user_email, user_phone)
+              (user_name, user_secret, 'user', user_firstname, user_lastname, user_email, user_phone)
         self.db.runOperation(sql)
 
 
@@ -340,16 +340,17 @@ class BtmsBackend(ApplicationSession):
                     block = str(row['id'])
                     self.item_list[eventdatetime_id][block] = {'seats':{},'seats_user':{},'seats_tid':{}}
                     self.item_list[eventdatetime_id][block]['cat_id'] = row['cat_id']
+                    self.item_list[eventdatetime_id][block]['art'] = row['art']
 
 
                     if row['art'] == 1:
 
                         for i in range(0, (row['seats'])):
-                                j= i + 1
-                                seat = str(j)
-                                self.item_list[eventdatetime_id][block]['seats'][seat] = 0
-                                self.item_list[eventdatetime_id][block]['seats_user'][seat] = 0
-                                self.item_list[eventdatetime_id][block]['seats_tid'][seat] = 0
+                            j= i + 1
+                            seat = str(j)
+                            self.item_list[eventdatetime_id][block]['seats'][seat] = 0
+                            self.item_list[eventdatetime_id][block]['seats_user'][seat] = 0
+                            self.item_list[eventdatetime_id][block]['seats_tid'][seat] = 0
 
 
                     if row['art'] == 2:
@@ -357,6 +358,30 @@ class BtmsBackend(ApplicationSession):
                         self.item_list[eventdatetime_id][block]['amount'] = row['seats']
                         self.unnumbered_seat_list[eventdatetime_id][block]['amount'] = row['seats']
                         self.unnumbered_seat_list[eventdatetime_id][block]['tid_amount'] = {}
+
+                    if row['art'] == 3:
+                        space = row['space'].split(',')
+                        j=0
+                        k=0
+                        i=0
+                        matrix = (row['col']+1) * row['row']
+                        for i in range(0, matrix):
+                            if k == 0 or k == row['col']+1:
+                                k=0
+                            else:
+                                if space[i] == '0':
+                                    pass
+                                else:
+                                    j= j + 1
+                                    seat = str(j)
+                                    self.item_list[eventdatetime_id][block]['seats'][seat] = 0
+                                    self.item_list[eventdatetime_id][block]['seats_user'][seat] = 0
+                                    self.item_list[eventdatetime_id][block]['seats_tid'][seat] = 0
+                            k = k+1
+                            #print 'THE J:', i,j,k, space[i]
+
+
+
 
             except Exception as err:
                 print "Error", err
@@ -746,43 +771,57 @@ class BtmsBackend(ApplicationSession):
             pass
         else:
 
-            for item_id, seat_list in seat_trans_list.iteritems():
-                pass
+            #Iterate over seat_list and put each per categorie
+            cat_seat_list = {}
+
+
+            for item_id, seat_list in sorted(seat_trans_list.iteritems(), key=lambda seat_trans_list: int(seat_trans_list[0])):
+                cat_id = self.item_list[edt_id][item_id]['cat_id']
+                try:
+                    cat_seat_list[cat_id]
+                except KeyError:
+                    cat_seat_list[cat_id] = {}
+                try:
+                    cat_seat_list[cat_id][item_id]
+                except KeyError:
+                    cat_seat_list[cat_id][item_id] = {}
+                cat_seat_list[cat_id][item_id] = seat_list
 
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, None, 0)
+            for cat_id, seat_list in cat_seat_list.iteritems():
+                #cat_id = self.item_list[edt_id][item_id]['cat_id']
+                amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                #art = str(self.item_list[edt_id][item_id]['art'])
+                art = '1'
+                seats = json.dumps(seat_list, separators=(',',';'))
+                #if retrive_status == False:
+                '''
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                          "cat_id, art, amount, seats, status, user) " \
+                          "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                          (transaction_id, event_id, event_date,
+                            event_time, item_id, cat_id, art, amount,
+                            seats, status, user_id)
 
-            cat_id = self.item_list[edt_id][item_id]['cat_id']
-            amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
-            art = '1'
-            seats = json.dumps(seat_trans_list, separators=(',',';'))
-            #if retrive_status == False:
-            '''
-            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                      "cat_id, art, amount, seats, status, user) " \
-                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                      (transaction_id, event_id, event_date,
-                        event_time, item_id, cat_id, art, amount,
-                        seats, status, user_id)
+                self.db.runOperation(sql)
+                '''
 
-            self.db.runOperation(sql)
-            '''
-
-            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                    "cat_id, art, amount, seats, status, user) " \
-                    "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
-                    "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
-                    "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
-            try:
-                result = yield self.db.runOperation(sql)
-            except Exception as err:
-                self.item_list = {}
-                self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
-                print "DB Connection Error", err
-            #elif retrive_status == True:
-                #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
-                 #     " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
-                  #    "btms_transactions.cat_id='%s'" % (amount, seats, user_id, transaction_id, cat_id)
-                #self.db.runOperation(sql)
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                        "cat_id, art, amount, seats, status, user) " \
+                        "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                        "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                        "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
+                try:
+                    result = yield self.db.runOperation(sql)
+                except Exception as err:
+                    self.item_list = {}
+                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                    print "DB Connection Error", err
+                #elif retrive_status == True:
+                    #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                     #     " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
+                      #    "btms_transactions.cat_id='%s'" % (amount, seats, user_id, transaction_id, cat_id)
+                    #self.db.runOperation(sql)
 
 
         #Insert or Update unnumbered seats and insert in db
@@ -895,6 +934,24 @@ class BtmsBackend(ApplicationSession):
 
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
 
+
+        #Iterate over seat_list and put each per categorie
+        cat_seat_list = {}
+
+
+        for item_id, seat_list in sorted(seat_trans_list.iteritems(), key=lambda seat_trans_list: int(seat_trans_list[0])):
+            cat_id = self.item_list[edt_id][item_id]['cat_id']
+            try:
+                cat_seat_list[cat_id]
+            except KeyError:
+                cat_seat_list[cat_id] = {}
+            try:
+                cat_seat_list[cat_id][item_id]
+            except KeyError:
+                cat_seat_list[cat_id][item_id] = {}
+            cat_seat_list[cat_id][item_id] = seat_list
+
+
         #Check again seat status
         check_result = False
         for item_id, seat_list in seat_trans_list.iteritems():
@@ -907,38 +964,39 @@ class BtmsBackend(ApplicationSession):
         #Set seat status if seats are reserved from same user and insert in db
         if check_result == True:
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, transaction_id, user_id)
+            for cat_id, seat_list in cat_seat_list.iteritems():
+                #cat_id = self.item_list[edt_id][item_id]['cat_id']
+                amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                #art = str(self.item_list[edt_id][item_id]['art'])
+                art = '1'
+                seats = json.dumps(seat_list, separators=(',',';'))
+                '''
+                if retrive_status == False:
+                    sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                              "cat_id, art, amount, seats, status, user) " \
+                              "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                              (transaction_id, event_id, event_date,
+                                event_time, item_id, cat_id, art, amount,
+                                seats, status, user_id)
 
-            cat_id = self.item_list[edt_id][item_id]['cat_id']
-            amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
-            art = '1'
-            seats = json.dumps(seat_trans_list, separators=(',',';'))
-            '''
-            if retrive_status == False:
-                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                          "cat_id, art, amount, seats, status, user) " \
-                          "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                          (transaction_id, event_id, event_date,
-                            event_time, item_id, cat_id, art, amount,
-                            seats, status, user_id)
-
-                self.db.runOperation(sql)
-            elif retrive_status == True:
-                    sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
-                          " btms_transactions.status='%s', btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
-                          "btms_transactions.cat_id='%s'" % (amount, seats, '2', user_id, transaction_id, cat_id)
                     self.db.runOperation(sql)
-            '''
-            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                "cat_id, art, amount, seats, status, user) " \
-                "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
-                "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
-                "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"', status='2' "
-            try:
-                result = yield self.db.runOperation(sql)
-            except Exception as err:
-                self.item_list = {}
-                self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
-                print "DB Connection Error", err
+                elif retrive_status == True:
+                        sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                              " btms_transactions.status='%s', btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
+                              "btms_transactions.cat_id='%s'" % (amount, seats, '2', user_id, transaction_id, cat_id)
+                        self.db.runOperation(sql)
+                '''
+                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                    "cat_id, art, amount, seats, status, user) " \
+                    "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                    "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                    "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"', status='2' "
+                try:
+                    result = yield self.db.runOperation(sql)
+                except Exception as err:
+                    self.item_list = {}
+                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                    print "DB Connection Error", err
         #Get unnumbered seats and insert in db
 
         for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
@@ -1003,13 +1061,13 @@ class BtmsBackend(ApplicationSession):
 
 
             #Iterate over unnumbered seat list + i
-
+            #i = 0
             for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
 
                 try:
                     amount = self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
                     cat_id = self.item_list[edt_id][item_id]['cat_id']
-                    i = 0
+
                     try:
                         single_seat_list[cat_id]
                     except KeyError:
@@ -1025,14 +1083,15 @@ class BtmsBackend(ApplicationSession):
                     pass
 
 
-
+            print single_seat_list
 
 
             #distr prices over categorie seats
             ticket_list = {}
             t = 0
+            i = 0
             for cat_id, price_amount_list in sorted(itm_cat_amount_list.iteritems()):
-                i = 0
+
                 for price_id, amount in price_amount_list.iteritems():
                     for j in range(0,amount):
 
@@ -1042,6 +1101,8 @@ class BtmsBackend(ApplicationSession):
                         ticket_list[t] = {}
                         ticket_list[t]['cat_id'] = cat_id
                         ticket_list[t]['item_id'] = item_id
+                        ticket_list[t]['art'] = str(self.item_list[edt_id][item_id]['art'])
+                        #print 'THE Art:' + ticket_list[t]['art']
                         ticket_list[t]['price_id'] = price_id
                         ticket_list[t]['seat'] = seat
 
@@ -1051,17 +1112,19 @@ class BtmsBackend(ApplicationSession):
 
             #print 'index', ticket_list
             for key, value in sorted(ticket_list.iteritems()):
-                print key, value['item_id'], value['price_id'], value['cat_id'], value['seat']
+                print key, value['item_id'], value['price_id'], value['cat_id'], value['art'], value['seat']
                 ticket_id = key
                 cat_id = value['cat_id']
                 item_id = value['item_id']
+                art = value['art']
                 price_id = value['price_id']
                 seat = value['seat']
 
                 if seat == 0:
                     art = 2
                 else:
-                    art = 1
+                    pass
+
 
                 sql = "insert into btms_tickets(tid, ticket_id, event_id, date, time, item_id, " \
                                       "cat_id, art, price_id, seat, status, user) " \
@@ -1071,6 +1134,9 @@ class BtmsBackend(ApplicationSession):
                                         seat, 0, user_id)
 
                 self.db.runOperation(sql)
+        except Exception as err:
+            print "Ticket creation Error", err
+
         finally:
 
             #print opt, event_id, event_date, event_time, transaction_id, seat_trans_list, status, \
@@ -1092,6 +1158,7 @@ class BtmsBackend(ApplicationSession):
                     print 'Transaction Id not in busy list.'
 
                 returnValue(r)
+
 
     @wamp.register(u'io.crossbar.btms.ticket.reprint')
     @inlineCallbacks
