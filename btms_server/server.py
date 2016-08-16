@@ -1062,7 +1062,10 @@ class BtmsBackend(ApplicationSession):
 
             #Iterate over unnumbered seat list + i
             #i = 0
-            for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
+            #for item_id, seat_list in sorted(seat_trans_list.iteritems(), key=lambda seat_trans_list: int(seat_trans_list[0])):
+            unnumbered_seat_list = self.unnumbered_seat_list[edt_id]
+
+            for item_id, value in sorted(unnumbered_seat_list.iteritems(), key=lambda unnumbered_seat_list: int(unnumbered_seat_list[0])):
 
                 try:
                     amount = self.unnumbered_seat_list[edt_id][item_id]['tid_amount'][transaction_id]
@@ -1083,7 +1086,7 @@ class BtmsBackend(ApplicationSession):
                     pass
 
 
-            print single_seat_list
+            print 'singel:', single_seat_list
 
 
             #distr prices over categorie seats

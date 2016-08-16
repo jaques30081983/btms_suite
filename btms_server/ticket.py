@@ -90,10 +90,10 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
         c.line(1.1*cm,7.3*cm,7.1*cm,7.3*cm)
 
-        c.drawString(1.1*cm,6.8*cm, cat_name[row['cat_id']]) #Categorie Name
+
         seat_text = '0'
         if row['art'] == 1:
-            seat_text = ', Platz: <b>'+ str(row['seat'])+'</b>'
+            seat_text = 'Platz: <b>'+ str(row['seat'])+'</b>'
 
         elif row['art'] == 2:
             seat_text = ' '
@@ -133,7 +133,7 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
                         j= j + 1
 
                         if str(j) == row['seat']:
-                            seat_text = ', R. <b>'+ str(row_name)+'</b>, Pl. <b>'+ str(space[i])+'</b>'
+                            seat_text = 'Reihe: <b>'+ str(row_name)+'</b>, Platz: <b>'+ str(space[i])+'</b>'
 
                 k = k +1
 
@@ -142,13 +142,18 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
         #c.drawString(1.1*cm,6.2*cm,itm_title[int(row['item_id'])] + seat_text)
         #block_name, block_number  = itm_title[int(row['item_id'])].split(' ', 1)
-        p1 = Paragraph('<font size=13><b>'+itm_description[int(row['item_id'])]+'</b>'+seat_text+'</font>',styles["Normal"])
+        p1 = Paragraph('<font size=13><b>'+itm_description[int(row['item_id'])]+'</b></font>',styles["Normal"])
         p1.wrapOn(c, 8.2*cm, 15.2*cm)
-        p1.drawOn(c, 1.1*cm, 6.2*cm)
+        p1.drawOn(c, 1.1*cm, 6.8*cm)
+
+        p2 = Paragraph('<font size=13>'+seat_text+'</font>',styles["Normal"])
+        p2.wrapOn(c, 8.2*cm, 15.2*cm)
+        p2.drawOn(c, 1.1*cm, 6.3*cm)
 
         c.line(1.1*cm,6*cm,7.1*cm,6*cm)
 
-        c.drawString(1.1*cm,5.1*cm,pri_name[int(row['price_id'])]['description'])
+        c.drawString(1.1*cm,5.4*cm, cat_name[row['cat_id']]) #Categorie Name
+        c.drawString(1.1*cm,4.6*cm,pri_name[int(row['price_id'])]['description'])
         c.drawString(1.1*cm,3.9*cm,pri_name[int(row['price_id'])]['price'] +' '+ pri_name[int(row['price_id'])]['currency'])
 
         #c.drawString(1*cm,7.0*cm,"DE 13405 Berlin")
