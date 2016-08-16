@@ -710,7 +710,7 @@ class BtmsBackend(ApplicationSession):
     #@inlineCallbacks
     def createEvent(self, title, description, venue_id, start_date, end_date, admission_hours, weekday_times, user_id):
 
-        def execute(sql): #TODO not beautiful should be in a pool class ....
+        def execute(sql): #TODO not beautiful should be in a pool class ...
             return self.db.runInteraction(_execute, sql)
 
         def _execute(trans, sql):
