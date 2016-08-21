@@ -664,6 +664,7 @@ class BtmsRoot(BoxLayout):
 
                     self.ids.sale_item_list_box.add_widget(float_layout3)
 
+            self.ids.sale_item_list_box.bind(minimum_height=self.ids.sale_item_list_box.setter('height'))
             #self.get_items(event_id)
             self.load_new_venue = 1 #loading of venue finished
             self.get_venue_status(venue_id,event_id)
@@ -1022,17 +1023,20 @@ class BtmsRoot(BoxLayout):
                         status = self.seat_list[str(item_id)][int(seat)]
 
                     itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                    itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
+                    if art == 1:
+                        itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                    else:
+                        itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
                     self.seat_list[str(item_id)][int(seat)] = status
 
 
                     self.update_bill(item_id, cat_id, 0, art)
 
         else:
-            self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, self.transaction_id, self.user_id)
+            self.session.call(u'io.crossbar.btms.seats.select', self.eventdatetime_id, seat_select_list, cat_id, art, self.transaction_id, self.user_id)
 
-    def on_select_seats(self,edt_id, seat_select_list, cat_id, tid, user_id):
-        print 'on_select_seats',edt_id, seat_select_list, tid, user_id
+    def on_select_seats(self,edt_id, seat_select_list, cat_id, art, tid, user_id):
+        print 'on_select_seats',edt_id, seat_select_list, art, tid, user_id
 
         if edt_id == self.eventdatetime_id:
             if tid == self.transaction_id:
@@ -1046,7 +1050,11 @@ class BtmsRoot(BoxLayout):
                                 status = 3 #local selected
                             itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                             try:
-                                itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
+                                if art == 1:
+                                    itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                                else:
+                                    itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
+
                             except KeyError:
                                 pass
                             self.seat_list[str(item_id)][int(seat)] = status
@@ -2734,9 +2742,10 @@ class BtmsRoot(BoxLayout):
                 results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
 
                 for row in results_event:
-                    if event_id == 0:
+                    if row['id'] == self.event_id:
                         event_id = row['id'] # Init Event
                         venue_id = row['venue_id']
+
                         self.ids.report_select_event_list.add_widget(ToggleButton(state='down', text=row['title'],on_release=partial(self.get_reports,0,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
                     else:
                         self.ids.report_select_event_list.add_widget(ToggleButton(text=row['title'],on_release=partial(self.get_reports,0,row['id'],row['venue_id'],0,0,0), group='report_event',size_hint=[1, None], height=40))
@@ -2778,23 +2787,36 @@ class BtmsRoot(BoxLayout):
                     results_date = yield self.session.call(u'io.crossbar.btms.events.day',event_id)
                     self.report_event_date_time_dict = {}
 
+                    date_now = dt.datetime.now().strftime('%Y-%m-%d')
+
+
                     for row in results_date:
                         # Dates
-                        date_now = dt.datetime.now().strftime('%Y-%m-%d')
-
                         date_day = dt.datetime.strptime(row['date_day'], "%Y-%m-%d")
                         date_day_name = date_day.strftime("%a")
-                        if event_date == 0:
-                            event_date = row['date_day'] #Init Date
+
+                        if row['date_day'] == self.event_date:
                             if row['date_day'] == date_now:
+                                event_date = date_now
                                 self.ids.report_select_date_list.add_widget(ToggleButton(background_color = [1,.5,.5,1], state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
                             else:
                                 self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+
                         else:
-                            if row['date_day'] == date_now:
-                                self.ids.report_select_date_list.add_widget(ToggleButton(background_color = [1,.5,.5,1], text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
-                            else:
+                            if event_id == self.event_id:
                                 self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                            else:
+                                if event_date == 0:
+                                    event_date = row['date_day']
+                                    self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                                else:
+                                    self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+
+                        #else:
+                            #if row['date_day'] == date_now:
+                            #    self.ids.report_select_date_list.add_widget(ToggleButton(background_color = [1,.5,.5,1], text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
+                            #else:
+                            #    self.ids.report_select_date_list.add_widget(ToggleButton(text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
 
                         #Times
                         self.report_event_date_time_dict[row['date_day']]= row['start_times']

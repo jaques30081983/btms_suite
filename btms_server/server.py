@@ -565,7 +565,7 @@ class BtmsBackend(ApplicationSession):
 
 
     @wamp.register(u'io.crossbar.btms.seats.select')
-    def selectSeats(self,edt_id, seat_select_list, cat_id, tid, user_id):
+    def selectSeats(self,edt_id, seat_select_list, cat_id, art, tid, user_id):
         print seat_select_list
         new_seat_select_list = {}
 
@@ -593,7 +593,7 @@ class BtmsBackend(ApplicationSession):
                         print 'seat is occupied', item_id, seat, status, tid, self.item_list[edt_id][item_id]['seats_tid'][seat]
                         new_seat_select_list[item_id][seat] = self.item_list[edt_id][item_id]['seats_tid'][seat]
 
-        self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, tid, user_id)
+        self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, art, tid, user_id)
 
 
     @wamp.register(u'io.crossbar.btms.unnumbered_seats.set')
@@ -787,7 +787,7 @@ class BtmsBackend(ApplicationSession):
                     cat_seat_list[cat_id][item_id] = {}
                 cat_seat_list[cat_id][item_id] = seat_list
 
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, None, 0)
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
             for cat_id, seat_list in cat_seat_list.iteritems():
                 #cat_id = self.item_list[edt_id][item_id]['cat_id']
                 amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
@@ -963,7 +963,7 @@ class BtmsBackend(ApplicationSession):
 
         #Set seat status if seats are reserved from same user and insert in db
         if check_result == True:
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, transaction_id, user_id)
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, user_id)
             for cat_id, seat_list in cat_seat_list.iteritems():
                 #cat_id = self.item_list[edt_id][item_id]['cat_id']
                 amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
@@ -1246,7 +1246,7 @@ class BtmsBackend(ApplicationSession):
         except Exception as err:
             print "Error", err
         finally:
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, 0, None, 0)
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, 0, 0, None, 0)
             #Puplish Unnumbered Seats
             for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
                 amount1 = 0
@@ -1313,7 +1313,7 @@ class BtmsBackend(ApplicationSession):
                         new_seat_trans_list[item_id][seat] = status
 
 
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, transaction_id, 0)
+            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, 0)
 
             cat_id = self.item_list[edt_id][item_id]['cat_id']
             amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
@@ -1444,7 +1444,7 @@ class BtmsBackend(ApplicationSession):
                             self.item_list[edt_id][item_id]['seats'][seat] = 4
                             #self.item_list[edt_id][item_id]['seats_tid'][seat] = transaction_id
 
-                    self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, None, 0)
+                    self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
 
 
                     nr_cat_id = self.item_list[edt_id][item_id]['cat_id']

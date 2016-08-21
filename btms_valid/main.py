@@ -557,6 +557,16 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
+            elif status == 6:
+                status_text = 'Wrong Day ' + str(data_qr)
+                self.ids.result_label.background_color = [1,0,0,1]
+                self.ids.result_screen.background_color = [1,0,0,1]
+                self.sound_beep_wrong.play()
+            elif status == 7:
+                status_text = 'Wrong Time ' + str(data_qr)
+                self.ids.result_label.background_color = [1,0,0,1]
+                self.ids.result_screen.background_color = [1,0,0,1]
+                self.sound_beep_wrong.play()
 
             self.ids.result_label.text = status_text
 
@@ -614,6 +624,17 @@ class BtmsValidRoot(BoxLayout):
                 data_qr_old = data_qr
                 try:
                     results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,'groupon',self.user_id)
+                    result_validation(results)
+                except Exception as err:
+                    print "Error", err
+        elif len(data_qr) == 14:
+        #40A8B7433C Reservix Barcode 14 len
+            if data_qr == data_qr_old:
+                pass
+            else:
+                data_qr_old = data_qr
+                try:
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,'reservix',self.user_id)
                     result_validation(results)
                 except Exception as err:
                     print "Error", err

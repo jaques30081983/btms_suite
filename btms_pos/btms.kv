@@ -275,24 +275,24 @@
 					name: 'first_item_screen'
 					
 					
-					#ScrollView:
-						#size_hint: 1, .94
-						#pos_hint: {'x': 0, 'y': .06}
-						#scroll_timeout: 100
-						#scroll_distance: 20
+					ScrollView:
+						size_hint: 1, .94
+						pos_hint: {'x': 0, 'y': .06}
+						scroll_timeout: 100
+						scroll_distance: 20
 					
 				   
-                    GridLayout:
-                        id: sale_item_list_box
-                        pos_hint: {'x': .0, 'y': .06}
-                        size_hint: 1, .94
-                        padding: 0
-                        spacing: 5
-                        height: 30
-                        cols: 4
-                        rows: None
-                        do_scroll_x: False
-                        row_default_height: (self.width / 3.3)
+                        GridLayout:
+                            id: sale_item_list_box
+                            pos_hint: {'x': .0, 'y': .06}
+                            size_hint: 1, None
+                            padding: 0
+                            spacing: 5
+                            height: 30
+                            cols: 4
+                            rows: None
+                            do_scroll_x: False
+                            row_default_height: (self.width / 3.3)
 							
 							
 				Screen:
