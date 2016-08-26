@@ -13,6 +13,7 @@ install_twisted_reactor()
 
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.core.window import Window
 #from kivy.factory import Factory
 #from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
@@ -347,6 +348,36 @@ class BtmsValidRoot(BoxLayout):
     sound_beep = SoundLoader.load('sound/beep.wav')
     sound_beep_wrong = SoundLoader.load('sound/beep_wrong.mp3')
 
+    def __init__(self, **kwargs):
+        super(BtmsValidRoot, self).__init__(**kwargs)
+        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
+        self._keyboard.bind(on_key_down=self._on_keyboard_down)
+        self.code = ''
+
+    def _keyboard_closed(self):
+        print('My keyboard have been closed!')
+        #self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+        #self._keyboard = None
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        global data_qr
+        print('The key', keycode, 'have been pressed')
+        print(' - text is %r' % text)
+        print(' - modifiers are %r' % modifiers)
+
+        self.code = self.code + text
+        # Keycode is composed of an integer + a string
+        # If we hit escape, release the keyboard
+        if keycode[1] == 'escape':
+            keyboard.release()
+        if keycode[1] == 'enter':
+            #self.ids.result_label.text = str(self.code)
+            data_qr = self.code
+            self.validate()
+            self.code = ''
+        # Return True to accept the key. Otherwise, it will be used by
+        # the system.
+        return True
 
 
 
