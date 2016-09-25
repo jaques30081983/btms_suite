@@ -1571,6 +1571,14 @@ class BtmsBackend(ApplicationSession):
                                 "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
                                 " event_time = '"+event_time+"' ")
 
+                            results_tickets = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets " \
+                                "WHERE event_id = '"+str(event_id)+"' AND date = '"+event_date+"' AND " \
+                                " time = '"+event_time+"' AND status = '1' ")
+
+                            results_tickets_external = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets_external " \
+                                "WHERE log LIKE '"+event_date+"%' AND " \
+                                " status = '1' ")
+
                     elif for_on_date == 1:
                         if event_date == 'all':
                             results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
@@ -1578,6 +1586,8 @@ class BtmsBackend(ApplicationSession):
                         else:
                             results = yield self.db.runQuery("SELECT account, amount, debit, status, user_id FROM btms_journal " \
                                 "WHERE event_id = '"+str(event_id)+"' AND reg_date_time LIKE '"+event_date+'%'+"' ")
+
+
                 else:
                     if for_on_date == 0:
                         if event_date == 'all':
@@ -1587,6 +1597,15 @@ class BtmsBackend(ApplicationSession):
                             results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
                                 "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
                                 " event_time = '"+event_time+"' AND user_id = '"+str(selected_user_id)+"' ")
+
+                            results_tickets = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets " \
+                                "WHERE event_id = '"+str(event_id)+"' AND date = '"+event_date+"' AND " \
+                                " time = '"+event_time+"' AND status = '1' AND user_id = '"+str(selected_user_id)+"' ")
+
+                            results_tickets_external = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets_external " \
+                                "WHERE log LIKE '"+event_date+"%' AND " \
+                                " status = '1' AND user = '"+str(selected_user_id)+"' ")
+
                     elif for_on_date == 1:
                         if event_date == 'all':
                             results = yield self.db.runQuery("SELECT event_date, account, amount, debit, status, user_id FROM btms_journal " \
@@ -1922,6 +1941,20 @@ class BtmsBackend(ApplicationSession):
                                 report_date_dict[row['event_date']]['unsold_reserved'] = report_date_dict[row['event_date']]['unsold_reserved'] + total_amount
                     except IndexError:
                         pass
+            #Checkd In Tickets
+            try:
+                btms_tickets_checked_in = 0
+                for row1 in results_tickets:
+                    btms_tickets_checked_in = btms_tickets_checked_in + 1
+
+
+                for row2 in results_tickets_external:
+                    btms_tickets_checked_in = btms_tickets_checked_in + 1
+
+                report_result_dict['all']['a_checked_in']= btms_tickets_checked_in
+            except Exception as Err:
+                print 'Error', Err
+
 
             if cmd_print == 0:
                 returnValue(report_result_dict)
@@ -1950,60 +1983,135 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.valid.validate')
     @inlineCallbacks
-    def validate(self,qrcode, vendor, user_id):
-        if vendor == 'btms':
-            transaction_id, ticket_id = qrcode.split('_', 1)
-            print 'tid and ticketid:',transaction_id, ticket_id
-            status = 5
-            try:
-                results = yield self.db.runQuery("SELECT id, status FROM btms_tickets " \
-                               "WHERE tid = '"+str(transaction_id)+"' AND ticket_id = '"+ticket_id+"' ")
-                for row in results:
-                    status = row['status']
-                    id = row['id']
-                    print 'Ticket DBID:', row['id']
+    def validate(self,code, event_id, date, time, vendor, check_in_out, user_id):
+        if check_in_out == 0: #Check In
+            if vendor == 'btms':
+                transaction_id, ticket_id = code.split('_', 1)
+                print 'tid and ticketid:',transaction_id, ticket_id
+                status = 2 #Not in DB
+                text = ''
+                try:
+                    results = yield self.db.runQuery("SELECT id, event_id, date, time, status, log FROM btms_tickets " \
+                                   "WHERE tid = '"+str(transaction_id)+"' AND ticket_id = '"+ticket_id+"' ")
+                    for row in results:
+                        status = row['status']
+                        id = row['id']
+                        r_event_id = row['event_id']
+                        r_date = row['date']
+                        r_time = row['time']
+                        r_log = row['log']
+                        print 'Ticket DBID:', row['id']
+                    if event_id == r_event_id and date == r_date and time == r_time:
+                        #If valid
+                        if status == 0:
+                            sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
+                              "WHERE btms_tickets.id='%s'" % (1, user_id, id)
+                            self.db.runOperation(sql)
+                        if status == 1:
+                            text = r_log.strftime('%Y-%m-%d %H:%M:%S') + '\n for Event ' + str(r_event_id) + ' at ' + r_date +' '+ r_time
 
-                if status == 0:
-                    sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
-                      "WHERE btms_tickets.id='%s'" % (1, user_id, id)
-                    self.db.runOperation(sql)
+                    else:
+                        status = 3 #Wrong Event, Date or Time
+                        text = str(r_event_id) + ' ' + r_date +' '+ r_time
 
-                if status == 3:
-                    sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
-                      "WHERE btms_tickets.id='%s'" % (4, user_id, id)
-                    self.db.runOperation(sql)
 
-            except Exception as Err:
-                print 'Error', Err
+                except Exception as Err:
+                    print 'Error', Err
 
-        else:
-            print 'Vendor / Code:', vendor, qrcode
-            status = 5
-            try:
-                results = yield self.db.runQuery("SELECT id, status FROM btms_tickets_external " \
-                               "WHERE ticket_id = '"+qrcode+"' ")
-                for row in results:
-                    status = row['status']
-                    id = row['id']
-                    print 'Ticket DBID:', row['id']
+            else:
+                print 'Vendor / Code:', vendor, code
+                status = 2
+                text = ''
+                try:
+                    results = yield self.db.runQuery("SELECT id, event_id, date, time, status, log FROM btms_tickets_external " \
+                                   "WHERE ticket_id = '"+code+"' ")
+                    for row in results:
+                        status = row['status']
+                        id = row['id']
+                        r_event_id = row['event_id']
+                        r_date = row['date']
+                        r_time = row['time']
+                        r_log = row['log']
+                        print 'Ticket DBID:', row['id']
 
-                if status == 0:
-                    sql = "UPDATE btms_tickets_external SET btms_tickets_external.status='%s', btms_tickets_external.user='%s'  " \
-                      "WHERE btms_tickets_external.id='%s'" % (1, user_id, id)
-                    self.db.runOperation(sql)
+                    if status == 0:
+                        sql = "UPDATE btms_tickets_external SET btms_tickets_external.status='%s', btms_tickets_external.user='%s'  " \
+                          "WHERE btms_tickets_external.id='%s'" % (1, user_id, id)
+                        self.db.runOperation(sql)
+                    if status == 1:
+                        text = r_log.strftime('%Y-%m-%d %H:%M:%S') + '\n for Event ' + str(r_event_id) + ' at ' + r_date +' '+ r_time
+                    if status == 2:
+                        sql = "insert into btms_tickets_external(ticket_id, event_id, date, time, vendor, status, user) " \
+                                          "values('%s','%s','%s','%s','%s','%s','%s')" % \
+                                          (code, event_id, date, time, vendor, 1, user_id)
+                        status = 0
 
-                if status == 5:
-                    sql = "insert into btms_tickets_external(ticket_id, vendor, status, user) " \
-                                      "values('%s','%s','%s','%s')" % \
-                                      (qrcode, vendor, 1, user_id)
-                    status = 0
+                        self.db.runOperation(sql)
 
-                    self.db.runOperation(sql)
+                except Exception as Err:
+                    print 'Error', Err
 
-            except Exception as Err:
-                print 'Error', Err
+        else: #Check Out
+            if vendor == 'btms':
+                transaction_id, ticket_id = code.split('_', 1)
+                print 'tid and ticketid:',transaction_id, ticket_id
+                status = 2 #Not in DB
+                text = ''
+                try:
+                    results = yield self.db.runQuery("SELECT id, event_id, date, time, status, log FROM btms_tickets " \
+                                   "WHERE tid = '"+str(transaction_id)+"' AND ticket_id = '"+ticket_id+"' ")
+                    for row in results:
+                        status = row['status']
+                        id = row['id']
+                        r_event_id = row['event_id']
+                        r_date = row['date']
+                        r_time = row['time']
+                        r_log = row['log']
+                        print 'Ticket DBID Checked Out:', row['id']
 
-        returnValue(status)
+                    if status == 1:
+                        sql = "UPDATE btms_tickets SET btms_tickets.status='%s', btms_tickets.user='%s'  " \
+                          "WHERE btms_tickets.id='%s'" % (0, user_id, id)
+                        self.db.runOperation(sql)
+                        status = 4
+                        text = r_log.strftime('%Y-%m-%d %H:%M:%S') + '\n for Event ' + str(r_event_id) + ' at ' + r_date +' '+ r_time
+                    if status == 0:
+                        status = 4
+                        text = 'is checked out'
+                except Exception as Err:
+                    print 'Error', Err
+            else:
+                print 'Check Out Vendor / Code:', vendor, code
+                status = 2
+                text = ''
+                try:
+                    results = yield self.db.runQuery("SELECT id, event_id, date, time, status, log FROM btms_tickets_external " \
+                                   "WHERE ticket_id = '"+code+"' ")
+                    for row in results:
+                        status = row['status']
+                        id = row['id']
+                        r_event_id = row['event_id']
+                        r_date = row['date']
+                        r_time = row['time']
+                        r_log = row['log']
+                        print 'Ticket DBID:', row['id']
+
+                    if status == 1:
+                        sql = "UPDATE btms_tickets_external SET btms_tickets_external.status='%s', btms_tickets_external.user='%s'  " \
+                          "WHERE btms_tickets_external.id='%s'" % (0, user_id, id)
+                        self.db.runOperation(sql)
+                        status = 4
+                    if status == 0:
+                        status = 4
+                        text = 'is checked out'
+
+                except Exception as Err:
+                    print 'Error', Err
+
+        results = {}
+        results['status'] = status
+        results['text'] = text
+        returnValue(results)
 
     @wamp.register(u'io.crossbar.btms.users.logout')
     def logout_users(self, user_id, login_time):

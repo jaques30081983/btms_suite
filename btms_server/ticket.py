@@ -3,7 +3,13 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.graphics.barcode import eanbc, qr, usps
+from reportlab.graphics.barcode import eanbc, qr, usps, createBarcodeDrawing, getCodeNames
+
+from pystrich.datamatrix import DataMatrixEncoder
+import PIL
+from reportlab.lib.utils import ImageReader
+from cStringIO import StringIO
+
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics import renderPDF
 import datetime as dt
@@ -158,13 +164,28 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
         #c.drawString(1*cm,7.0*cm,"DE 13405 Berlin")
         # draw a QR code
+        '''
         qr_code = qr.QrCodeWidget(str(row['tid'])+'_'+str(row['ticket_id']))
         bounds = qr_code.getBounds()
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
-        d = Drawing(45, 45, transform=[99./width,0,0,99./height,0,0])
+        d = Drawing(45, 45, transform=[80./width,0,0,80./height,0,0])
         d.add(qr_code)
-        renderPDF.draw(d, c, 4*cm, 2.8*cm)
+        renderPDF.draw(d, c, 4.4*cm, 3.1*cm)
+        '''
+        #d = createBarcodeDrawing('ECC200DataMatrix', value=str(row['tid'])+'_'+str(row['ticket_id']))
+
+        #d.scale(.45,.45)
+        #renderPDF.draw(d, c, 4.4*cm, 3.1*cm)
+        #print getCodeNames()
+
+        encoder = DataMatrixEncoder(str(row['tid'])+'_'+str(row['ticket_id']))
+        output = encoder.get_imagedata()
+        io_img = StringIO(output)
+        reportlab_io_img = ImageReader(io_img)
+        c.drawImage(reportlab_io_img, 5*cm,3.8*cm, width=1.5*cm,height=1.5*cm,mask=None)
+
+
 
         p = Paragraph('<font size=8>'+row['tid']+" "+str(row['ticket_id'])+'</font>',styles["Normal"])
         p.wrapOn(c, 8.2*cm, 15.2*cm)

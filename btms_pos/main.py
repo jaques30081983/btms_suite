@@ -1050,7 +1050,7 @@ class BtmsRoot(BoxLayout):
                                 status = 3 #local selected
                             itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                             try:
-                                if art == 1:
+                                if art == 1 or art == 0:
                                     itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                                 else:
                                     itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
@@ -2800,6 +2800,7 @@ class BtmsRoot(BoxLayout):
                                 event_date = date_now
                                 self.ids.report_select_date_list.add_widget(ToggleButton(background_color = [1,.5,.5,1], state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
                             else:
+                                event_date = row['date_day']
                                 self.ids.report_select_date_list.add_widget(ToggleButton(state='down', text=date_day_name +' '+row['date_day'],on_release=partial(self.get_reports,0,event_id,venue_id,row['date_day'],0,0), group='report_date', size_hint= [1, None], height=40))
 
                         else:

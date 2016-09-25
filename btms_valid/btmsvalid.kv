@@ -203,10 +203,58 @@
 			name: 'work1'
 			id: detector
 
+            Button:
+				id: event_btn
+				pos_hint: {'x': 0, 'y': .9}
+				size_hint: .35, .1
+				text: 'select...'
+				on_release: event_title.open(self)
+				size_hint_y: None
+				height: event_time.height
+				background_normal: 'atlas://data/images/defaulttheme/spinner'
+				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+
+			DropDown:
+				id: event_title
+				font_size: self.height * .35
+				on_select: event_btn.text = '{}'.format(args[1])
+                on_parent: self.dismiss()
+
+
+			Button:
+				id: event_date_btn
+				pos_hint: {'x': .35, 'y': .9}
+				font_size: self.height * .3
+				size_hint: .35, .1
+				text: 'select...'
+				on_release: event_date.open(self)
+				size_hint_y: None
+				height: event_time.height
+				background_normal: 'atlas://data/images/defaulttheme/spinner'
+				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+
+
+			DropDown:
+				id: event_date
+				font_size: self.height * .35
+				on_parent: self.dismiss()
+				on_select: event_date_btn.text = '{}'.format(args[1])
+
+
+			Spinner:
+				id: event_time
+				text: 'loading...'
+				pos_hint: {'x': .7, 'y': .9}
+				size_hint: .3, .1
+				font_size: self.height * 0.35
+				#on_text: number_display_box.text = self.text;
+				on_text: root.set_event_time(self.text)
 			
             Button:
                 pos_hint: {'x': 0, 'y': .375}
-                size_hint: 1, .6
+                size_hint: 1, .5
                 id: result_screen
                 text: ''
 
@@ -214,13 +262,14 @@
                 pos_hint: {'x': 0, 'y': .25}
                 size_hint: 1, .1
                 id: result_label
+                #font_size: self.height * .25
                 text: ''
 
 
             Button:
                 pos_hint: {'x': .0, 'y': .125}
                 size_hint: 1, .1
-                id: 'test'
+                id: test
                 #text: 'test'
                 text: '\\n'.join(map(repr, root.symbols))
 
@@ -231,21 +280,40 @@
                 pos_hint: {'x': .0, 'y': .0}
                 size_hint: 1, .1
 
-                Button:
-                    text: 'Scan'
-                    on_release: root.start()
+                #Button:
+                    #text: 'Scan'
+                    #on_release: root.start()
 
-                Button:
-                    text: 'Stop'
-                    on_release: root.stop()
+                #Button:
+                    #text: 'Stop'
+                    #on_release: root.stop()
+                #ToggleButton:
+                    #id: lamp_btn
+                    #text: 'Lamp'
+                    #on_release: root.toggle_lamp()
+
                 ToggleButton:
-                    id: lamp_btn
-                    text: 'Lamp'
-                    on_release: root.toggle_lamp()
+                    id: kv_check_in_out
+                    text: 'Check In'
+                    background_color: [0,1,0,1]
+                    on_release: root.check_in_out()
 
-
+                Button:
+                    id: kv_show_log
+                    text: 'Log'
+                    on_release: root.show_log()
                 Button:
                     id: kv_user_button
                     text: "User"
                     on_release: root.logout(1)
 
+        Screen:
+			name: 'log'
+			id: log
+
+			Button:
+                pos_hint: {'x': .0, 'y': .0}
+                size_hint: 1, .1
+                id: kv_back
+                text: 'Back'
+                on_release: sm.current = "work1"

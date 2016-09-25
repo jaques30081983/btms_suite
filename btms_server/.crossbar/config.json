@@ -22,7 +22,7 @@
                            "register": true
                         },
                          {
-                           "uri": "io.crossbar.btms.event.*",
+                           "uri": "io.crossbar.btms.events.*",
                            "publish": true,
                            "subscribe": true,
                            "call": true,
@@ -110,6 +110,13 @@
                            "subscribe": true,
                            "call": true,
                            "register": true
+                        },
+                        {
+                           "uri": "io.crossbar.btms.report.*",
+                           "publish": true,
+                           "subscribe": true,
+                           "call": true,
+                           "register": true
                         }
                      ]
                   }
@@ -136,6 +143,9 @@
                            "authenticator": "com.btms.authenticate"
                         }
                      }
+                  },
+                  "ws1": {
+                     "type": "websocket"
                   },
                   "lp": {
                      "type": "longpoll"
