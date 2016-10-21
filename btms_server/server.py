@@ -1600,7 +1600,7 @@ class BtmsBackend(ApplicationSession):
 
                             results_tickets = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets " \
                                 "WHERE event_id = '"+str(event_id)+"' AND date = '"+event_date+"' AND " \
-                                " time = '"+event_time+"' AND status = '1' AND user_id = '"+str(selected_user_id)+"' ")
+                                " time = '"+event_time+"' AND status = '1' AND user = '"+str(selected_user_id)+"' ")
 
                             results_tickets_external = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets_external " \
                                 "WHERE log LIKE '"+event_date+"%' AND " \

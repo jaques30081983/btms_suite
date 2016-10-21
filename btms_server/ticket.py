@@ -3,15 +3,15 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.graphics.barcode import eanbc, qr, usps, createBarcodeDrawing, getCodeNames
+#from reportlab.graphics.barcode import eanbc, qr, usps, createBarcodeDrawing, getCodeNames
 
 from pystrich.datamatrix import DataMatrixEncoder
-import PIL
+#import PIL
 from reportlab.lib.utils import ImageReader
 from cStringIO import StringIO
 
-from reportlab.graphics.shapes import Drawing
-from reportlab.graphics import renderPDF
+#from reportlab.graphics.shapes import Drawing
+#from reportlab.graphics import renderPDF
 import datetime as dt
 import locale
 locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')

@@ -451,7 +451,9 @@ class BtmsRoot(BoxLayout):
 
             self.ids.event_title.dismiss() #ugly work around, cause drop down not react
             self.ids.event_btn.text = event_titles_list[event_id] #ugly work around, cause drop down not react
-            self.get_venue(event_id, venue_id)
+
+            Clock.schedule_once(partial(self.get_venue, event_id, venue_id), 0)
+            #self.get_venue(event_id, venue_id)
 
 
 
@@ -625,18 +627,31 @@ class BtmsRoot(BoxLayout):
 
                 if row['art'] == 3:
                     #Numbered Blocks seats
+                    #Item Overview Button
                     float_layout3 = FloatLayout(size_hint=[0.325, .003])
                     itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], on_release=partial(self.switch_big_item, 0, row['col'], row['row'], row['id'], row['cat_id'], row['seats'], row['title'], row['space']))
                     float_layout3.add_widget(itm['venue_item_'+row_id])
-
                     float_layout3.add_widget(Label(text=row['title'], pos_hint={'x': .0, 'y': .35}, size_hint=[1, 1]))
 
+                    #Add additional row if its nessesary
+                    rows = row['row']
                     if row['col'] * row['row'] < row['seats']:
-                        row['row'] = row['row'] + 1
+                        rows = row['row'] + 1
 
+                    #Create Grid for Overview Button
                     grid_layout1 = (
                     GridLayout(pos_hint={'x': .0, 'y': 0}, size_hint=[1, .8], padding=3, spacing=0, cols=row['col'],
-                               rows=row['row']))
+                               rows=rows))
+
+                    ###Create Grid for Block View###
+
+                    #Add additional col for Row Name
+                    cols = row['col'] + 1
+
+                    #Extend seats for row description
+                    seats = row['seats'] + rows
+                    itm['venue_item_block_'+row_id] = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
+
                     space = row['space'].split(',')
                     j=0
                     k=0
@@ -644,15 +659,27 @@ class BtmsRoot(BoxLayout):
                     matrix = (row['col']+1) * row['row']
                     for i in range(0, matrix):
                         if k == 0 or k == row['col']+1:
+                            string = str(space[i]).replace('\n', '')
+                            itm['venue_item_block_'+row_id].add_widget(Label(text=string))
                             k=0
                         else:
                             if space[i] == '0':
                                 grid_layout1.add_widget(Label(text=''))
+                                itm['venue_item_block_'+row_id].add_widget(Label(text=''))
                             else:
                                 j= j + 1
+
+                                #Image for Overview
                                 itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[1, 1], source=seat_stat_img[0])
                                 grid_layout1.add_widget(itm['venue_item_ov'+row_id+'_'+str(j)])
-                        print 'THE J:', i,k,j, space[i]
+
+                                #Button for Block View
+                                seat_select_item = {str(row['id']):{str(j):1}}
+                                itm['venue_item_' + str(row_id) + '_' + str(j)] = Button(background_normal=seat_stat_img[0], text=str(space[i]),
+                                        size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, row['cat_id'],3))
+                                itm['venue_item_block_'+row_id].add_widget(itm['venue_item_' + str(row_id) + '_' + str(j)])
+
+                        #print 'THE J:', i,k,j, space[i]
                         k = k + 1
 
 
@@ -765,6 +792,8 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def switch_big_item(self, com, cols, rows, item_id, cat_id, seats, title, space, *args):
+        #if com == 0:
+            #self.loading(0, 'get transaction id')
         if self.transaction_id == 0:
             self.disable_buttons('update_bill', True)
             self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
@@ -773,22 +802,96 @@ class BtmsRoot(BoxLayout):
             bool = True
             boolean = yield self.block_item(item_id, com)
             print "block in switch", boolean
+            self.loading(20, 'blocking the block')
             if boolean == True:
                 self.ids.sale_item_list_box3.clear_widgets(children=None)
                 if com == 0:
                     #Create 3th View
-
-                    #Add additional row if its nessesary
-                    if cols * rows < seats:
-                        rows = rows + 1
-
-                    #Add additional col for Row Name
-                    cols = cols + 1
-
-                    #Extend seats for row description
-                    seats = seats + rows
+                    self.loading(50, 'creating block')
+                    self.ids.sm.current = 'third_item_screen'
 
 
+                    '''
+                    def create_block_view(cols, rows, item_id, cat_id, seats, title, space,*args):
+                        #Add additional row if its nessesary
+                        if cols * rows < seats:
+                            rows = rows + 1
+
+                        #Add additional col for Row Name
+                        cols = cols + 1
+
+                        #Extend seats for row description
+                        seats = seats + rows
+
+
+                        #Check if Numberbox are full
+                        selected_seats = 0
+                        if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
+                            amount = 0
+                            add_to_bill_toggle = 0
+                        else:
+                            amount = int(self.ids.number_display_box.text)
+                            add_to_bill_toggle = 0
+
+                        #Create Item with Seats
+                        grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
+
+
+
+                        seat_select_list = {str(item_id):{}}
+
+                        space = space.split(',')
+                        k = 0
+                        j= 0
+                        matrix = cols * rows
+
+                        for i in range(0, matrix):
+                            if k == 0 or k == cols:
+                                string = str(space[i]).replace('\n', '')
+                                grid_layout2.add_widget(Label(text=string))
+                                k =0
+                            else:
+                                if space[i] == '0':
+                                    grid_layout2.add_widget(Label(text=''))
+                                else:
+
+                                    j= j + 1
+
+                                    #try:
+                                    #    self.seat_list[str(item_id)][j]
+                                    #except KeyError:
+                                    #    self.seat_list[str(item_id)][j] = 0
+                                    seat_select_item = {str(item_id):{str(j):1}}
+                                    if amount > 0:
+                                        if self.seat_list[str(item_id)][j] == 0 or self.seat_list[str(item_id)][j] == 3:
+                                            #self.seat_list[str(item_id)][j] = 3
+                                            seat_select_list[str(item_id)][str(j)] = 1
+
+                                            amount = amount - 1
+
+
+                                            selected_seats = selected_seats + 1
+                                            if add_to_bill_toggle == 0:
+                                                #first_seat = j
+                                                add_to_bill_toggle = 1
+
+                                    itm['venue_item_' + str(item_id) + '_' + str(j)] = Button(background_normal=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(space[i]),
+                                        size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, cat_id,3))
+                                    grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
+                            k = k +1
+
+                        self.ids.sale_item_list_box3.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(self.switch_big_item,1,'', '', item_id, cat_id, '', '')))
+                        self.ids.sale_item_list_box3.add_widget(grid_layout2)
+                        self.ids.sale_item_list_box3.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(self.switch_big_item,1,'', '', item_id, cat_id,'', '')))
+                        self.loading(90, 'done')
+
+                        if add_to_bill_toggle == 1:
+
+                            self.select_seats(seat_select_list, cat_id,3)
+                            self.ids.number_display_box.text = ''
+                            #self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
+                    #Clock.schedule_once(partial(create_block_view, cols, rows, item_id, cat_id, seats, title, space), 0)
+                    '''
                     #Check if Numberbox are full
                     selected_seats = 0
                     if self.ids.number_display_box.text == '' or self.ids.number_display_box.text == 0:
@@ -798,58 +901,32 @@ class BtmsRoot(BoxLayout):
                         amount = int(self.ids.number_display_box.text)
                         add_to_bill_toggle = 0
 
-                    #Create Item with Seats
-                    grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=3, cols=cols,rows=rows))
-
-                    #preload= ImageButton(source=seat_stat_img[0]) #Workaround Kivy dont load directly
-
+                    #Select a bunch of seats
                     seat_select_list = {str(item_id):{}}
+                    j=1
+                    for i in range(0, seats):
+                        #seat_select_item = {str(item_id):{str(j):1}}
+                        if amount > 0:
+                            if self.seat_list[str(item_id)][j] == 0 or self.seat_list[str(item_id)][j] == 3:
+                                #self.seat_list[str(item_id)][j] = 3
+                                seat_select_list[str(item_id)][str(j)] = 1
 
-                    space = space.split(',')
-                    k = 0
-                    j= 0
-                    matrix = cols * rows
-                    for i in range(0, matrix):
-                        if k == 0 or k == cols:
-                            grid_layout2.add_widget(Label(text=str(space[i])))
-                            k =0
-                        else:
-                            if space[i] == '0':
-                                grid_layout2.add_widget(Label(text=''))
-                            else:
-
-                                j= j + 1
-
-                                #try:
-                                #    self.seat_list[str(item_id)][j]
-                                #except KeyError:
-                                #    self.seat_list[str(item_id)][j] = 0
-                                seat_select_item = {str(item_id):{str(j):1}}
-                                if amount > 0:
-                                    if self.seat_list[str(item_id)][j] == 0 or self.seat_list[str(item_id)][j] == 3:
-                                        #self.seat_list[str(item_id)][j] = 3
-                                        seat_select_list[str(item_id)][str(j)] = 1
-
-                                        amount = amount - 1
+                                amount = amount - 1
 
 
-                                        selected_seats = selected_seats + 1
-                                        if add_to_bill_toggle == 0:
-                                            #first_seat = j
-                                            add_to_bill_toggle = 1
+                                selected_seats = selected_seats + 1
+                                if add_to_bill_toggle == 0:
+                                    #first_seat = j
+                                    add_to_bill_toggle = 1
 
-                                itm['venue_item_' + str(item_id) + '_' + str(j)] = Button(background_normal=seat_stat_img[self.seat_list[str(item_id)][j]], text=str(space[i]),
-                                    size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, cat_id,3))
-                                grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
-                        k = k +1
+                        j = j +1
 
                     self.ids.sale_item_list_box3.add_widget(Button(text=title, size_hint=[1, 0.02],on_release=partial(self.switch_big_item,1,'', '', item_id, cat_id, '', '')))
-                    self.ids.sale_item_list_box3.add_widget(grid_layout2)
+                    self.ids.sale_item_list_box3.add_widget(itm['venue_item_block_'+str(item_id)])
                     self.ids.sale_item_list_box3.add_widget(Button(text='Back\n\n\n', size_hint=[1, 0.1],on_release=partial(self.switch_big_item,1,'', '', item_id, cat_id,'', '')))
-                    self.ids.sm.current = 'third_item_screen'
+                    self.loading(90, 'done')
 
                     if add_to_bill_toggle == 1:
-
                         self.select_seats(seat_select_list, cat_id,3)
                         self.ids.number_display_box.text = ''
                         #self.add_to_bill(item_id, first_seat, cat_id, 1, event_id)
@@ -875,7 +952,10 @@ class BtmsRoot(BoxLayout):
 
                 self.seat_list[str(key)][int(seat)] = status
                 itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
-
+                try:
+                    itm['venue_item_' + str(key) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
+                except KeyError:
+                    pass
 
             #Unnumbered Seats
             try:
@@ -1050,10 +1130,11 @@ class BtmsRoot(BoxLayout):
                                 status = 3 #local selected
                             itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                             try:
-                                if art == 1 or art == 0:
-                                    itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                                else:
-                                    itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
+                                itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                            except KeyError:
+                                pass
+                            try:
+                                itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
 
                             except KeyError:
                                 pass
@@ -1070,6 +1151,10 @@ class BtmsRoot(BoxLayout):
                             try:
                                 self.seat_list[str(item_id)][int(seat)] = status
                                 itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                            except KeyError:
+                                pass
+                            try:
+                                itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
                             except KeyError:
                                 pass
 

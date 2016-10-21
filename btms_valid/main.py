@@ -1000,12 +1000,13 @@ class BtmsValidApp(App):
 
 
 
-    #def on_pause(self):
+    def on_pause(self):
         #self.root.stop() #Stop Camera
-        #return True
+        return True
 
-    #def on_resume(self):
+    def on_resume(self):
         #self.root.stop() #Stop Camera
+        pass
     #TODO Pause and Resume not working if Camera is running
 
 if __name__ == '__main__':
