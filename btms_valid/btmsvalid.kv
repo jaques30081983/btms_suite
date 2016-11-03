@@ -8,6 +8,10 @@
         Rectangle:
             size: self.size
             source: 'images/background.png'
+    event_btn: event_btn.__self__
+    event_title: event_title.__self__
+    event_date_btn: event_date_btn.__self__
+    event_date: event_date.__self__
 
 	ScreenManager:
 		id: sm
@@ -272,6 +276,7 @@
                 id: test
                 #text: 'test'
                 text: '\\n'.join(map(repr, root.symbols))
+                on_release: root.refresh_report()
 
 
 
@@ -301,7 +306,7 @@
                 Button:
                     id: kv_show_log
                     text: 'Log'
-                    on_release: root.show_log()
+                    on_release: root.get_journal('valid_today','0')
                 Button:
                     id: kv_user_button
                     text: "User"
@@ -309,11 +314,40 @@
 
         Screen:
 			name: 'log'
-			id: log
+			ScrollView:
+				size_hint: 1, .9
+				pos_hint: {'x': 0, 'y': .1}
+				scroll_timeout: 100
+				scroll_distance: 20
+
+
+				GridLayout:
+					id: journal_list_box
+					pos_hint: {'x': 0, 'y': 0.0}
+					size_hint: 1, None
+					padding: 0
+					spacing: 1
+					#height: 30
+					cols: 5
+					rows: None
+					do_scroll_x: False
+					row_default_height: 45
 
 			Button:
                 pos_hint: {'x': .0, 'y': .0}
-                size_hint: 1, .1
+                size_hint: .8, .1
                 id: kv_back
                 text: 'Back'
+                on_release: sm.current = "work1"
+			Button:
+                pos_hint: {'x': .8, 'y': .0}
+                size_hint: .1, .1
+                id: kv_back
+                text: 'All'
+                on_release: root.get_journal('valid_today','0')
+            Button:
+                pos_hint: {'x': .9, 'y': .0}
+                size_hint: .1, .1
+                id: kv_result_indicator
+                text: ''
                 on_release: sm.current = "work1"

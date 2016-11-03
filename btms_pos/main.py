@@ -43,7 +43,7 @@ from functools import partial
 import hashlib
 import datetime as dt
 import json
-
+import threading
 
 class BtmsWampComponentAuth(ApplicationSession):
     """
@@ -645,6 +645,7 @@ class BtmsRoot(BoxLayout):
 
                     ###Create Grid for Block View###
 
+
                     #Add additional col for Row Name
                     cols = row['col'] + 1
 
@@ -675,12 +676,13 @@ class BtmsRoot(BoxLayout):
 
                                 #Button for Block View
                                 seat_select_item = {str(row['id']):{str(j):1}}
-                                itm['venue_item_' + str(row_id) + '_' + str(j)] = Button(background_normal=seat_stat_img[0], text=str(space[i]),
+                                itm['venue_item_' + str(row_id) + '_' + str(j)] = Button(text=str(space[i]),
                                         size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, row['cat_id'],3))
                                 itm['venue_item_block_'+row_id].add_widget(itm['venue_item_' + str(row_id) + '_' + str(j)])
 
                         #print 'THE J:', i,k,j, space[i]
                         k = k + 1
+
 
 
 
@@ -743,7 +745,7 @@ class BtmsRoot(BoxLayout):
                         add_to_bill_toggle = 0
 
                     #Create Item with Seats
-                    grid_layout2 = (GridLayout(size_hint=[1,0.2], padding=1, spacing=10, cols=cols,rows=rows))
+                    grid_layout2 = (GridLayout(size_hint=[1,.15], padding=1, spacing=10, cols=cols,rows=rows))
 
                     preload= ImageButton(source=seat_stat_img[0]) #Workaround Kivy dont load directly
 
@@ -770,8 +772,8 @@ class BtmsRoot(BoxLayout):
                                     #first_seat = j
                                     add_to_bill_toggle = 1
 
-                        itm['venue_item_' + str(item_id) + '_' + str(j)] = ImageButton(source = seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n\n\n',
-                            size_hint=[1, 1], on_release=partial(self.select_seats, seat_select_item, cat_id,1))
+                        itm['venue_item_' + str(item_id) + '_' + str(j)] = Button(background_normal = seat_stat_img[self.seat_list[str(item_id)][j]], text=str(j)+'\n\n\n',
+                            size_hint=[1, None],height=self.width/10, on_release=partial(self.select_seats, seat_select_item, cat_id,1))
                         grid_layout2.add_widget(itm['venue_item_' + str(item_id) + '_' + str(j)])
 
 
@@ -907,17 +909,20 @@ class BtmsRoot(BoxLayout):
                     for i in range(0, seats):
                         #seat_select_item = {str(item_id):{str(j):1}}
                         if amount > 0:
-                            if self.seat_list[str(item_id)][j] == 0 or self.seat_list[str(item_id)][j] == 3:
-                                #self.seat_list[str(item_id)][j] = 3
-                                seat_select_list[str(item_id)][str(j)] = 1
+                            try:
+                                if self.seat_list[str(item_id)][j] == 0 or self.seat_list[str(item_id)][j] == 3:
+                                    #self.seat_list[str(item_id)][j] = 3
+                                    seat_select_list[str(item_id)][str(j)] = 1
 
-                                amount = amount - 1
+                                    amount = amount - 1
 
 
-                                selected_seats = selected_seats + 1
-                                if add_to_bill_toggle == 0:
-                                    #first_seat = j
-                                    add_to_bill_toggle = 1
+                                    selected_seats = selected_seats + 1
+                                    if add_to_bill_toggle == 0:
+                                        #first_seat = j
+                                        add_to_bill_toggle = 1
+                            except KeyError:
+                                pass
 
                         j = j +1
 
@@ -1103,10 +1108,10 @@ class BtmsRoot(BoxLayout):
                         status = self.seat_list[str(item_id)][int(seat)]
 
                     itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                    if art == 1:
-                        itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                    else:
-                        itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
+                    #if art == 1:
+                        #itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                    #else:
+                    itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
                     self.seat_list[str(item_id)][int(seat)] = status
 
 
@@ -1129,10 +1134,12 @@ class BtmsRoot(BoxLayout):
                             if status == 1: #reserverd
                                 status = 3 #local selected
                             itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                            try:
-                                itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
-                            except KeyError:
-                                pass
+                            #if art == 1:
+                                #try:
+                                    #itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                                #except KeyError:
+                                    #pass
+                            #if art == 3:
                             try:
                                 itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
 
@@ -1549,6 +1556,11 @@ class BtmsRoot(BoxLayout):
                         for seat, status in seat_list.iteritems():
                             self.seat_list[str(item_id)][int(seat)] = 3
                             itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+                            try:
+                                itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[3]
+
+                            except KeyError:
+                                pass
 
                 #Data for unnumbered Seats and Prices
                 json_string = row['amount'].replace(';',':')
@@ -1780,6 +1792,11 @@ class BtmsRoot(BoxLayout):
                             for seat, status in seat_list.iteritems():
                                 self.seat_list[str(item_id)][int(seat)] = 3
                                 itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+                                try:
+                                    itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[3]
+
+                                except KeyError:
+                                    pass
 
                     #Data for unnumbered Seats and Prices
                     json_string = row['amount'].replace(';',':')
@@ -2467,6 +2484,7 @@ class BtmsRoot(BoxLayout):
     def loading(self, status, msg, *args):
         self.loading_status = status
 
+
         def loading_progress(*args):
             self.loading_status = self.loading_status + 1
             if self.loading_status == 60:
@@ -2494,7 +2512,7 @@ class BtmsRoot(BoxLayout):
 
     def create_clock(self, *args):
         self.callback = partial(self.clear,0)
-        Clock.schedule_once(self.callback, 2)
+        Clock.schedule_once(self.callback, 1)
 
     def delete_clock(self, *args):
         Clock.unschedule(self.callback)
@@ -2534,18 +2552,19 @@ class BtmsRoot(BoxLayout):
                 for item_id, value in self.item_art_cat_list.iteritems():
                         print item_id, value['art'], value['cat_id']
                         if cat_id == value['cat_id'] or cat_id == 0:
-                            if value['art'] == 1:
+                            if value['art'] == 1 or value['art'] == 3:
                                 if boolean == False:
                                     #Collect Data
                                     seat_trans_list = {}
                                     for item_id1, seats in self.seat_list.items():
-                                        for seat, status1 in seats.items():
-                                            if status1 == 3:
-                                                try:
-                                                    seat_trans_list[str(item_id1)]
-                                                except KeyError:
-                                                    seat_trans_list[str(item_id1)] = {}
-                                                seat_trans_list[str(item_id1)][str(seat)] = 1
+                                        if self.item_art_cat_list[int(item_id1)]['cat_id'] == cat_id or cat_id == 0:
+                                            for seat, status1 in seats.items():
+                                                if status1 == 3:
+                                                    try:
+                                                        seat_trans_list[str(item_id1)]
+                                                    except KeyError:
+                                                        seat_trans_list[str(item_id1)] = {}
+                                                    seat_trans_list[str(item_id1)][str(seat)] = 1
 
                                     self.select_seats(seat_trans_list, value['cat_id'],1)
                                     boolean = True
@@ -2553,6 +2572,7 @@ class BtmsRoot(BoxLayout):
                             elif value['art'] == 2:
                                 self.ids.number_display_box.text = '0' #TODO Ugly hack
                                 self.update_bill(item_id, value['cat_id'], 0,2)
+
                 if cat_id == 0:
                     self.reset_transaction()
 

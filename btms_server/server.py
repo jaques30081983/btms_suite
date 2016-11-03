@@ -1297,6 +1297,7 @@ class BtmsBackend(ApplicationSession):
         if seat_trans_list == {}:
             pass
         else:
+            '''
             new_seat_trans_list = {}
 
             for item_id, seat_list in seat_trans_list.iteritems():
@@ -1311,10 +1312,33 @@ class BtmsBackend(ApplicationSession):
                         pass
                     else:
                         new_seat_trans_list[item_id][seat] = status
+            '''
+            #Iterate over seat_list and put each per categorie
+            cat_seat_list = {}
+            for item_id, seat_list in sorted(seat_trans_list.iteritems(), key=lambda seat_trans_list: int(seat_trans_list[0])):
+                cat_id = self.item_list[edt_id][item_id]['cat_id']
+                try:
+                    cat_seat_list[cat_id]
+                except KeyError:
+                    cat_seat_list[cat_id] = {}
+                try:
+                    cat_seat_list[cat_id][item_id]
+                except KeyError:
+                    cat_seat_list[cat_id][item_id] = {}
+                new_seat_list = {}
+                for seat, status in seat_list.iteritems():
+                    self.item_list[edt_id][item_id]['seats'][seat] = status
 
+                    if status == 0:
+                        pass
+                    else:
+                        new_seat_list[seat] = status
+
+                cat_seat_list[cat_id][item_id] = new_seat_list
 
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, 0)
 
+            '''
             cat_id = self.item_list[edt_id][item_id]['cat_id']
             amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
             art = '1'
@@ -1322,32 +1346,16 @@ class BtmsBackend(ApplicationSession):
 
 
             seats = json.dumps(new_seat_trans_list, separators=(',',';'))
-            #if retrive_status == False:
             '''
-            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                      "cat_id, art, amount, seats, status, user) " \
-                      "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                      (transaction_id, event_id, event_date,
-                        event_time, item_id, cat_id, art, amount,
-                        seats, status, user_id)
+            for cat_id, seat_list in cat_seat_list.iteritems():
+                amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                seats = json.dumps(seat_list, separators=(',',';'))
 
-            self.db.runOperation(sql)
-
-
-            sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                    "cat_id, art, amount, seats, status, user) " \
-                    "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
-                    "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
-                    "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
-
-            self.db.runOperation(sql)
-            '''
-
-            sql = "UPDATE btms_contingents SET btms_contingents.amount='%s', btms_contingents.seats='%s', btms_contingents.status='%s'," \
-                  " btms_contingents.user_id='%s' WHERE btms_contingents.ref='%s' AND " \
-                  "btms_contingents.date_day='%s' AND btms_contingents.time='%s' AND " \
-                  "btms_contingents.cat_id='%s'" % (amount, seats, '2', user_id, conti_id, event_date, event_time, cat_id)
-            self.db.runOperation(sql)
+                sql = "UPDATE btms_contingents SET btms_contingents.amount='%s', btms_contingents.seats='%s', btms_contingents.status='%s'," \
+                      " btms_contingents.user_id='%s' WHERE btms_contingents.ref='%s' AND " \
+                      "btms_contingents.date_day='%s' AND btms_contingents.time='%s' AND " \
+                      "btms_contingents.cat_id='%s'" % (amount, seats, '2', user_id, conti_id, event_date, event_time, cat_id)
+                self.db.runOperation(sql)
 
 
         #Insert or Update unnumbered seats and insert in db
@@ -1405,6 +1413,7 @@ class BtmsBackend(ApplicationSession):
         #transaction_id = 'con0'
 
         if cmd == 0:
+            #Insert continget main and title
             def return_last_id(last_insert_id):
                 return last_insert_id
 
@@ -1426,7 +1435,7 @@ class BtmsBackend(ApplicationSession):
             return d
 
         elif cmd == 1:
-
+            #Insert rows of days for contingent
 
             @inlineCallbacks
             def insert_contingents():
@@ -1452,6 +1461,22 @@ class BtmsBackend(ApplicationSession):
                     nr_art = '1'
                     nr_seats = json.dumps(seat_trans_list, separators=(',',';'))
 
+                    #Iterate over seat_list and put each per categorie
+                    cat_seat_list = {}
+
+
+                    for item_id, seat_list in sorted(seat_trans_list.iteritems(), key=lambda seat_trans_list: int(seat_trans_list[0])):
+                        cat_id = self.item_list[edt_id][item_id]['cat_id']
+                        try:
+                            cat_seat_list[cat_id]
+                        except KeyError:
+                            cat_seat_list[cat_id] = {}
+                        try:
+                            cat_seat_list[cat_id][item_id]
+                        except KeyError:
+                            cat_seat_list[cat_id][item_id] = {}
+                        cat_seat_list[cat_id][item_id] = seat_list
+
 
                 #Insert Contingent for every day of event and time
                 result_days = yield self.getEventsDay(event_id)
@@ -1462,11 +1487,15 @@ class BtmsBackend(ApplicationSession):
                     if seat_trans_list == {}:
                         pass
                     else:
-                        sql = "insert into btms_contingents(ref, title, event_id, date_start, date_end, date_day, time, item_id, cat_id, art, amount, seats, status, user_id) " \
-                            "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" \
-                            % (conti_id, '', event_id, 0, 0, rows['date_day'], event_time, 0, nr_cat_id, nr_art, nr_amount, nr_seats, 0, user_id)
+                        for cat_id, seat_list in cat_seat_list.iteritems():
+                            amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                            seats = json.dumps(seat_list, separators=(',',';'))
 
-                        self.db.runOperation(sql)
+                            sql = "insert into btms_contingents(ref, title, event_id, date_start, date_end, date_day, time, item_id, cat_id, art, amount, seats, status, user_id) " \
+                                "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" \
+                                % (conti_id, '', event_id, 0, 0, rows['date_day'], event_time, 0, cat_id, 1, amount, seats, 0, user_id)
+
+                            self.db.runOperation(sql)
 
                     #Insert unnumbered seats and insert in db
                     for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
@@ -1528,6 +1557,20 @@ class BtmsBackend(ApplicationSession):
                            "WHERE event_id = '"+str(event_id)+"' AND event_date = '"+event_date+"' AND " \
                             " event_time = '"+event_time+"' AND user_id = '"+str(user_id)+"' AND status = '1'" \
                             "ORDER by reg_date_time DESC LIMIT 15")
+            return results
+
+
+    @wamp.register(u'io.crossbar.btms.journal_valid.get')
+    def getJournalValid(self,cmd, event_id, event_date, event_time, code, user_id):
+        if cmd == 'valid_today':
+            results = self.db.runQuery("SELECT code, event_id, date, time, vendor, status, check_in_out, log FROM btms_validation_log " \
+                           "WHERE user = '"+str(user_id)+"' " \
+                            "ORDER by log DESC LIMIT 30")
+            return results
+        elif cmd == 'valid_same_codes':
+            results = self.db.runQuery("SELECT code, event_id, date, time, vendor, status, check_in_out, log FROM btms_validation_log " \
+                           "WHERE code = '"+str(code)+"' " \
+                            "ORDER by log DESC LIMIT 30")
             return results
 
     @wamp.register(u'io.crossbar.btms.journal.set')
@@ -2018,6 +2061,10 @@ class BtmsBackend(ApplicationSession):
                 except Exception as Err:
                     print 'Error', Err
 
+            elif vendor == 'read_error':
+                status = 5
+                text = ''
+
             else:
                 print 'Vendor / Code:', vendor, code
                 status = 2
@@ -2080,6 +2127,10 @@ class BtmsBackend(ApplicationSession):
                         text = 'is checked out'
                 except Exception as Err:
                     print 'Error', Err
+
+            elif vendor == 'read_error':
+                status = 5
+                text = ''
             else:
                 print 'Check Out Vendor / Code:', vendor, code
                 status = 2
@@ -2107,7 +2158,14 @@ class BtmsBackend(ApplicationSession):
 
                 except Exception as Err:
                     print 'Error', Err
+        #Add to log
+        log_date_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        sql = "insert into btms_validation_log(code, event_id, date, time, vendor, status, check_in_out, user, log) " \
+                                          "values('%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                                          (code, event_id, date, time, vendor, status, check_in_out, user_id, log_date_time)
+        self.db.runOperation(sql)
 
+        #Create Result
         results = {}
         results['status'] = status
         results['text'] = text

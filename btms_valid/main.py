@@ -495,10 +495,6 @@ class BtmsValidRoot(BoxLayout):
             self.ids.kv_check_in_out.background_color = [0,1,0,1]
 
 
-    def show_log(self):
-        self.ids.sm.current = "log"
-
-
     def logout(self,op):
         self.logout_op = op
         self.ids.kv_password_input.text = ''
@@ -810,7 +806,8 @@ class BtmsValidRoot(BoxLayout):
 
                 self.ids.test.text = 'Sold: ' + str(value['a_total_sold']) + '  Res: ' + str(value['a_reserved']) + '  Exp: ' + str(value['a_total_pre']) + \
                                      '  Checked In: ' + str(a_checked_in) + '  Missing: ' + str(a_missing)
-
+    def refresh_report(self):
+        self.get_reports(0, self.event_id, self.venue_id, self.event_date, self.event_time, self.user_id)
     @inlineCallbacks
     def validate(self):
         global data_qr
@@ -833,27 +830,35 @@ class BtmsValidRoot(BoxLayout):
                 status_text = 'Is valid ' + str(data_qr)
                 self.ids.result_label.background_color = [0,1,0,1]
                 self.ids.result_screen.background_color = [0,1,0,1]
+                self.ids.kv_result_indicator.background_color = [0,1,0,1]
                 self.sound_beep.play()
             elif status == 1:
                 status_text = 'Not valid ' + str(data_qr) + ', last scan: ' + result_text
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
+                self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
             elif status == 2:
                 status_text = 'Not in DB, not valid ' + str(data_qr)
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
+                self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
             elif status == 3:
                 status_text = 'Wrong Event, Day or Time ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
+                self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
             elif status == 4:
                 status_text = 'Checked Out ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
+                self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
+            elif status == 5:
+                #read error
+                pass
             else:
                 status_text = 'No Result from Server ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
@@ -935,11 +940,67 @@ class BtmsValidRoot(BoxLayout):
             self.ids.result_label.text = 'Read Error ' + data_qr
             self.ids.result_label.background_color = [1,0,1,1]
             self.ids.result_screen.background_color = [1,0,1,1]
+            self.ids.kv_result_indicator.background_color = [1,0,1,1]
+
+            try:
+                results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'read_error',self.check_in_or_out,self.user_id)
+                result_validation(results)
+            except Exception as err:
+                print "Error", err
+
             if self.sound_beep_wrong:
                 print("Sound found at %s" % self.sound_beep_wrong.source)
                 print("Sound is %.3f seconds" % self.sound_beep_wrong.length)
 
                 self.sound_beep_wrong.play()
+    @inlineCallbacks
+    def get_journal(self,cmd,code,*args):
+        self.ids.sm.current = "log"
+        self.ids.journal_list_box.clear_widgets(children=None)
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.2, .006], text='Log Time'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.3, .006], text='Code'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.2, .006], text='Vendor'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.2, .006], text='Status'))
+        self.ids.journal_list_box.add_widget(Label(size_hint=[.1, .006], text='C. In/Out'))
+        try:
+            results = yield self.session.call(u'io.crossbar.btms.journal_valid.get',cmd, self.event_id, self.event_date, self.event_time, code, self.user_id)
+        except Exception as err:
+            print "Error", err
+        finally:
+            for row in results:
+                self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .006], text=row['log']))
+                result_code = info = row['code'][:30] + (row['code'][30:] and '..')
+                self.ids.journal_list_box.add_widget(Button(size_hint=[.3, .006], text=result_code, on_release=partial(self.get_journal, 'valid_same_codes', row['code'])))
+                self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .006], text=row['vendor']))
+                if row['status'] == 0:
+                    valid_text= 'Is Valid'
+                    valid_bgc= [0,1,0,1]
+                elif row['status'] == 1:
+                    valid_text = 'Not Valid'
+                    valid_bgc= [1,0,0,1]
+                elif row['status'] == 2:
+                    valid_text = 'Not in DB'
+                    valid_bgc= [1,0,0,1]
+                elif row['status'] == 3:
+                    valid_text = 'Wrong DayTime'
+                    valid_bgc= [1,1,0,1]
+                elif row['status'] == 4:
+                    valid_text = 'Check Out'
+                    valid_bgc= [1,1,0,1]
+                elif row['status'] == 5:
+                    valid_text = 'Read Error'
+                    valid_bgc= [1,0,1,1]
+                self.ids.journal_list_box.add_widget(Button(size_hint=[.2, .006], background_color=valid_bgc, text=valid_text))
+                if row['check_in_out'] == 0:
+                    check_text = 'In'
+                    check_bgc = [0,1,0,1]
+                elif row['check_in_out'] == 1:
+                    check_text = 'Out'
+                    check_bgc = [1,0,0,1]
+                self.ids.journal_list_box.add_widget(Button(size_hint=[.1, .006], background_color=check_bgc, text=check_text))
+
+            self.ids.journal_list_box.bind(minimum_height=self.ids.journal_list_box.setter('height'))
+
     if platform == 'disabled':
         def on_symbol(self, symbols):
     		#print 'found', len(symbols), 'symbols'
