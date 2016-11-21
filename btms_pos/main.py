@@ -175,6 +175,7 @@ class BtmsRoot(BoxLayout):
         self.retrive_status = False
         self.reservation_art = 0
         self.contingent_cmd = 0
+        self.selected_event_id = 0
         #TODO Call reset function
        #self.ids.kv_user_list.clear_widgets(children=None)
 
@@ -306,13 +307,15 @@ class BtmsRoot(BoxLayout):
     def set_venue(self,id, *args):
         self.selected_venue_id = id
 
+    def set_event_cf(self,id, *args):
+        self.selected_event_id = id
 
     def get_events(self,results):
         global event_titles_list
         event_titles_list = {}
         self.event_only_titles_list = {}
         event_itm = {}
-        event_itm_cf = {}
+
 
 
         self.ids.event_title.clear_widgets()
@@ -349,19 +352,9 @@ class BtmsRoot(BoxLayout):
             event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_event_days,row['id'],row['venue_id'],row['date_start'],row['date_end']))
             #event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_venue, row['id'], row['venue_id']))
 
-            #Copy prices from event, create event
-            event_itm_cf['event_btn_cf_' + str(row['id'])] = Button(id=str(row['id']),
-                                                              text=row['title'] + ' ' + row['date_start'] + ' - ' +
-                                                                   row['date_end'], size_hint_y=None, height=44)
-            event_itm_cf['event_btn_cf_' + str(row['id'])].bind(
-                on_release=lambda event_btn_cf: self.ids.event_title_cf.select(event_btn_cf.text))
-            #event_itm_cf['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_event_days,row['id'],row['venue_id'],row['date_start'],row['date_end']))
-            #event_itm['event_btn_' + str(row['id'])].bind(on_release=partial(self.get_venue, row['id'], row['venue_id']))
-
-
 
             self.ids.event_title.add_widget(event_itm['event_btn_' + str(row['id'])])
-            self.ids.event_title_cf.add_widget(event_itm_cf['event_btn_cf_' + str(row['id'])])
+
             # Dates
 
         #self.ids.event_title.values = event_titles_list
@@ -628,6 +621,7 @@ class BtmsRoot(BoxLayout):
                 if row['art'] == 3:
                     #Numbered Blocks seats
                     #Item Overview Button
+                    self.loading_msg.text = 'creating block ' + str(row_id)
                     float_layout3 = FloatLayout(size_hint=[0.325, .003])
                     itm['venue_item_'+row_id] = Button(pos_hint={'x': .0, 'y': .0}, size_hint=[1, 1], on_release=partial(self.switch_big_item, 0, row['col'], row['row'], row['id'], row['cat_id'], row['seats'], row['title'], row['space']))
                     float_layout3.add_widget(itm['venue_item_'+row_id])
@@ -681,6 +675,7 @@ class BtmsRoot(BoxLayout):
                                 itm['venue_item_block_'+row_id].add_widget(itm['venue_item_' + str(row_id) + '_' + str(j)])
 
                         #print 'THE J:', i,k,j, space[i]
+
                         k = k + 1
 
 
@@ -1728,7 +1723,7 @@ class BtmsRoot(BoxLayout):
         if self.contingent_cmd == 0:
             if cmd == 0:
                 #Show Popup Menu
-                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0,self.event_id,0,0)
+                result = yield self.session.call(u'io.crossbar.btms.contingents.get',0,0,self.event_id,0,self.event_time)
 
                 popup_layout1 = FloatLayout(size_hint=[1, 1])
                 popup = Popup(title='Contingent', content=popup_layout1, size_hint=(.5, .4))
@@ -2180,6 +2175,7 @@ class BtmsRoot(BoxLayout):
         title = self.ids.kv_create_event_title.text
         description = self.ids.kv_create_event_description.text
         venue_id = self.selected_venue_id
+        event_id_cf = self.selected_event_id
 
         start_date = self.ids.kv_create_event_date_start.text
         end_date = self.ids.kv_create_event_date_end.text
@@ -2197,7 +2193,7 @@ class BtmsRoot(BoxLayout):
 
 
         try:
-            result = yield self.session.call(u'io.crossbar.btms.event.create', title, description, venue_id, start_date, end_date, admission_hours, weekday_times, str(self.user_id))
+            result = yield self.session.call(u'io.crossbar.btms.event.create', title, description, venue_id, start_date, end_date, admission_hours, weekday_times, event_id_cf, str(self.user_id))
 
         except Exception as err:
             print "Error", err
@@ -2581,10 +2577,22 @@ class BtmsRoot(BoxLayout):
         self.ids.kv_dashboard_events_grid.add_widget(Label(text='loading...',size_hint=[1, 1]))
         results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
         self.ids.kv_dashboard_events_grid.clear_widgets(children=None)
+        event_itm_cf = {}
         for row in results_event:
             self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['title'],size_hint=[1, None], height=20))
             self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['date_start']+' - '+row['date_end']+' '+row['start_times']+' '+row['admission'],size_hint=[1, None], height=20))
             self.ids.kv_dashboard_events_grid.add_widget(ProgressBar(size_hint=[1, None], height=5))
+
+            #Copy prices from event, create event
+            event_itm_cf['event_btn_cf_' + str(row['id'])] = Button(id=str(row['id']),
+                                                              text=row['title'] + ' ' + row['date_start'] + ' - ' +
+                                                                   row['date_end'], size_hint_y=None, height=44)
+            event_itm_cf['event_btn_cf_' + str(row['id'])].bind(
+                on_release=lambda event_btn_cf: self.ids.event_title_cf.select(event_btn_cf.text))
+            event_itm_cf['event_btn_cf_' + str(row['id'])].bind(on_release=partial(self.set_event_cf, row['id']))
+
+
+            self.ids.event_title_cf.add_widget(event_itm_cf['event_btn_cf_' + str(row['id'])])
         self.ids.kv_dashboard_events_grid.bind(minimum_height=self.ids.kv_dashboard_events_grid.setter('height'))
 
     @inlineCallbacks

@@ -381,6 +381,7 @@ class BtmsValidRoot(BoxLayout):
             data_qr = self.code
             self.validate()
             self.code = ''
+            
         else:
             self.code = self.code + text
 

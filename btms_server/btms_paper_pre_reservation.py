@@ -33,7 +33,7 @@ global event_description
 global event_date_start
 global event_date_end
 
-event_id = 151
+event_id = 165
 
 def getEvent(event_id):
     return dbpool.runQuery("SELECT title, description, date_start, date_end FROM btms_events WHERE  id = '"+str(event_id)+"'")
@@ -63,7 +63,7 @@ getEvent(event_id).addCallback(eventResult)
 
 
 def eventDayResult(result):
-	c = canvas.Canvas("pre_reservation_karlsruhe.pdf")
+	c = canvas.Canvas("pre_reservation_mannheim.pdf")
 	c.setPageSize((21*cm, 29.7*cm))
 	page = 1
 	
@@ -162,7 +162,7 @@ def eventDayResult(result):
 
 
 			page_day = 1
-			'''
+
 			range_start = 100
 			range_end = 140
 			for j in range(0,6):
@@ -172,10 +172,10 @@ def eventDayResult(result):
 				range_end = range_end + 40
 				page = page + 1
 				page_day = page_day + 1
-			'''
+
 			range_start = 500
 			range_end = 540
-			for j in range(0,page_amount):
+			for j in range(0,3):
 				header_2(page, page_day,event_time)
 				body_2(range_start,range_end,event_time)
 				range_start = range_start + 40

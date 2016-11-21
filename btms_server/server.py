@@ -708,7 +708,7 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.event.create')
     #@inlineCallbacks
-    def createEvent(self, title, description, venue_id, start_date, end_date, admission_hours, weekday_times, user_id):
+    def createEvent(self, title, description, venue_id, start_date, end_date, admission_hours, weekday_times, event_id_cf, user_id):
 
         def execute(sql): #TODO not beautiful should be in a pool class ...
             return self.db.runInteraction(_execute, sql)
@@ -718,6 +718,7 @@ class BtmsBackend(ApplicationSession):
             return trans.lastrowid
 
         def insert_days(id, start_date, end_date, admission_hours, weekday_times): #last insert id
+            #Insert event days
             start_date = dt.datetime.strptime(start_date, "%Y-%m-%d")
             end_date = dt.datetime.strptime(end_date, "%Y-%m-%d")
 
@@ -746,7 +747,10 @@ class BtmsBackend(ApplicationSession):
 
                     sql2 = "insert into btms_events(ref, date_day, start_times, admission, user_id) values('%s','%s','%s','%s','%s')" % (id, current_date, weekday_times[str(weekday)], admission_hours, user_id)
                     d2 = self.db.runOperation(sql2)
-
+            if event_id_cf == 0:
+                pass
+            else:
+                self.copy_prices(event_id_cf, id, user_id)
 
 
         sql = "insert into btms_events(title, description, venue_id, date_start, date_end, admission, user_id) values('%s','%s','%s','%s','%s','%s','%s')" % (title, description, venue_id, start_date, end_date, admission_hours, user_id)
@@ -754,7 +758,20 @@ class BtmsBackend(ApplicationSession):
         d = execute(sql)
         d.addCallback(insert_days, start_date, end_date, admission_hours, weekday_times)
 
+
         return 'event created'
+
+    @inlineCallbacks
+    def copy_prices(self,event_id_cf, last_id, user_id):
+        print 'copy prices', event_id_cf, last_id, user_id
+
+        result_prices = yield self.db.runQuery("SELECT name, description, price, currency, cat_id, item_id FROM btms_prices WHERE event_id = '"+str(event_id_cf)+"'")
+        for row in result_prices:
+            sql = "insert into btms_prices(name, description, price, currency, cat_id, item_id, event_id, user) " \
+          "values('%s','%s','%s','%s','%s','%s','%s','%s')" % \
+          (row['name'], row['description'], row['price'], row['currency'], row['cat_id'], row['item_id'], last_id, user_id)
+            self.db.runOperation(sql)
+            print 'copy_prices', row['name'], row['price']
 
 
     @wamp.register(u'io.crossbar.btms.reserve')
@@ -1267,8 +1284,7 @@ class BtmsBackend(ApplicationSession):
     def getContingents(self,cmd, conti_id, event_id, event_date, event_time):
         if cmd == 0:
             try:
-                #TODO WHERE event_id and time
-                result = yield self.db.runQuery("SELECT id, title FROM btms_contingents WHERE ref = '0' AND event_id = '"+str(event_id)+"' ORDER by id")
+                result = yield self.db.runQuery("SELECT id, title FROM btms_contingents WHERE ref = '0' AND event_id = '"+str(event_id)+"' AND time = '"+str(event_time)+"' ORDER by id")
             except Exception as err:
                 print "Error", err
             finally:
