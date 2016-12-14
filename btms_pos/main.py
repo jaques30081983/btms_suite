@@ -2992,7 +2992,7 @@ class BtmsRoot(BoxLayout):
 
             results_report = yield self.session.call(u'io.crossbar.btms.report.get', 0, event_id, venue_id, event_date, event_time, user_id, 0, '', self.report_for_on_date, self.user_id)
             self.ids.report_draw_list.clear_widgets(children=None)
-            for cat, value in results_report.iteritems():
+            for cat, value in sorted(results_report.iteritems()):
                 if cat == 'all':
                     report_cat_name = 'All'
                 else:
