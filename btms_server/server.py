@@ -1165,7 +1165,7 @@ class BtmsBackend(ApplicationSession):
             try:
                 event_result = yield self.db.runQuery("SELECT id, title, description, admission FROM btms_events WHERE id = '"+str(event_id)+"' ")
                 categories_result = yield self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
-                prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
+                prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency, hide FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
                 venue_result = yield  self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
                 tickets_result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
 
@@ -1186,7 +1186,7 @@ class BtmsBackend(ApplicationSession):
         try:
             event_result = yield self.db.runQuery("SELECT id, title, description, admission FROM btms_events WHERE id = '"+str(event_id)+"' ")
             categories_result = yield self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
-            prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
+            prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency, hide FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
             venue_result = yield  self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
             tickets_result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
 

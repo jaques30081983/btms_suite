@@ -62,6 +62,8 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
         pri_name[prow['id']]['description'] = prow['description']
         pri_name[prow['id']]['price'] = prow['price']
         pri_name[prow['id']]['currency'] = prow['currency']
+        pri_name[prow['id']]['hide'] = prow['hide']
+
 
 
     c = canvas.Canvas('../spool/ticket_'+ transaction_id +'.pdf')
@@ -160,7 +162,10 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
         c.drawString(1.1*cm,5.4*cm, cat_name[row['cat_id']]) #Categorie Name
         c.drawString(1.1*cm,4.6*cm,pri_name[int(row['price_id'])]['description'])
-        c.drawString(1.1*cm,3.9*cm,pri_name[int(row['price_id'])]['price'] +' '+ pri_name[int(row['price_id'])]['currency'])
+        if pri_name[int(row['price_id'])]['hide'] == 1:
+            pass
+        else:
+            c.drawString(1.1*cm,3.9*cm,pri_name[int(row['price_id'])]['price'] +' '+ pri_name[int(row['price_id'])]['currency'])
 
         #c.drawString(1*cm,7.0*cm,"DE 13405 Berlin")
         # draw a QR code
