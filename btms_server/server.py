@@ -895,7 +895,13 @@ class BtmsBackend(ApplicationSession):
     @wamp.register(u'io.crossbar.btms.retrieve')
     @inlineCallbacks
     def retrieve(self, eventdatetime_id, in_transaction_id):
+        #Bring a bussy transaction back in case of a broken one
+        ignore_bussy_list = False
+        if '.' in in_transaction_id:
+            ignore_bussy_list = True
+        in_transaction_id.replace('.', '')
 
+        #Check if its from user or from system
         if len(in_transaction_id) <= 5:
             transaction_id = eventdatetime_id+in_transaction_id
             transaction_id = filter(str.isalnum, str(transaction_id))
@@ -904,15 +910,18 @@ class BtmsBackend(ApplicationSession):
             transaction_id = in_transaction_id
             verify_result = True
         transaction_id = str(transaction_id)
+
+        #Check for bys transaction list
         try:
             self.busy_transactions
         except AttributeError:
             self.busy_transactions = []
 
-
+        #Load Transaction if verify is successfull
         if verify_result == True:
-            if transaction_id in self.busy_transactions:
-                print'is in list', transaction_id
+            #Load Transaction if it is not yet opened
+            if transaction_id in self.busy_transactions and ignore_bussy_list == False:
+                print'is in list (yet opened)', transaction_id
                 returnValue(2)
             else:
                 print 'not in list', transaction_id

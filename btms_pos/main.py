@@ -1927,19 +1927,21 @@ class BtmsRoot(BoxLayout):
 
 
         try:
-            results = yield self.session.call(u'io.crossbar.btms.transact', self.retrive_status,
+            transact_results = yield self.session.call(u'io.crossbar.btms.transact', self.retrive_status,
                                               self.venue_id, self.event_id, self.event_date, self.event_time,
                                               self.transaction_id, seat_trans_list, itm_cat_amount_list, status, account,
                                               str(self.total_bill_price), str(self.back_price),str(self.given_price),
                                               self.user_id)
-            print 'transact results', results
+            print 'transact results', transact_results
             #self.ids.number_display_box.text = results
 
         except Exception as err:
             print "Error", err
+            transact_results = False
 
         finally:
-            self.print_ticket(self.transaction_id)
+            if transact_results == True:
+                self.print_ticket(self.transaction_id)
             #Will be used if printing not work
             self.last_transaction_id = self.transaction_id
             self.last_event_id = self.event_id
