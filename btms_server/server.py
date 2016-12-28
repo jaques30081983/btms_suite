@@ -304,7 +304,7 @@ class BtmsBackend(ApplicationSession):
     @inlineCallbacks
     def getVenueInit(self,venue_id,event_id,date,time,*args):
         eventdatetime_id = "%s_%s_%s" % (event_id,date,time)
-
+        print 'peng!'
         try:
             self.item_list
         except AttributeError:
@@ -319,12 +319,12 @@ class BtmsBackend(ApplicationSession):
 
 
         if eventdatetime_id in self.item_list:
-            print 'return existing item_list'
+            print 'return existing item_list ' + eventdatetime_id
             returnValue(self.item_list[eventdatetime_id])
 
 
         else:
-            print 'return new item_list'
+            print 'return new item_list ' + eventdatetime_id+'Test'
 
             try:
 
@@ -416,8 +416,13 @@ class BtmsBackend(ApplicationSession):
                             for block, seat_list in item_ov[0].iteritems():
 
                                 for seat, status in seat_list.iteritems():
+                                    #check if seat collide
+                                    if self.item_list[eventdatetime_id][block]['seats'][seat] == 0:
+                                        self.item_list[eventdatetime_id][block]['seats'][seat] = status
+                                    else:
+                                        self.item_list[eventdatetime_id][block]['seats'][seat] = 6
+                                        print str(status)+' '+self.item_list[eventdatetime_id][block]['seats_tid'][seat] +  ' collide with '+ str(row['status']) +' '+ row['tid']
 
-                                    self.item_list[eventdatetime_id][block]['seats'][seat] = status
                                     self.item_list[eventdatetime_id][block]['seats_user'][seat] = row['user']
                                     self.item_list[eventdatetime_id][block]['seats_tid'][seat] = row['tid']
 
@@ -444,10 +449,10 @@ class BtmsBackend(ApplicationSession):
                                     #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
                                     self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']] = value
                                     amount = amount + value
-                                print 'amount', amount
+                                #print 'amount', amount
 
                             self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
-                            print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
+                            #print 'tid amount list:', self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                 except Exception as err:
                     print "Error", err
@@ -455,7 +460,7 @@ class BtmsBackend(ApplicationSession):
                     try:
                         #Get Contingents
                         result_contingents = yield self.db.runQuery("SELECT id, ref, item_id, cat_id, art, amount, seats, status, user_id FROM btms_contingents WHERE event_id = '"+str(event_id)+"' AND date_day = '"+date+"' AND time = '"+time+"'")
-                        print result_contingents
+                        #print result_contingents
                         for row in result_contingents:
 
                             transaction_id = eventdatetime_id+str(row['ref'])
@@ -515,7 +520,7 @@ class BtmsBackend(ApplicationSession):
                                         #self.item_list[eventdatetime_id][row['item_id']]['tid_amount'][row['tid']]= value
                                         self.unnumbered_seat_list[eventdatetime_id][row['item_id']]['tid_amount']['con'+str(row['id'])] = value
                                         amount = amount + value
-                                    print 'amount', amount, eventdatetime_id, row['item_id'], self.item_list[eventdatetime_id][row['item_id']]['amount']
+                                    #print 'amount', amount, eventdatetime_id, row['item_id'], self.item_list[eventdatetime_id][row['item_id']]['amount']
 
                                     self.item_list[eventdatetime_id][row['item_id']]['amount'] = self.item_list[eventdatetime_id][row['item_id']]['amount'] - amount
 

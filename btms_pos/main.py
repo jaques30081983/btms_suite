@@ -137,7 +137,7 @@ class BtmsRoot(BoxLayout):
     The Root widget, defined in conjunction with the rule in btms.kv.
     """
     global seat_stat_img
-    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_05.png', 'images/bet_sitz_30px_05.png')
+    seat_stat_img = ('images/bet_sitz_30px_01.png', 'images/bet_sitz_30px_02.png', 'images/bet_sitz_30px_03.png', 'images/bet_sitz_30px_04.png', 'images/bet_sitz_30px_05.png', 'images/bet_sitz_30px_05.png', 'images/bet_sitz_30px_06.png')
 
 
     def start_wamp_component_auth(self, server_url, user, password):
@@ -503,9 +503,10 @@ class BtmsRoot(BoxLayout):
 
             if i == 0:
                 #Set Init Time
-                self.ids.event_time.text = kv
+                #self.ids.event_time.text = kv
                 self.set_event_time(kv)
                 i= i+1
+                print 'time' + kv
 
         #if event_time_match == False:
             #Set Init Time
@@ -517,13 +518,18 @@ class BtmsRoot(BoxLayout):
 
 
 
+
+
     def set_event_time(self, time, *args):
         self.loading(20, 'set event time')
         self.event_time = time
+        #self.ids.event_time.text = time
         self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
 
         if self.load_new_venue == 1:
             self.get_venue_status(self.venue_id,self.event_id)
+            print 'Peng !'
+            print time
 
 
 
