@@ -492,28 +492,46 @@ class BtmsRoot(BoxLayout):
         #event_date_itm['event_date_btn_' + str(row['id'])]
 
         #Set Time List
-        event_times_list = []
+        #event_times_list = []
+        self.event_time_itm = {}
         i=0
         #event_time_match = False
         #time_now = dt.datetime.now().strftime('%H:%M')
-        for kv in self.event_date_time_dict[self.event_date].split(","):
+        self.ids.event_time.clear_widgets()
+        for time in self.event_date_time_dict[self.event_date].split(","):
+
+            self.event_time_itm['event_time_btn_' + str(time)] = Button(id=str(time), text=time,
+                                                                        size_hint_y=None, height=44, font_size=20)
+            self.event_time_itm['event_time_btn_' + str(time)].bind(
+                on_release=lambda event_time_btn: self.ids.event_time.select(event_time_btn.text))
+
+            self.event_time_itm['event_time_btn_' + str(time)].bind(
+                on_release=partial(self.set_event_time, time))
+
+            self.ids.event_time.add_widget(self.event_time_itm['event_time_btn_' + str(time)])
+
+
+
+
+
+
             #key, value = kv.split(";")
 
-            event_times_list.append(kv)
+            #event_times_list.append(kv)
 
             if i == 0:
                 #Set Init Time
                 #self.ids.event_time.text = kv
-                self.set_event_time(kv)
+                self.set_event_time(time)
                 i= i+1
-                print 'time' + kv
+
 
         #if event_time_match == False:
             #Set Init Time
                 #self.ids.event_time.text = first_event_time
                 #self.set_event_time(first_event_time)
 
-        self.ids.event_time.values = event_times_list
+        #self.ids.event_time.values = event_times_list
 
 
 
@@ -521,15 +539,35 @@ class BtmsRoot(BoxLayout):
 
 
     def set_event_time(self, time, *args):
-        self.loading(20, 'set event time')
-        self.event_time = time
-        #self.ids.event_time.text = time
-        self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+        print 'Peng !', time
 
-        if self.load_new_venue == 1:
+        self.event_time = time
+        self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
+        self.ids.event_time.select(time)
+
+        if self.load_new_venue == 1: #prevent double loading if venue load
+            self.loading(0, 'loading venue status (set time)')
             self.get_venue_status(self.venue_id,self.event_id)
-            print 'Peng !'
-            print time
+
+
+
+
+
+
+
+        '''
+        if cmd == 1:
+            self.ids.event_time.text = time
+        else:
+            if self.load_new_venue == 1: #prevent double loading if venue load
+                if cmd == 0:
+                    self.loading(0, 'loading venue status (set time)')
+                self.get_venue_status(self.venue_id,self.event_id)
+                print 'Peng !', time
+            else:
+                self.loading(20, 'set event time')
+        '''
+
 
 
 
@@ -697,7 +735,7 @@ class BtmsRoot(BoxLayout):
             self.ids.sale_item_list_box.bind(minimum_height=self.ids.sale_item_list_box.setter('height'))
             #self.get_items(event_id)
             self.load_new_venue = 1 #loading of venue finished
-            self.get_venue_status(venue_id,event_id)
+            self.get_venue_status(venue_id,event_id) #get satus of seats
             self.get_prices(venue_id, event_id)
 
 
@@ -943,7 +981,7 @@ class BtmsRoot(BoxLayout):
 
     @inlineCallbacks
     def get_venue_status(self,venue_id,event_id):
-        self.loading(30, 'loading venue status')
+
         results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time)
 
         #print results
@@ -952,7 +990,6 @@ class BtmsRoot(BoxLayout):
         for key, value in results.iteritems():
             #Numbered Seats
             for seat, status in value['seats'].iteritems():
-
                 #if status == 1 and self.user_id == value['seats_user'][seat]:
                 #    status = 3
 
@@ -980,6 +1017,10 @@ class BtmsRoot(BoxLayout):
             except KeyError:
                 pass
 
+        if self.load_new_venue == 1:
+            self.loading(80, 'loading venue status finish')
+        else:
+            self.loading(30, 'loading venue status (get venue status)')
 
 
 
@@ -1185,7 +1226,7 @@ class BtmsRoot(BoxLayout):
         if cmd == 'contingent':
             self.ids.event_btn.disabled = boolean
             self.ids.event_date_btn.disabled = boolean
-            self.ids.event_time.disabled = boolean
+            self.ids.event_time_btn.disabled = boolean
 
             self.ids.kv_ret_button.disabled = boolean
             self.ids.kv_journal_button.disabled = boolean
@@ -1205,7 +1246,7 @@ class BtmsRoot(BoxLayout):
         elif cmd == 'reservation':
             self.ids.event_btn.disabled = boolean
             self.ids.event_date_btn.disabled = boolean
-            self.ids.event_time.disabled = boolean
+            self.ids.event_time_btn.disabled = boolean
 
             #self.ids.kv_ret_button.disabled = boolean
             self.ids.kv_journal_button.disabled = boolean
@@ -1222,7 +1263,7 @@ class BtmsRoot(BoxLayout):
             #Disable Event, Date, Time Selection
             self.ids.event_btn.disabled = boolean
             self.ids.event_date_btn.disabled = boolean
-            self.ids.event_time.disabled = boolean
+            self.ids.event_time_btn.disabled = boolean
 
             self.ids.kv_ret_button.disabled = boolean
             self.ids.kv_journal_button.disabled = boolean

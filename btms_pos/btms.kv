@@ -351,8 +351,8 @@
 				size_hint: .3, .06
 				text: 'select...'
 				on_release: event_title.open(self)
-				size_hint_y: None
-				height: event_time.height
+				#size_hint_y: None
+				#height: event_time.height
 				background_normal: 'atlas://data/images/defaulttheme/spinner'
 				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
 				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
@@ -371,11 +371,11 @@
 				id: event_date_btn
 				pos_hint: {'x': .7, 'y': .87}
 				font_size: self.height * .8
-				size_hint: .3, None
+				size_hint: .3, .06
 				text: 'select...'
 				on_release: event_date.open(self)
-				size_hint_y: None
-				height: event_time.height
+				#size_hint_y: None
+				#height: event_time.height
 				background_normal: 'atlas://data/images/defaulttheme/spinner'
 				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
 				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
@@ -403,16 +403,35 @@
 				
 				
 			
-				
-			Spinner:
-				id: event_time
-				text: 'loading...'
+
+			#Spinner:
+				#id: event_time
+				#text: 'loading...'
+				#pos_hint: {'x': .7, 'y': .80}
+				#size_hint: .3, .06
+				#font_size: self.height * 0.8
+				##on_text: number_display_box.text = self.text;
+				#on_text: root.set_event_time(self.text,0)
+
+			Button:
+				id: event_time_btn
 				pos_hint: {'x': .7, 'y': .80}
+				font_size: self.height * .8
 				size_hint: .3, .06
-				font_size: self.height * 0.8
-				#on_text: number_display_box.text = self.text;
-				on_text: root.set_event_time(self.text)
-			
+				text: 'select...'
+				on_release: event_time.open(self)
+				#size_hint_y: None
+				#height: event_time.height
+				background_normal: 'atlas://data/images/defaulttheme/spinner'
+				background_down: 'atlas://data/images/defaulttheme/spinner_pressed'
+				background_disabled_normal: 'atlas://data/images/defaulttheme/spinner_disabled'
+
+
+			DropDown:
+				id: event_time
+				font_size: self.height * .35
+				on_parent: self.dismiss()
+				on_select: event_time_btn.text = '{}'.format(args[1])
 				
 				
 			Label:

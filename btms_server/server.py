@@ -1167,7 +1167,11 @@ class BtmsBackend(ApplicationSession):
                                         event_time, item_id, cat_id, art, price_id,
                                         seat, 0, user_id)
 
+
                 self.db.runOperation(sql)
+
+
+
         except Exception as err:
             print "Ticket creation Error", err
 
@@ -1181,6 +1185,9 @@ class BtmsBackend(ApplicationSession):
                 categories_result = yield self.db.runQuery("SELECT * FROM btms_categories WHERE venue_id = '"+str(venue_id)+"'")
                 prices_result = yield self.db.runQuery("SELECT id, name, price, description, currency, hide FROM btms_prices WHERE event_id = '"+str(event_id)+"'")
                 venue_result = yield  self.db.runQuery("SELECT * FROM btms_venues WHERE ref = '"+str(venue_id)+"' ORDER by id")
+                tickets_result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
+
+                #TODO not all tickets are inserted, operation still running...
                 tickets_result = yield self.db.runQuery("SELECT * FROM btms_tickets WHERE tid = '"+str(transaction_id)+"' ORDER by ticket_id")
 
             finally:
