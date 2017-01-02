@@ -302,7 +302,7 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.venue.get.init')
     @inlineCallbacks
-    def getVenueInit(self,venue_id,event_id,date,time,*args):
+    def getVenueInit(self,venue_id,event_id,date,time, cmd, *args):
         eventdatetime_id = "%s_%s_%s" % (event_id,date,time)
         print 'peng!'
         try:
@@ -318,7 +318,7 @@ class BtmsBackend(ApplicationSession):
 
 
 
-        if eventdatetime_id in self.item_list:
+        if eventdatetime_id in self.item_list and cmd == 0:
             print 'return existing item_list ' + eventdatetime_id
             returnValue(self.item_list[eventdatetime_id])
 

@@ -494,12 +494,16 @@ class BtmsRoot(BoxLayout):
         #Set Time List
         #event_times_list = []
         self.event_time_itm = {}
+        self.event_time_popup_itm = {}
         i=0
         #event_time_match = False
         #time_now = dt.datetime.now().strftime('%H:%M')
         self.ids.event_time.clear_widgets()
-        for time in self.event_date_time_dict[self.event_date].split(","):
+        self.choose_time_popup_layout = BoxLayout(size_hint=[1, .9],orientation='vertical')
+        choose_time_popup = Popup(title='Choose Time for ' + day, content=self.choose_time_popup_layout, size_hint=(.5, .3), auto_dismiss=False)
 
+        for time in self.event_date_time_dict[self.event_date].split(","):
+            #Time Dropdown
             self.event_time_itm['event_time_btn_' + str(time)] = Button(id=str(time), text=time,
                                                                         size_hint_y=None, height=44, font_size=20)
             self.event_time_itm['event_time_btn_' + str(time)].bind(
@@ -510,6 +514,14 @@ class BtmsRoot(BoxLayout):
 
             self.ids.event_time.add_widget(self.event_time_itm['event_time_btn_' + str(time)])
 
+            #Time Popup
+            self.event_time_popup_itm['event_time_popup_btn_' + str(time)] = Button(id=str(time), text=time,
+                                                                        font_size=20)
+            self.event_time_popup_itm['event_time_popup_btn_' + str(time)].bind(
+                on_release=partial(self.set_event_time, time))
+            self.event_time_popup_itm['event_time_popup_btn_' + str(time)].bind(
+                on_press=choose_time_popup.dismiss)
+            self.choose_time_popup_layout.add_widget(self.event_time_popup_itm['event_time_popup_btn_' + str(time)])
 
 
 
@@ -518,13 +530,17 @@ class BtmsRoot(BoxLayout):
             #key, value = kv.split(";")
 
             #event_times_list.append(kv)
-
-            if i == 0:
-                #Set Init Time
-                #self.ids.event_time.text = kv
+            if self.load_new_venue == 0:
+                if i == 0:
+                    #Set Init Time
+                    #self.ids.event_time.text = kv
+                    self.set_event_time(time)
+            i= i+1
+        if self.load_new_venue == 1:
+            if i > 1:
+                choose_time_popup.open()
+            else:
                 self.set_event_time(time)
-                i= i+1
-
 
         #if event_time_match == False:
             #Set Init Time
@@ -539,7 +555,10 @@ class BtmsRoot(BoxLayout):
 
 
     def set_event_time(self, time, *args):
+
         print 'Peng !', time
+
+
 
         self.event_time = time
         self.eventdatetime_id = "%s_%s_%s" % (self.event_id,self.event_date,self.event_time)
@@ -547,7 +566,9 @@ class BtmsRoot(BoxLayout):
 
         if self.load_new_venue == 1: #prevent double loading if venue load
             self.loading(0, 'loading venue status (set time)')
-            self.get_venue_status(self.venue_id,self.event_id)
+            self.get_venue_status(self.venue_id,self.event_id,0)
+
+
 
 
 
@@ -735,7 +756,7 @@ class BtmsRoot(BoxLayout):
             self.ids.sale_item_list_box.bind(minimum_height=self.ids.sale_item_list_box.setter('height'))
             #self.get_items(event_id)
             self.load_new_venue = 1 #loading of venue finished
-            self.get_venue_status(venue_id,event_id) #get satus of seats
+            self.get_venue_status(venue_id,event_id,0) #get satus of seats
             self.get_prices(venue_id, event_id)
 
 
@@ -980,9 +1001,9 @@ class BtmsRoot(BoxLayout):
                     self.ids.sm.current = 'work1'
 
     @inlineCallbacks
-    def get_venue_status(self,venue_id,event_id):
-
-        results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time)
+    def get_venue_status(self,venue_id,event_id,cmd):
+        #cmd 1 = reload status on server
+        results = yield self.session.call(u'io.crossbar.btms.venue.get.init',venue_id,event_id,self.event_date,self.event_time,cmd)
 
         #print results
 
@@ -1018,7 +1039,7 @@ class BtmsRoot(BoxLayout):
                 pass
 
         if self.load_new_venue == 1:
-            self.loading(80, 'loading venue status finish')
+            self.loading(95, 'loading venue status finish')
         else:
             self.loading(30, 'loading venue status (get venue status)')
 
