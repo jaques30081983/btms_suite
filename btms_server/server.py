@@ -1704,7 +1704,7 @@ class BtmsBackend(ApplicationSession):
                 prices = yield self.getPrices(event_id)
                 itm_price_list = {}
                 for prow in prices:
-                    print prow['id'], prow['price']
+                    #print prow['id'], prow['price']
                     itm_price_list[prow['id']] = prow['price']
 
             except Exception as err:
