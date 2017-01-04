@@ -1656,8 +1656,8 @@ class BtmsBackend(ApplicationSession):
                                 " time = '"+event_time+"' AND status = '1' ")
 
                             results_tickets_external = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets_external " \
-                                "WHERE log LIKE '"+event_date+"%' AND " \
-                                " status = '1' ")
+                                "WHERE event_id = '"+str(event_id)+"' AND date = '"+event_date+"' AND " \
+                                " time = '"+event_time+"' AND status = '1' ")
 
                     elif for_on_date == 1:
                         if event_date == 'all':
@@ -1683,8 +1683,8 @@ class BtmsBackend(ApplicationSession):
                                 " time = '"+event_time+"' AND status = '1' AND user = '"+str(selected_user_id)+"' ")
 
                             results_tickets_external = yield self.db.runQuery("SELECT ticket_id FROM btms_tickets_external " \
-                                "WHERE log LIKE '"+event_date+"%' AND " \
-                                " status = '1' AND user = '"+str(selected_user_id)+"' ")
+                                "WHERE event_id = '"+str(event_id)+"' AND date = '"+event_date+"' AND " \
+                                " time = '"+event_time+"' AND status = '1' AND user = '"+str(selected_user_id)+"' ")
 
                     elif for_on_date == 1:
                         if event_date == 'all':
@@ -2028,8 +2028,10 @@ class BtmsBackend(ApplicationSession):
                     btms_tickets_checked_in = btms_tickets_checked_in + 1
 
 
+
                 for row2 in results_tickets_external:
                     btms_tickets_checked_in = btms_tickets_checked_in + 1
+
 
                 report_result_dict['all']['a_checked_in']= btms_tickets_checked_in
             except Exception as Err:

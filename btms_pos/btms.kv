@@ -1119,6 +1119,8 @@
                             text: "R. Stat."
                             #on_release: sm.transition.direction = 'left'
                             on_release: root.get_venue_status(root.venue_id,root.event_id,1)
+                            on_release: sm.transition.direction = 'right'
+				            on_release: sm.current = "work1"
                             #on_press: root.get_venues()
 
 
