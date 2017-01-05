@@ -13,6 +13,7 @@ install_twisted_reactor()
 
 from kivy.app import App
 from kivy.clock import Clock
+import time
 from kivy.core.window import Window
 #from kivy.factory import Factory
 #from kivy.properties import ObjectProperty
@@ -52,6 +53,24 @@ from kivy.utils import platform
 from functools import partial
 from kivy.uix.widget import Widget
 from kivy.network.urlrequest import UrlRequest
+
+from kivy.clock import mainthread
+import threading
+
+#Serial Bluetooth
+if platform == 'android':
+    from jnius import autoclass
+    import jnius
+    BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+    BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
+    BluetoothSocket = autoclass('android.bluetooth.BluetoothSocket')
+
+    InputStreamReader = autoclass('java.io.InputStreamReader')
+    BufferedReader = autoclass('java.io.BufferedReader')
+
+    UUID = autoclass('java.util.UUID')
+
+#Camera
 if platform == 'disabled':
     from jnius import autoclass, PythonJavaClass, java_method, cast
     from android.runnable import run_on_ui_thread
@@ -352,12 +371,15 @@ class BtmsValidRoot(BoxLayout):
 
     sound_beep = SoundLoader.load('sound/beep.wav')
     sound_beep_wrong = SoundLoader.load('sound/beep_wrong.wav')
+    sound_beep_bye = SoundLoader.load('sound/beep_bye.wav')
 
     def __init__(self, **kwargs):
         super(BtmsValidRoot, self).__init__(**kwargs)
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
         self.code = ''
+        self.bt_connected = False
+        self.stop = threading.Event()
 
     def _keyboard_closed(self):
         print('My keyboard have been closed!')
@@ -833,30 +855,35 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_screen.background_color = [0,1,0,1]
                 self.ids.kv_result_indicator.background_color = [0,1,0,1]
                 self.sound_beep.play()
+                self.bt_send(['42','44','45'])
             elif status == 1:
                 status_text = 'Not valid ' + str(data_qr) + ', last scan: ' + result_text
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
                 self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
+                self.bt_send(['46','45'])
             elif status == 2:
                 status_text = 'Not in DB, not valid ' + str(data_qr)
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
                 self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
+                self.bt_send(['46','45'])
             elif status == 3:
                 status_text = 'Wrong Event, Day or Time ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
+                self.bt_send(['46','45'])
             elif status == 4:
                 status_text = 'Checked Out ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.ids.kv_result_indicator.background_color = [1,1,0,1]
-                self.sound_beep_wrong.play()
+                self.sound_beep_bye.play()
+                self.bt_send(['42','44','45','42'])
             elif status == 5:
                 #read error
                 pass
@@ -865,6 +892,7 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
+                self.bt_send(['46','45'])
 
             self.ids.result_label.text = status_text
 
@@ -1002,6 +1030,97 @@ class BtmsValidRoot(BoxLayout):
 
             self.ids.journal_list_box.bind(minimum_height=self.ids.journal_list_box.setter('height'))
 
+    def get_settings(self,*args):
+        self.ids.sm.current = "settings"
+        self.ids.settings_list_box.clear_widgets(children=None)
+        if platform == 'android':
+
+            paired_devices = BluetoothAdapter.getDefaultAdapter().getBondedDevices().toArray()
+            for device in paired_devices:
+                print 'BTDEVICE:',device, device.getName()
+                self.ids.settings_list_box.add_widget(Button(size_hint=[.1, .006], text=device.getName(), on_release=partial(self.bt_connect, device.getName())))
+
+    def bt_get_socket_stream(self,name):
+        paired_devices = BluetoothAdapter.getDefaultAdapter().getBondedDevices().toArray()
+        print 'PAIRED:', paired_devices
+        socket = None
+        for device in paired_devices:
+            print 'BTDEVICE:',device, device.getName()
+            if device.getName() == name:
+                socket = device.createRfcommSocketToServiceRecord(
+                    UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
+                reader = InputStreamReader(socket.getInputStream(), 'US-ASCII')
+                recv_stream = BufferedReader(reader)
+                #recv_stream = socket.getInputStream()
+                send_stream = socket.getOutputStream()
+                break
+        socket.connect()
+        return recv_stream, send_stream
+
+
+
+    def bt_connect(self,device, *args):
+        #device = self.config.get('bluetooth', 'bt_name')
+        try:
+            self.recv_stream, self.send_stream = self.bt_get_socket_stream(device)
+            self.bt_connected = True
+            self.ids.sm.current = "work1"
+        except AttributeError as e:
+            print e.message
+            return False
+        except jnius.JavaException as e:
+            print e.message
+            return False
+        except:
+            #print sys.exc_info()[0]
+            return False
+        threading.Thread(target=self.bt_stream_reader).start()
+
+    def bt_send(self, cmd_list):
+        if self.bt_connected == True:
+            for cmd in cmd_list:
+                cmd = cmd.decode('hex')
+                self.send_stream.write(cmd)
+                print 'Sent CMD:', cmd
+                time.sleep(0.05)
+            self.send_stream.flush()
+
+    def bt_stream_reader(self, *args):
+        stream = ''
+        while True:
+            if self.stop.is_set():
+                jnius.detach()
+                return
+            if self.recv_stream.ready():
+                try:
+                    stream = self.recv_stream.readLine()
+                    print 'Stream:', stream
+                    self.bt_got_response(stream)
+                except:
+                    print 'Misc Error'
+
+                #except self.IOException as e:
+                #    print "IOException: ", e.message
+                #except jnius.JavaException as e:
+                #    print "JavaException: ", e.message
+                #except:
+                    #print "Misc error: ", sys.exc_info()[0]
+                #    print 'Misc error'
+
+                #try:
+                #    start = stream.rindex("<") + 1
+                #    end = stream.rindex(">", start)
+                #    #self.bt_got_response(stream[start:end])
+                #except ValueError:
+                #    pass
+    @mainthread
+    def bt_got_response(self, response):
+        print 'Response:', response
+
+        global data_qr
+        data_qr = response
+        self.validate()
+
     if platform == 'disabled':
         def on_symbol(self, symbols):
     		#print 'found', len(symbols), 'symbols'
@@ -1042,10 +1161,18 @@ class BtmsValidRoot(BoxLayout):
 
 class BtmsValidApp(App):
 
+
+    def on_stop(self):
+            # The Kivy event loop is about to stop, set a stop signal;
+            # otherwise the app window will close, but the Python process will
+            # keep running until all secondary threads exit.
+            self.root.stop.set()
+
     def build(self):
         self.title = 'BTMS Valid 16.02a'
         self.root = BtmsValidRoot()
         self.root.ids.kv_user_change.disabled = True
+
 
         if store.exists('settings'):
             self.root.ids.kv_server_adress.text = store.get('settings')['server_adress']

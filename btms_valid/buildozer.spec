@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas,wav,mp3
 #version.filename = %(source.dir)s/main.py
 
 # (str) Application versionning (method 2)
-version = 16.03.23
+version = 17.01.05
 
 # (list) Application requirements
 requirements = kivy,autobahn,twisted,msgpack-python
@@ -52,7 +52,7 @@ fullscreen = 0
 #
 
 # (list) Permissions
-android.permissions = CAMERA, INTERNET, WAKE_LOCK
+android.permissions = CAMERA, INTERNET, WAKE_LOCK, BLUETOOTH, BLUETOOTH_ADMIN
 
 # (int) Android API to use
 #android.api = 14
