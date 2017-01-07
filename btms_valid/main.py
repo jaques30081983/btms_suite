@@ -328,6 +328,7 @@ class BtmsValidWampComponentAuth(ApplicationSession):
 
     def onLeave(self, details):
         print("onLeave: {}".format(details))
+        ui.bt_disconnect()
         #ui.stop()
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
@@ -339,6 +340,9 @@ class BtmsValidWampComponentAuth(ApplicationSession):
         details = ""
         #ui.stop()
         print("onDisconnect: {}".format(details))
+
+        ui.bt_disconnect()
+
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
             ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onDisconnect: {}".format(details))
@@ -458,6 +462,19 @@ class BtmsValidRoot(BoxLayout):
         results = yield self.session.call(u'io.crossbar.btms.events.get',0)
         self.get_events(results)
 
+
+
+        if store.exists('bt_settings'):
+            self.bt_device = store.get('bt_settings')['bt_device']
+            self.bt_connect(self.bt_device)
+        else:
+            store.put('bt_settings', bt_device='')
+            self.bt_device = ''
+
+
+
+
+
         #self.session.leave()
 
         if platform == 'disabled':
@@ -484,6 +501,7 @@ class BtmsValidRoot(BoxLayout):
     def onLeaveRemote(self,details):
         ui.ids.kv_user_log.text = ui.ids.kv_user_log.text + '\n' + ("onLeaveRemote: {}".format(details))
         print details
+
         self.session.leave()
 
 
@@ -855,35 +873,36 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_screen.background_color = [0,1,0,1]
                 self.ids.kv_result_indicator.background_color = [0,1,0,1]
                 self.sound_beep.play()
-                self.bt_send(['42','44','45'])
+                #self.bt_send(['42','44','45'])
+                self.bt_send(['45','42'])
             elif status == 1:
                 status_text = 'Not valid ' + str(data_qr) + ', last scan: ' + result_text
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
                 self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
-                self.bt_send(['46','45'])
+                self.bt_send(['45','46','45'])
             elif status == 2:
                 status_text = 'Not in DB, not valid ' + str(data_qr)
                 self.ids.result_label.background_color = [1,0,0,1]
                 self.ids.result_screen.background_color = [1,0,0,1]
                 self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
-                self.bt_send(['46','45'])
+                self.bt_send(['45','46','45'])
             elif status == 3:
                 status_text = 'Wrong Event, Day or Time ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
-                self.bt_send(['46','45'])
+                self.bt_send(['45','46','45'])
             elif status == 4:
                 status_text = 'Checked Out ' + str(data_qr) + ', ' + result_text
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_bye.play()
-                self.bt_send(['42','44','45','42'])
+                self.bt_send(['45','42','44','45','42'])
             elif status == 5:
                 #read error
                 pass
@@ -892,7 +911,7 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_label.background_color = [1,1,0,1]
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
-                self.bt_send(['46','45'])
+                self.bt_send(['45','46','45'])
 
             self.ids.result_label.text = status_text
 
@@ -1038,23 +1057,25 @@ class BtmsValidRoot(BoxLayout):
             paired_devices = BluetoothAdapter.getDefaultAdapter().getBondedDevices().toArray()
             for device in paired_devices:
                 print 'BTDEVICE:',device, device.getName()
-                self.ids.settings_list_box.add_widget(Button(size_hint=[.1, .006], text=device.getName(), on_release=partial(self.bt_connect, device.getName())))
+                self.ids.settings_list_box.add_widget(Button(size_hint=[.5, .1], text=device.getName()))
+                self.ids.settings_list_box.add_widget(Button(size_hint=[.25, .1], text='Connect', on_release=partial(self.bt_connect, device.getName())))
+                self.ids.settings_list_box.add_widget(Button(size_hint=[.25, .1], text='Disconnect', on_release=partial(self.bt_disconnect, device.getName())))
 
     def bt_get_socket_stream(self,name):
         paired_devices = BluetoothAdapter.getDefaultAdapter().getBondedDevices().toArray()
         print 'PAIRED:', paired_devices
-        socket = None
+        self.bt_socket = None
         for device in paired_devices:
             print 'BTDEVICE:',device, device.getName()
             if device.getName() == name:
-                socket = device.createRfcommSocketToServiceRecord(
+                self.bt_socket = device.createRfcommSocketToServiceRecord(
                     UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
-                reader = InputStreamReader(socket.getInputStream(), 'US-ASCII')
+                reader = InputStreamReader(self.bt_socket.getInputStream(), 'US-ASCII')
                 recv_stream = BufferedReader(reader)
-                #recv_stream = socket.getInputStream()
-                send_stream = socket.getOutputStream()
+                #recv_stream = self.bt_socket.getInputStream()
+                send_stream = self.bt_socket.getOutputStream()
                 break
-        socket.connect()
+        self.bt_socket.connect()
         return recv_stream, send_stream
 
 
@@ -1065,6 +1086,7 @@ class BtmsValidRoot(BoxLayout):
             self.recv_stream, self.send_stream = self.bt_get_socket_stream(device)
             self.bt_connected = True
             self.ids.sm.current = "work1"
+            store.put('bt_settings', bt_device=device)
         except AttributeError as e:
             print e.message
             return False
@@ -1076,13 +1098,20 @@ class BtmsValidRoot(BoxLayout):
             return False
         threading.Thread(target=self.bt_stream_reader).start()
 
+    def bt_disconnect(self, *args):
+        self.stop.set()
+        self.bt_socket.close()
+        self.stop = threading.Event()
+
+
+
     def bt_send(self, cmd_list):
         if self.bt_connected == True:
             for cmd in cmd_list:
                 cmd = cmd.decode('hex')
                 self.send_stream.write(cmd)
                 print 'Sent CMD:', cmd
-                time.sleep(0.05)
+                time.sleep(0.1)
             self.send_stream.flush()
 
     def bt_stream_reader(self, *args):
@@ -1175,8 +1204,11 @@ class BtmsValidApp(App):
 
 
         if store.exists('settings'):
+
             self.root.ids.kv_server_adress.text = store.get('settings')['server_adress']
             self.root.ids.kv_user_input.text = store.get('settings')['user']
+
+
             L = store.get('userlist')['user_list']
             self.root.ids.kv_user_change.disabled = False
             for user in L:
