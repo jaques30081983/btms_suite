@@ -605,7 +605,7 @@ class BtmsValidRoot(BoxLayout):
                 global data_qr_old
                 data_qr_old = 0
 
-            Clock.schedule_once(my_callback1, 2)
+            Clock.schedule_once(my_callback1, .5)
             self.get_reports(0, self.event_id, self.venue_id, self.event_date, self.event_time, self.user_id)
 
         #Recognize Vendor
