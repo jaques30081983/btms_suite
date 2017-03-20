@@ -259,6 +259,7 @@
             Button:
                 pos_hint: {'x': 0, 'y': .375}
                 size_hint: 1, .5
+                font_size: self.height * 0.35
                 id: result_screen
                 text: ''
 
@@ -268,6 +269,7 @@
                 id: result_label
                 #font_size: self.height * .25
                 text: ''
+                on_release: root.get_journal_of_code()
 
 
             Button:
@@ -275,7 +277,7 @@
                 size_hint: 1, .1
                 id: test
                 #text: 'test'
-                text: '\\n'.join(map(repr, root.symbols))
+                #text: '\\n'.join(map(repr, root.symbols))
                 on_release: root.refresh_report()
 
 
