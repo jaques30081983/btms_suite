@@ -255,16 +255,30 @@
 				font_size: self.height * 0.35
 				#on_text: number_display_box.text = self.text;
 				on_text: root.set_event_time(self.text)
-			
+
+            TextInput:
+                pos_hint: {'x': 0, 'y': .79}
+                size_hint: .8, .1
+                font_size: self.height * 0.25
+                id: kv_valid_text
+                text: ''
+                multiline: False
+                on_text_validate: root.valid_text_input()
             Button:
-                pos_hint: {'x': 0, 'y': .375}
-                size_hint: 1, .5
+                pos_hint: {'x': .8, 'y': .79}
+                size_hint: .2, .1
+                id: kv_valid_button
+                text: 'Valid'
+                on_release: root.valid_text_input()
+            Button:
+                pos_hint: {'x': 0, 'y': .33}
+                size_hint: 1, .45
                 font_size: self.height * 0.35
                 id: result_screen
                 text: ''
 
             Button:
-                pos_hint: {'x': 0, 'y': .25}
+                pos_hint: {'x': 0, 'y': .22}
                 size_hint: 1, .1
                 id: result_label
                 #font_size: self.height * .25
@@ -273,7 +287,7 @@
 
 
             Button:
-                pos_hint: {'x': .0, 'y': .125}
+                pos_hint: {'x': .0, 'y': .11}
                 size_hint: 1, .1
                 id: test
                 #text: 'test'

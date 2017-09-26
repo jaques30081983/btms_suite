@@ -57,33 +57,9 @@ class BtmsBackend(ApplicationSession):
 
     def __init__(self, config):
         ApplicationSession.__init__(self, config)
-        self.init()
+
         #self.getVenueInit()
 
-
-    def init(self):
-        self._votes = {
-            'Banana': 0,
-            'Chocolate': 0,
-            'Lemon': 0
-        }
-
-    @wamp.register(u'io.crossbar.btms.vote.get')
-    def getVotes(self):
-        return [{'subject': key, 'votes': value} for key, value in self._votes.items()]
-
-
-    @wamp.register(u'io.crossbar.btms.vote.vote')
-    def submitVote(self, subject):
-        self._votes[subject] += 1
-        result = {'subject': subject, 'votes': self._votes[subject]}
-        self.publish('io.crossbar.btms.vote.onvote', result)
-        return result
-
-    @wamp.register(u'io.crossbar.btms.vote.reset')
-    def resetVotes(self):
-        self.init()
-        self.publish('io.crossbar.btms.vote.onreset')
 
     @wamp.register(u'io.crossbar.btms.users.get')
     def getUsers(self):
@@ -809,42 +785,56 @@ class BtmsBackend(ApplicationSession):
                     cat_seat_list[cat_id][item_id] = {}
                 cat_seat_list[cat_id][item_id] = seat_list
 
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
-            for cat_id, seat_list in cat_seat_list.iteritems():
-                #cat_id = self.item_list[edt_id][item_id]['cat_id']
-                amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
-                #art = str(self.item_list[edt_id][item_id]['art'])
-                art = '1'
-                seats = json.dumps(seat_list, separators=(',',';'))
-                #if retrive_status == False:
-                '''
-                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                          "cat_id, art, amount, seats, status, user) " \
-                          "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
-                          (transaction_id, event_id, event_date,
-                            event_time, item_id, cat_id, art, amount,
-                            seats, status, user_id)
+            #Check again seat status
+            check_result = 1
+            for item_id, seat_list in seat_trans_list.iteritems():
+                for seat, status in seat_list.iteritems():
+                    check_result = check_result + 1
+                    if self.item_list[edt_id][item_id]['seats'][seat] == 1 and self.item_list[edt_id][item_id]['seats_tid'][seat] == transaction_id:
+                        check_result = check_result - 1
 
-                self.db.runOperation(sql)
-                '''
+            #Set seat status if seats are reserved from same user and insert in db
+            if check_result == 1:
 
-                sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
-                        "cat_id, art, amount, seats, status, user) " \
-                        "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
-                        "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
-                        "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
-                try:
-                    result = yield self.db.runOperation(sql)
-                except Exception as err:
-                    self.item_list = {}
-                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
-                    print "DB Connection Error", err
-                #elif retrive_status == True:
-                    #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
-                     #     " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
-                      #    "btms_transactions.cat_id='%s'" % (amount, seats, user_id, transaction_id, cat_id)
-                    #self.db.runOperation(sql)
+                self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
+                for cat_id, seat_list in cat_seat_list.iteritems():
+                    #cat_id = self.item_list[edt_id][item_id]['cat_id']
+                    amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
+                    #art = str(self.item_list[edt_id][item_id]['art'])
+                    art = '1'
+                    seats = json.dumps(seat_list, separators=(',',';'))
+                    #if retrive_status == False:
+                    '''
+                    sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                              "cat_id, art, amount, seats, status, user) " \
+                              "values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')" % \
+                              (transaction_id, event_id, event_date,
+                                event_time, item_id, cat_id, art, amount,
+                                seats, status, user_id)
 
+                    self.db.runOperation(sql)
+                    '''
+
+                    sql = "insert into btms_transactions(tid, event_id, date, time, item_id, " \
+                            "cat_id, art, amount, seats, status, user) " \
+                            "values('"+str(transaction_id)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
+                            "'0','"+str(cat_id)+"','"+art+"','"+amount+"','"+seats+"','"+str(status)+"','"+str(user_id)+"') " \
+                            "ON DUPLICATE KEY UPDATE amount='"+amount+"', seats='"+seats+"', user='"+str(user_id)+"'"
+                    try:
+                        result = yield self.db.runOperation(sql)
+                    except Exception as err:
+                        self.item_list = {}
+                        self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                        print "DB Connection Error", err
+                    #elif retrive_status == True:
+                        #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                         #     " btms_transactions.user='%s' WHERE btms_transactions.tid='%s' AND " \
+                          #    "btms_transactions.cat_id='%s'" % (amount, seats, user_id, transaction_id, cat_id)
+                        #self.db.runOperation(sql)
+            else:
+                #kick user out cause of wrong data
+                #TODO user kickout details, reload server venue init status ...
+                self.publish('io.crossbar.btms.onLogoutUser',user_id, 0, 'log out, error occurred')
 
         #Insert or Update unnumbered seats and insert in db
 
@@ -904,7 +894,8 @@ class BtmsBackend(ApplicationSession):
         ignore_bussy_list = False
         if '.' in in_transaction_id:
             ignore_bussy_list = True
-        in_transaction_id.replace('.', '')
+        in_transaction_id = in_transaction_id.replace('.', '')
+
 
         #Check if its from user or from system
         if len(in_transaction_id) <= 5:
@@ -916,7 +907,8 @@ class BtmsBackend(ApplicationSession):
             verify_result = True
         transaction_id = str(transaction_id)
 
-        #Check for bys transaction list
+
+        #Check for busy transaction list
         try:
             self.busy_transactions
         except AttributeError:
@@ -984,16 +976,16 @@ class BtmsBackend(ApplicationSession):
 
 
         #Check again seat status
-        check_result = False
+        check_result = 1
         for item_id, seat_list in seat_trans_list.iteritems():
             for seat, status in seat_list.iteritems():
-                check_result = False
+                check_result = check_result + 1
                 if self.item_list[edt_id][item_id]['seats'][seat] == 1 and self.item_list[edt_id][item_id]['seats_tid'][seat] == transaction_id:
                     self.item_list[edt_id][item_id]['seats'][seat] = 2
-                    check_result = True
+                    check_result = check_result - 1
 
         #Set seat status if seats are reserved from same user and insert in db
-        if check_result == True:
+        if check_result == 1:
             self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, user_id)
             for cat_id, seat_list in cat_seat_list.iteritems():
                 #cat_id = self.item_list[edt_id][item_id]['cat_id']

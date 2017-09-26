@@ -549,6 +549,7 @@ class BtmsValidRoot(BoxLayout):
                 self.sound_beep.play()
                 #self.bt_send(['42','44','45'])
                 self.bt_send(['45','42'])
+                self.ids.kv_valid_text.text = ''
             elif status == 1:
                 status_text = 'Not valid ' + str(data_qr) + ', last scan: ' + result_text
                 self.ids.result_screen.text = 'STOP'
@@ -557,6 +558,7 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
                 self.bt_send(['45','46','45'])
+                self.ids.kv_valid_text.text = ''
             elif status == 2:
                 status_text = 'Not in DB, not valid ' + str(data_qr)
                 self.ids.result_screen.text = 'STOP'
@@ -565,6 +567,7 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.kv_result_indicator.background_color = [1,0,0,1]
                 self.sound_beep_wrong.play()
                 self.bt_send(['45','46','45'])
+
             elif status == 3:
                 status_text = 'Wrong Event, Day or Time ' + str(data_qr) + ', ' + result_text
                 self.ids.result_screen.text = 'STOP'
@@ -573,6 +576,7 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
                 self.bt_send(['45','46','45'])
+                self.ids.kv_valid_text.text = ''
             elif status == 4:
                 status_text = 'Checked Out ' + str(data_qr) + ', ' + result_text
                 self.ids.result_screen.text = 'OUT'
@@ -581,9 +585,11 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.kv_result_indicator.background_color = [1,1,0,1]
                 self.sound_beep_bye.play()
                 self.bt_send(['45','42','44','45','42'])
+                self.ids.kv_valid_text.text = ''
             elif status == 5:
                 #read error
                 self.ids.result_screen.text = 'RETRY'
+                status_text = 'Read Error ' + str(data_qr) + ', ' + result_text
                 pass
             else:
                 status_text = 'No Result from Server ' + str(data_qr) + ', ' + result_text
@@ -592,6 +598,7 @@ class BtmsValidRoot(BoxLayout):
                 self.ids.result_screen.background_color = [1,1,0,1]
                 self.sound_beep_wrong.play()
                 self.bt_send(['45','46','45'])
+                self.ids.kv_valid_text.text = ''
 
             self.ids.result_label.text = status_text
 
@@ -836,6 +843,11 @@ class BtmsValidRoot(BoxLayout):
     def get_journal_of_code(self):
         global data_qr
         self.get_journal('valid_same_codes', data_qr)
+
+    def valid_text_input(self):
+        global data_qr
+        data_qr = self.ids.kv_valid_text.text
+        self.validate()
 
 class BtmsValidApp(App):
 
