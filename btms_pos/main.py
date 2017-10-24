@@ -1156,6 +1156,9 @@ class BtmsRoot(BoxLayout):
             else:
                 itm['venue_item_' + str(item_id)].disabled = False
                 itm['venue_item_user'+str(item_id)].text = ''
+        else:
+            itm['venue_item_' + str(item_id)].disabled = False
+            itm['venue_item_user'+str(item_id)].text = ''
 
     def select_seats(self,seat_select_list, cat_id, art, *args):
         if self.contingent_cmd == 1:
@@ -1555,7 +1558,11 @@ class BtmsRoot(BoxLayout):
                 results = yield self.session.call(u'io.crossbar.btms.reserve', self.event_id, self.event_date, self.event_time,
                                                   self.transaction_id, seat_trans_list, itm_cat_amount_list,
                                                   self.reservation_art, str(self.total_bill_price), self.user_id)
+
                 self.ids.res_number_display_box.text = str(results)
+                if results == 'error':
+                    self.loading(0, 'reload venue status on server')
+                    self.get_venue_status(self.venue_id,self.event_id,1)
 
             except Exception as err:
                 print "Error", err
@@ -2010,10 +2017,17 @@ class BtmsRoot(BoxLayout):
         finally:
             if transact_results == True:
                 self.print_ticket(self.transaction_id)
+            else:
+                #Smth. went wrong, reload server
+                self.ids.res_number_display_box.text = 'error'
+                self.loading(0, 'reload venue status on server')
+                self.get_venue_status(self.venue_id,self.event_id,1)
+
             #Will be used if printing not work
             self.last_transaction_id = self.transaction_id
             self.last_event_id = self.event_id
             self.last_venue_id = self.venue_id
+
             #Reset Transaction
             self.reset_transaction()
 
@@ -3269,7 +3283,7 @@ class BtmsApp(App):
             self.pos_display = store.get('displays')['display']
             self.root.ids.kv_display_spinner.text = store.get('displays')['display']
         #self.start_wamp_component()
-
+        self.root.logout_op = 1
         return self.root
 
 
@@ -3278,7 +3292,11 @@ class BtmsApp(App):
         return True
 
     def on_resume(self):
-        pass
+        print "Resume, reload status..."
+        if self.root.logout_op == 0:
+            self.root.loading(0, 'reload venue status')
+            self.root.get_venue_status(self.root.venue_id,self.root.event_id,0)
+
 
 if __name__ == '__main__':
     BtmsApp().run()

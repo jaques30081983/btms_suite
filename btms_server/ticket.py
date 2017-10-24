@@ -81,7 +81,7 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
         admission_time = event_start_time - dt.timedelta(hours=int(hour), minutes=int(minute))
         admission_time_1 = format(admission_time, '%H:%M')
-        #c.drawImage("company_logo_01.png", 1*cm, 9*cm,6*cm,6*cm)
+        c.drawImage('/home/jaques5/workspace/btms_suite/btms_server/company_logo_01.png', 1.5*cm, 9.5*cm,5*cm,5*cm)
 
         #c.line(1*cm,8.7*cm,7*cm,8.7*cm)
 
@@ -192,12 +192,25 @@ def createPdfTicket(self,transaction_id, t_result,e_result, c_result, p_result, 
 
 
 
+
         p = Paragraph('<font size=8>'+row['tid']+" "+str(row['ticket_id'])+'</font>',styles["Normal"])
         p.wrapOn(c, 8.2*cm, 15.2*cm)
         p.drawOn(c, 1.1*cm, 2.8*cm)
 
         #c.drawString(1.1*cm,2.8*cm,row['tid']+" "+str(row['ticket_id']))
         #c.line(1.1*cm,2.2*cm,7.1*cm,2.2*cm)
+        c.line(1.1*cm,2.5*cm,7.1*cm,2.5*cm)
+
+        p = Paragraph('<font size=8>Veranstalter: ROMANZA Circusproduction,</font>',styles["Normal"])
+        p.wrapOn(c, 8.2*cm, 15.2*cm)
+        p.drawOn(c, 1.1*cm, 1.5*cm)
+
+        p = Paragraph('<font size=8>Fischhof 1, D-74638 Waldenburg</font>',styles["Normal"])
+        p.wrapOn(c, 8.2*cm, 15.2*cm)
+        p.drawOn(c, 1.1*cm, 1.2*cm)
+        p = Paragraph('<font size=6>Karten sind von Umtausch und Ruecknahme ausgeschlossen!</font>',styles["Normal"])
+        p.wrapOn(c, 8.2*cm, 15.2*cm)
+        p.drawOn(c, 1.1*cm, 0.9*cm)
         c.showPage()
 
     c.save()
