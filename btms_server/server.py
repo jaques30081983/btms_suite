@@ -1685,7 +1685,7 @@ class BtmsBackend(ApplicationSession):
         if cmd == 'valid_today':
             results = self.db.runQuery("SELECT code, event_id, date, time, vendor, status, check_in_out, log FROM btms_validation_log " \
                            "WHERE user = '"+str(user_id)+"' " \
-                            "ORDER by log DESC LIMIT 30")
+                            "ORDER by log DESC LIMIT 15")
             return results
         elif cmd == 'valid_same_codes':
             results = self.db.runQuery("SELECT code, event_id, date, time, vendor, status, check_in_out, log FROM btms_validation_log " \

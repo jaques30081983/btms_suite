@@ -118,7 +118,7 @@ class BtmsValidWampComponentAuth(ApplicationSession):
         #ui.stop()
         print("onDisconnect: {}".format(details))
 
-        ui.bt_disconnect()
+
 
         if ui.logout_op == 0 or ui.logout_op == None:
             ui.ids.sm.current = 'server_connect'
@@ -212,6 +212,11 @@ class BtmsValidRoot(BoxLayout):
         self.session = session
         self.ids.sm.current = 'work1'
         self.camera_state = 0
+        self.wait = False
+        global data_qr_old
+        data_qr_old = 0
+        self.ids.kv_valid_text.text = ''
+        self.ids.result_screen.text = ''
 
         results = yield self.session.call(u'io.crossbar.btms.users.get')
         self.get_users(results)
@@ -614,83 +619,107 @@ class BtmsValidRoot(BoxLayout):
 
             Clock.schedule_once(my_callback1, .5)
             self.get_reports(0, self.event_id, self.venue_id, self.event_date, self.event_time, self.user_id)
+            self.wait = False #Unlock wait
 
-        #Recognize Vendor
-        if len(data_qr) >= 19 and '_' in data_qr:
-            #Btms
-            if data_qr == data_qr_old:
-                pass
+        def my_callback(dt):
+            self.ids.result_screen.background_color = [1,1,1,1]
+            self.ids.result_screen.text = ''
+        def reset_wait(dt):
+            if self.wait == True:
+                global data_qr_old
+                self.ids.result_screen.background_color = [0,0,1,1]
+                self.ids.result_screen.text = 'timeout'
+                self.wait = False
+                data_qr_old = 0
+                Clock.schedule_once(my_callback, 1)
+
+
+
+        self.ids.result_screen.text = 'wait'
+        if self.wait == False: #check if waiting for server response, preventive server stressing
+            self.wait = True #Lock wait
+
+            #Recognize Vendor
+            if len(data_qr) >= 19 and '_' in data_qr:
+                #Btms
+                if data_qr == data_qr_old:
+                    pass
+                else:
+                    data_qr_old = data_qr
+                    try:
+
+                        results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'btms',self.check_in_or_out,self.user_id)
+                        result_validation(results)
+                    except Exception as err:
+                        print "Error", err
+
+            elif len(data_qr) == 18:
+                #061027XL084901236C Ticketscript Barcode 18 len
+                if data_qr == data_qr_old:
+                    pass
+                else:
+                    data_qr_old = data_qr
+                    try:
+                        results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'ticketscript',self.check_in_or_out,self.user_id)
+                        result_validation(results)
+                    except Exception as err:
+                        print "Error", err
+            elif len(data_qr) == 24 or len(data_qr) == 12:
+                #027397679200113380114700 Eventim Big Barcode 24 len
+                #063235099901 Eventim small Barcode 12 len
+                if data_qr == data_qr_old:
+                    pass
+                else:
+                    data_qr_old = data_qr
+                    try:
+                        results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'eventim',self.check_in_or_out,self.user_id)
+                        result_validation(results)
+                    except Exception as err:
+                        print "Error", err
+
+            elif len(data_qr) == 10 or 'groupon' in data_qr:
+            #40A8B7433C Groupon Security Barcode 10 len
+                if data_qr == data_qr_old:
+                    pass
+                else:
+                    data_qr_old = data_qr
+                    try:
+                        results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'groupon',self.check_in_or_out,self.user_id)
+                        result_validation(results)
+                    except Exception as err:
+                        print "Error", err
+            elif len(data_qr) == 14:
+            #40A8B7433C Reservix Barcode 14 len
+                if data_qr == data_qr_old:
+                    pass
+                else:
+                    data_qr_old = data_qr
+                    try:
+                        results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'reservix',self.check_in_or_out,self.user_id)
+                        result_validation(results)
+                    except Exception as err:
+                        print "Error", err
             else:
-                data_qr_old = data_qr
+                self.ids.result_label.text = 'Read Error ' + data_qr
+                self.ids.result_label.background_color = [1,0,1,1]
+                self.ids.result_screen.background_color = [1,0,1,1]
+                self.ids.kv_result_indicator.background_color = [1,0,1,1]
+
                 try:
-                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'btms',self.check_in_or_out,self.user_id)
+                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'read_error',self.check_in_or_out,self.user_id)
                     result_validation(results)
                 except Exception as err:
                     print "Error", err
 
-        elif len(data_qr) == 18:
-            #061027XL084901236C Ticketscript Barcode 18 len
-            if data_qr == data_qr_old:
-                pass
-            else:
-                data_qr_old = data_qr
-                try:
-                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'ticketscript',self.check_in_or_out,self.user_id)
-                    result_validation(results)
-                except Exception as err:
-                    print "Error", err
-        elif len(data_qr) == 24 or len(data_qr) == 12:
-            #027397679200113380114700 Eventim Big Barcode 24 len
-            #063235099901 Eventim small Barcode 12 len
-            if data_qr == data_qr_old:
-                pass
-            else:
-                data_qr_old = data_qr
-                try:
-                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'eventim',self.check_in_or_out,self.user_id)
-                    result_validation(results)
-                except Exception as err:
-                    print "Error", err
+                if self.sound_beep_wrong:
+                    print("Sound found at %s" % self.sound_beep_wrong.source)
+                    print("Sound is %.3f seconds" % self.sound_beep_wrong.length)
 
-        elif len(data_qr) == 10 or 'groupon' in data_qr:
-        #40A8B7433C Groupon Security Barcode 10 len
-            if data_qr == data_qr_old:
-                pass
-            else:
-                data_qr_old = data_qr
-                try:
-                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'groupon',self.check_in_or_out,self.user_id)
-                    result_validation(results)
-                except Exception as err:
-                    print "Error", err
-        elif len(data_qr) == 14:
-        #40A8B7433C Reservix Barcode 14 len
-            if data_qr == data_qr_old:
-                pass
-            else:
-                data_qr_old = data_qr
-                try:
-                    results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'reservix',self.check_in_or_out,self.user_id)
-                    result_validation(results)
-                except Exception as err:
-                    print "Error", err
+                    self.sound_beep_wrong.play()
         else:
-            self.ids.result_label.text = 'Read Error ' + data_qr
-            self.ids.result_label.background_color = [1,0,1,1]
-            self.ids.result_screen.background_color = [1,0,1,1]
-            self.ids.kv_result_indicator.background_color = [1,0,1,1]
-
-            try:
-                results = yield self.session.call(u'io.crossbar.btms.valid.validate',data_qr,self.event_id,self.event_date,self.event_time,'read_error',self.check_in_or_out,self.user_id)
-                result_validation(results)
-            except Exception as err:
-                print "Error", err
-
-            if self.sound_beep_wrong:
-                print("Sound found at %s" % self.sound_beep_wrong.source)
-                print("Sound is %.3f seconds" % self.sound_beep_wrong.length)
-
-                self.sound_beep_wrong.play()
+            self.bt_send(['45','46','45'])
+            self.sound_beep_wrong.play()
+            Clock.schedule_once(reset_wait, 10)
     @inlineCallbacks
     def get_journal(self,cmd,code,*args):
         self.ids.sm.current = "log"
@@ -859,7 +888,7 @@ class BtmsValidApp(App):
             self.root.stop.set()
 
     def build(self):
-        self.title = 'BTMS Valid 17.03a'
+        self.title = 'BTMS Valid 17.12a'
         self.root = BtmsValidRoot()
         self.root.ids.kv_user_change.disabled = True
 
