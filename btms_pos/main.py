@@ -30,6 +30,7 @@ store = JsonStore('btms_config.json')
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.image import Image
+from kivy.core.image import Image as CoreImage
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
@@ -650,7 +651,7 @@ class BtmsRoot(BoxLayout):
 
                     for i in range(0, (row['seats'])):
                         j= i + 1
-                        itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[0.2, .3], source=seat_stat_img[0])
+                        itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[0.2, .3] ,texture=CoreImage(seat_stat_img[0]).texture)
                         grid_layout1.add_widget(itm['venue_item_ov'+row_id+'_'+str(j)])
 
 
@@ -729,8 +730,10 @@ class BtmsRoot(BoxLayout):
                             else:
                                 j= j + 1
 
+
                                 #Image for Overview
-                                itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[1, 1], source=seat_stat_img[0])
+                                #itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[1, 1], source=seat_stat_img[0])
+                                itm['venue_item_ov'+row_id + '_' + str(j)] = Image(size_hint=[1, 1],texture=CoreImage(seat_stat_img[0]).texture)
                                 grid_layout1.add_widget(itm['venue_item_ov'+row_id+'_'+str(j)])
 
                                 #Button for Block View
@@ -1015,7 +1018,9 @@ class BtmsRoot(BoxLayout):
                 #    status = 3
 
                 self.seat_list[str(key)][int(seat)] = status
-                itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                #itm['venue_item_ov' + str(key) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                itm['venue_item_ov' + str(key) + '_' + str(seat)].texture = CoreImage(seat_stat_img[int(status)]).texture
+
                 try:
                     itm['venue_item_' + str(key) + '_' + str(seat)].background_normal = seat_stat_img[int(status)]
                 except KeyError:
@@ -1173,7 +1178,8 @@ class BtmsRoot(BoxLayout):
                     else:
                         status = self.seat_list[str(item_id)][int(seat)]
 
-                    itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                    itm['venue_item_ov' + str(item_id) + '_' + str(seat)].texture = CoreImage(seat_stat_img[int(status)]).texture
+
                     #if art == 1:
                         #itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
                     #else:
@@ -1199,7 +1205,7 @@ class BtmsRoot(BoxLayout):
                         else:
                             if status == 1: #reserverd
                                 status = 3 #local selected
-                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].texture = CoreImage(seat_stat_img[int(status)]).texture
                             #if art == 1:
                                 #try:
                                     #itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
@@ -1223,7 +1229,7 @@ class BtmsRoot(BoxLayout):
                         else:
                             try:
                                 self.seat_list[str(item_id)][int(seat)] = status
-                                itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[int(status)]
+                                itm['venue_item_ov' + str(item_id) + '_' + str(seat)].texture = CoreImage(seat_stat_img[int(status)]).texture
                             except KeyError:
                                 pass
                             try:
@@ -1625,7 +1631,8 @@ class BtmsRoot(BoxLayout):
                     for item_id, seat_list in item_seats[0].iteritems():
                         for seat, status in seat_list.iteritems():
                             self.seat_list[str(item_id)][int(seat)] = 3
-                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+                            itm['venue_item_ov' + str(item_id) + '_' + str(seat)].texture = CoreImage(seat_stat_img[3]).texture
+
                             try:
                                 itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[3]
 
@@ -1861,7 +1868,7 @@ class BtmsRoot(BoxLayout):
                         for item_id, seat_list in item_seats[0].iteritems():
                             for seat, status in seat_list.iteritems():
                                 self.seat_list[str(item_id)][int(seat)] = 3
-                                itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[3]
+                                itm['venue_item_ov' + str(item_id) + '_' + str(seat)].texture = CoreImage(seat_stat_img[3]).texture
                                 try:
                                     itm['venue_item_' + str(item_id) + '_' + str(seat)].background_normal = seat_stat_img[3]
 
@@ -2613,7 +2620,7 @@ class BtmsRoot(BoxLayout):
             for item_id, seats in self.seat_list.items():
                 for seat, status1 in seats.items():
                     if status1 == 3:
-                        itm['venue_item_ov' + str(item_id) + '_' + str(seat)].source = seat_stat_img[4]
+                        itm['venue_item_ov' + str(item_id) + '_' + str(seat)].texture = CoreImage(seat_stat_img[4]).texture
                         #itm['venue_item_' + str(item_id) + '_' + str(seat)].source = seat_stat_img[4]
                         self.seat_list[str(item_id)][int(seat)] = 4
 
@@ -3258,7 +3265,7 @@ class CLabel(Label):
 class BtmsApp(App):
 
     def build(self):
-        self.title = 'BTMS 16.01a'
+        self.title = 'BTMS 17.12a'
         self.root = BtmsRoot()
         self.root.ids.kv_user_change.disabled = True
 

@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas
 #version.filename = %(source.dir)s/main.py
 
 # (str) Application versioning (method 2)
-version = 17.01.01
+version = 17.12.26
 
 # (list) Application requirements
 requirements = kivy,autobahn,twisted,msgpack-python,plyer
