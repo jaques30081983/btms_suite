@@ -49,7 +49,7 @@ class MyAuthenticator(ApplicationSession):
             db='btms',
             user='btms',
             passwd='test',
-            host='127.0.0.1',
+            host='localhost',
             cp_reconnect=True,
             cursorclass=MySQLdb.cursors.DictCursor
             )
@@ -70,7 +70,7 @@ class MyAuthenticator(ApplicationSession):
                 print "keep alive, db auth querry run", result
 
             except Exception as err:
-                self.publish('io.crossbar.btms.onLeaveRemote','Auth DB connection closed')
+                self.publish(u'io.crossbar.btms.onLeaveRemote','Auth DB connection closed')
                 print "Auth DB Connection Error", err
 
         l = task.LoopingCall(keepAliveDB)
@@ -105,7 +105,7 @@ class MyAuthenticator(ApplicationSession):
             for row in self.dbresults:
                 self.USERDB[row['user']] = {}
                 self.USERDB[row['user']]['secret'] = row['secret']
-                self.USERDB[row['user']]['role'] = row['role']
+                self.USERDB[row['user']]['role'] = unicode(row['role'])
 
 
             if authid in self.USERDB:
@@ -113,10 +113,10 @@ class MyAuthenticator(ApplicationSession):
                 returnValue(self.USERDB[authid])
 
             else:
-                raise ApplicationError("com.btms.no_such_user", "could not authenticate session - no such user {}".format(authid))
+                raise ApplicationError(u"com.btms.no_such_user", "could not authenticate session - no such user {}".format(authid))
 
         try:
-            yield self.register(authenticate, 'com.btms.authenticate')
+            yield self.register(authenticate, u'com.btms.authenticate')
             print("custom WAMP-CRA authenticator registered")
         except Exception as e:
             print("could not register custom WAMP-CRA authenticator: {0}".format(e))

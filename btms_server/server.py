@@ -230,6 +230,8 @@ class BtmsBackend(ApplicationSession):
     @inlineCallbacks
     def getTransactionId(self,event_id,event_date,event_time,reservation_art,*args):
         #Check if a counter for EventDateTime exists
+        print "getTransactionId:", event_id, event_date, event_time, reservation_art
+
         counter_amount = 0
         try:
             result_venues = yield self.db.runQuery("SELECT * FROM btms_counter WHERE event_id = '"+str(event_id)+"' AND date = '"+str(event_date)+"' AND time = '"+str(event_time)+"' AND art ='"+str(reservation_art)+"'")
@@ -526,7 +528,7 @@ class BtmsBackend(ApplicationSession):
             if self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] == user_id or self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] == 0:
                 self.item_list[eventdatetime_id][str(item_id)]['blocked_by'] = user_id
                 sucess = True
-                self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, 1)
+                self.publish(u'io.crossbar.btms.item.block.action', eventdatetime_id, item_id, user_id, 1)
             else:
                 sucess = False
                 print "block stat", self.item_list[eventdatetime_id][str(item_id)]['blocked_by']
@@ -537,7 +539,7 @@ class BtmsBackend(ApplicationSession):
             for key, value in self.item_list[eventdatetime_id].iteritems():
                 try:
                     if value['blocked_by'] == user_id:
-                        self.publish('io.crossbar.btms.item.block.action', eventdatetime_id, key, user_id, 0)
+                        self.publish(u'io.crossbar.btms.item.block.action', eventdatetime_id, key, user_id, 0)
                         self.item_list[eventdatetime_id][str(key)]['blocked_by'] = 0
                 except KeyError:
                     pass
@@ -574,7 +576,7 @@ class BtmsBackend(ApplicationSession):
                         print 'seat is occupied', item_id, seat, status, tid, self.item_list[edt_id][item_id]['seats_tid'][seat]
                         new_seat_select_list[item_id][seat] = self.item_list[edt_id][item_id]['seats_tid'][seat]
 
-        self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, art, tid, user_id)
+        self.publish(u'io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, cat_id, art, tid, user_id)
 
 
     @wamp.register(u'io.crossbar.btms.unnumbered_seats.set')
@@ -595,7 +597,7 @@ class BtmsBackend(ApplicationSession):
         self.item_list[edt_id][str(item_id)]['amount'] = amount2 #Set for Init
         print amount1
 
-        self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
+        self.publish(u'io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
 
 
     @wamp.register(u'io.crossbar.btms.bill.add')
@@ -608,7 +610,7 @@ class BtmsBackend(ApplicationSession):
                 #self.item_list[eventdatetime_id][block]['seats'][seat] = 1
 
         #result = {'subject': subject, 'votes': self._votes[subject]}
-        self.publish('io.crossbar.btms.venue.update', blocks)
+        self.publish(u'io.crossbar.btms.venue.update', blocks)
 
 
     @wamp.register(u'io.crossbar.btms.pos.displays.reg')
@@ -643,7 +645,7 @@ class BtmsBackend(ApplicationSession):
     @wamp.register(u'io.crossbar.btms.pos.displays.msg')
     def msgPosDisplays(self,display,msg):
         print display, msg
-        self.publish('io.crossbar.btms.pos.displays.msg.send', display, msg)
+        self.publish(u'io.crossbar.btms.pos.displays.msg.send', display, msg)
 
 
     @wamp.register(u'io.crossbar.btms.printers.get')
@@ -762,11 +764,10 @@ class BtmsBackend(ApplicationSession):
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
         status = 1
 
-        self.setJournal(transaction_id, event_id, event_date, event_time, '0', itm_cat_amount_list, debit, '0', '0', status, user_id)
 
-        #check
-        check_result = 1
 
+
+        # Set all transaction entrys to default of same transaction_id
         sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
                 " btms_transactions.user='%s' WHERE btms_transactions.tid='%s'" % ('{}', '{}', user_id, transaction_id)
 
@@ -775,7 +776,7 @@ class BtmsBackend(ApplicationSession):
             result = yield self.db.runOperation(sql)
         except Exception as err:
             self.item_list = {}
-            self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+            self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
             print "DB Connection Error", err
 
         #Iterate over seat_list and put each per categorie
@@ -795,6 +796,7 @@ class BtmsBackend(ApplicationSession):
             cat_seat_list[cat_id][item_id] = seat_list
 
         #Check again seat status
+        check_result = 1
         for item_id, seat_list in seat_trans_list.iteritems():
             for seat, status in seat_list.iteritems():
                 check_result = check_result + 1
@@ -845,7 +847,7 @@ class BtmsBackend(ApplicationSession):
         #Set seat status if seats are reserved from same user and insert in db
         if check_result == 1:
 
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
+            self.publish(u'io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
             for cat_id, seat_list in cat_seat_list.iteritems():
                 #cat_id = self.item_list[edt_id][item_id]['cat_id']
                 amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
@@ -873,7 +875,7 @@ class BtmsBackend(ApplicationSession):
                     result = yield self.db.runOperation(sql)
                 except Exception as err:
                     self.item_list = {}
-                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                    self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
                     print "DB Connection Error", err
                 #elif retrive_status == True:
                     #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
@@ -903,7 +905,7 @@ class BtmsBackend(ApplicationSession):
                         result = yield self.db.runOperation(sql)
                     except Exception as err:
                         self.item_list = {}
-                        self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                        self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
                         print "DB Connection Error", err
                     #elif retrive_status == True:
                         #sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
@@ -929,6 +931,12 @@ class BtmsBackend(ApplicationSession):
                 transaction_id_part = transaction_id[-4:]
             elif pre_res_art == 2:
                 transaction_id_part = transaction_id[-4:]
+
+            try:
+                yield self.setJournal(transaction_id, event_id, event_date, event_time, '0', itm_cat_amount_list, debit,
+                                  '0', '0', status, user_id)
+            except Exception as err:
+                print err
         else:
             transaction_id_part = 'error'
         #return transaction_id_part
@@ -1001,10 +1009,21 @@ class BtmsBackend(ApplicationSession):
                  seat_trans_list, itm_cat_amount_list, status, account, total_bill_price,
                  back_price, given_price, user_id):
 
-        self.setJournal(transaction_id, event_id, event_date, event_time, account, itm_cat_amount_list,total_bill_price, given_price, back_price, status, user_id)
+
 
         edt_id = "%s_%s_%s" % (event_id,event_date,event_time)
 
+        #Set all transaction entrys to default of same transaction_id
+        sql = "UPDATE btms_transactions SET btms_transactions.amount='%s', btms_transactions.seats='%s'," \
+                " btms_transactions.user='%s' WHERE btms_transactions.tid='%s'" % ('{}', '{}', user_id, transaction_id)
+
+
+        try:
+            result = yield self.db.runOperation(sql)
+        except Exception as err:
+            self.item_list = {}
+            self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
+            print "DB Connection Error", err
 
         #Iterate over seat_list and put each per categorie
         cat_seat_list = {}
@@ -1074,7 +1093,7 @@ class BtmsBackend(ApplicationSession):
 
         #Set seat status if seats are reserved from same user and insert in db
         if check_result == 1:
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, user_id)
+            self.publish(u'io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, user_id)
             for cat_id, seat_list in cat_seat_list.iteritems():
                 #cat_id = self.item_list[edt_id][item_id]['cat_id']
                 amount = json.dumps(itm_cat_amount_list[str(cat_id)], separators=(',',';'))
@@ -1106,7 +1125,7 @@ class BtmsBackend(ApplicationSession):
                     result = yield self.db.runOperation(sql)
                 except Exception as err:
                     self.item_list = {}
-                    self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                    self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
                     print "DB Connection Error", err
 
         #Get unnumbered seats and insert in db
@@ -1145,12 +1164,17 @@ class BtmsBackend(ApplicationSession):
                         result = yield self.db.runOperation(sql)
                     except Exception as err:
                         self.item_list = {}
-                        self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                        self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
                         print "DB Connection Error", err
                 except KeyError:
                     pass
 
         if check_result == 1:
+            try:
+                yield self.setJournal(transaction_id, event_id, event_date, event_time, account, itm_cat_amount_list,
+                                total_bill_price, given_price, back_price, status, user_id)
+            except Exception as err:
+                print err
             try:
                 #Create and Insert Tickets
                 #Iterate over seat_list and create new indexed one
@@ -1322,9 +1346,9 @@ class BtmsBackend(ApplicationSession):
             for row in result:
 
                 if row['tid'] in self.busy_transactions:
-                    print'is in list', row['tid']
+                    print'is in list, release not possible', row['tid']
                 else:
-                    print 'not in list', row['tid']
+                    print 'not in list, will be released', row['tid']
 
                     json_string = row['amount'].replace(';',':')
                     json_string = json_string.replace('\\','')
@@ -1355,19 +1379,21 @@ class BtmsBackend(ApplicationSession):
                         print 'rowart', row['art'], row['item_id'], row['tid']
                         self.unnumbered_seat_list[edt_id][str(row['item_id'])]['tid_amount'][str(row['tid'])] = 0
 
-                    #Delete from db with status 1 and not busy
-                    sql = "DELETE FROM btms_transactions WHERE id = '"+str(row['id'])+"'"
-                    self.db.runOperation(sql)
-
-
-                    #Set from last iteration
-                    self.setJournal(row['tid'], event_id, event_date, event_time, 1220, 0, '0', '0', '0', 3, user_id)
+                    while True:
+                        try:
+                            #Set from last iteration
+                            yield self.setJournal(row['tid'], event_id, event_date, event_time, 1220, 0, '0', '0', '0', 3, user_id)
+                            break
+                        finally:
+                            #Delete from db with status 1 and not busy
+                            sql = "DELETE FROM btms_transactions WHERE id = '"+str(row['id'])+"'"
+                            self.db.runOperation(sql)
 
 
         except Exception as err:
             print "Error", err
         finally:
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, 0, 0, None, 0)
+            self.publish(u'io.crossbar.btms.seats.select.action', edt_id, new_seat_select_list, 0, 0, None, 0)
             #Puplish Unnumbered Seats
             for item_id, value in self.unnumbered_seat_list[edt_id].iteritems():
                 amount1 = 0
@@ -1380,7 +1406,7 @@ class BtmsBackend(ApplicationSession):
                 self.item_list[edt_id][str(item_id)]['amount'] = amount2
                 print amount1, amount2
 
-                self.publish('io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
+                self.publish(u'io.crossbar.btms.unnumbered_seats.set.action', edt_id, item_id, amount2)
 
 
     @wamp.register(u'io.crossbar.btms.contingents.get')
@@ -1456,7 +1482,7 @@ class BtmsBackend(ApplicationSession):
 
                 cat_seat_list[cat_id][item_id] = new_seat_list
 
-            self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, 0)
+            self.publish(u'io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, transaction_id, 0)
 
             '''
             cat_id = self.item_list[edt_id][item_id]['cat_id']
@@ -1573,7 +1599,7 @@ class BtmsBackend(ApplicationSession):
                             self.item_list[edt_id][item_id]['seats'][seat] = 4
                             #self.item_list[edt_id][item_id]['seats_tid'][seat] = transaction_id
 
-                    self.publish('io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
+                    self.publish(u'io.crossbar.btms.seats.select.action', edt_id, seat_trans_list, 0, 0, None, 0)
 
 
                     nr_cat_id = self.item_list[edt_id][item_id]['cat_id']
@@ -1709,6 +1735,7 @@ class BtmsBackend(ApplicationSession):
             sql = "UPDATE btms_journal SET btms_journal.account='%s', btms_journal.status='%s', btms_journal.user_id='%s'" \
                   " WHERE btms_journal.tid='%s' " % (account, status, user_id, tid)
             self.db.runOperation(sql)
+
         else:
             sql = "insert into btms_journal(tid, event_id, event_date, event_time, account, amount, debit, given, back, status, user_id, reg_date_time) " \
                     "values('"+str(tid)+"','"+str(event_id)+"','"+event_date+"','"+event_time+"'," \
@@ -2295,7 +2322,7 @@ class BtmsBackend(ApplicationSession):
 
     @wamp.register(u'io.crossbar.btms.users.logout')
     def logout_users(self, user_id, login_time):
-        self.publish('io.crossbar.btms.onLogoutUser',user_id, login_time, 'log out users with same id')
+        self.publish(u'io.crossbar.btms.onLogoutUser',user_id, login_time, 'log out users with same id')
 
     @inlineCallbacks
     def onJoin(self, details):
@@ -2309,7 +2336,7 @@ class BtmsBackend(ApplicationSession):
                         db='btms',
                         user='btms',
                         passwd='test',
-                        host='127.0.0.1',
+                        host='localhost',
                         cp_reconnect=True,
                         cursorclass=MySQLdb.cursors.DictCursor
                     )
@@ -2329,7 +2356,7 @@ class BtmsBackend(ApplicationSession):
                 print "keep alive, db querry run", result
 
             except Exception as err:
-                self.publish('io.crossbar.btms.onLeaveRemote','DB connection closed')
+                self.publish(u'io.crossbar.btms.onLeaveRemote','DB connection closed')
                 print "DB Connection Error", err
 
         l = task.LoopingCall(keepAliveDB)
@@ -2341,5 +2368,5 @@ class BtmsBackend(ApplicationSession):
         ##
         res = yield self.register(self)
         print("BtmsBackend: {} procedures registered!".format(len(res)))
-
+        print("Backend session joined: {}".format(details))
 

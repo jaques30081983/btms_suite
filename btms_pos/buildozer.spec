@@ -32,7 +32,11 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 17.12.26
 
 # (list) Application requirements
-requirements = kivy,autobahn,twisted,msgpack-python,plyer
+requirements = kivy,autobahn,twisted,msgpack-python,plyer,txaio
+
+# (str) Custom source folders for requirements
+# Sets custom source for any requirements with recipes
+requirements.source.kivy = ../kivy
 
 # (list) Garden requirements
 #garden_requirements =

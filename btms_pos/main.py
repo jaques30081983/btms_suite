@@ -35,6 +35,7 @@ from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
 from kivy.uix.bubble import Bubble
+from kivy.uix.recycleview import RecycleView
 
 from plyer import notification
 
@@ -282,7 +283,7 @@ class BtmsRoot(BoxLayout):
             venue_titles_list = {}
             venue_itm = {}
             venue_id = 0
-
+            
             for row in results:
                 #venue_titles_list[row['id']] = row['title'] + '\n' + row['description']
                 if venue_id == 0:
@@ -298,10 +299,11 @@ class BtmsRoot(BoxLayout):
 
                 venue_itm['venue_btn_' + str(row['id'])].bind(
                     on_release=partial(self.set_venue,row['id']))
-
+                
+                
                 self.ids.venue_title.add_widget(venue_itm['venue_btn_' + str(row['id'])])
 
-
+        self.ids.venue_title.clear_widgets()
         results = yield self.session.call(u'io.crossbar.btms.venues.get')
         result_venues(results)
 
@@ -1393,7 +1395,9 @@ class BtmsRoot(BoxLayout):
 
         elif art == 2:
             if self.transaction_id == 0:
-                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get',self.event_id,self.event_date,self.event_time,self.reservation_art)
+                self.transaction_id = yield self.session.call(u'io.crossbar.btms.transaction_id.get', self.event_id, self.event_date, self.event_time, self.reservation_art)
+                pass
+
             bool = False
             while self.transaction_id >= 0 and bool == False: # Make shure transaction id is set
                 bool = True
@@ -1561,6 +1565,7 @@ class BtmsRoot(BoxLayout):
                     else:
                         itm_cat_amount_list[str(cat_id)][str(price_id)] = value1['amount']
             try:
+                print "Reserve:", seat_trans_list, itm_cat_amount_list, self.reservation_art
                 results = yield self.session.call(u'io.crossbar.btms.reserve', self.event_id, self.event_date, self.event_time,
                                                   self.transaction_id, seat_trans_list, itm_cat_amount_list,
                                                   self.reservation_art, str(self.total_bill_price), self.user_id)
@@ -2097,8 +2102,14 @@ class BtmsRoot(BoxLayout):
 
 
     def msg_pos_display(self, msg, *args):
+        try:
+            self.pos_display
+        except Exception:
+            #Set it to default if no display is set
+            self.pos_display = 0
+        finally:
+            self.session.call(u'io.crossbar.btms.pos.displays.msg', self.pos_display, msg)
 
-        self.session.call(u'io.crossbar.btms.pos.displays.msg', self.pos_display, msg)
 
 
     @inlineCallbacks
@@ -2669,6 +2680,7 @@ class BtmsRoot(BoxLayout):
         results_event = yield self.session.call(u'io.crossbar.btms.events.get',1)
         self.ids.kv_dashboard_events_grid.clear_widgets(children=None)
         event_itm_cf = {}
+        self.ids.event_title_cf.clear_widgets()
         for row in results_event:
             self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['title'],size_hint=[1, None], height=20))
             self.ids.kv_dashboard_events_grid.add_widget(Label(text=row['date_start']+' - '+row['date_end']+' '+row['start_times']+' '+row['admission'],size_hint=[1, None], height=20))
@@ -3265,7 +3277,7 @@ class CLabel(Label):
 class BtmsApp(App):
 
     def build(self):
-        self.title = 'BTMS 17.12a'
+        self.title = 'BTMS 18.10a'
         self.root = BtmsRoot()
         self.root.ids.kv_user_change.disabled = True
 
@@ -3289,6 +3301,8 @@ class BtmsApp(App):
         if store.exists('displays'):
             self.pos_display = store.get('displays')['display']
             self.root.ids.kv_display_spinner.text = store.get('displays')['display']
+        else:
+            self.pos_display = 0
         #self.start_wamp_component()
         self.root.logout_op = 1
         return self.root

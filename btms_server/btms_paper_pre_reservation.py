@@ -1,3 +1,4 @@
+import sys
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
@@ -22,7 +23,7 @@ dbpool = adbapi.ConnectionPool(
 				db='btms',
 				user='btms',
 				passwd='test',
-				host='127.0.0.1',
+				host='localhost',
 				cp_reconnect=True,
 				cursorclass=MySQLdb.cursors.DictCursor
 			)
@@ -33,7 +34,8 @@ global event_description
 global event_date_start
 global event_date_end
 
-event_id = 146
+event_id = int(sys.argv[1])
+print event_id
 
 def getEvent(event_id):
     return dbpool.runQuery("SELECT title, description, date_start, date_end FROM btms_events WHERE  id = '"+str(event_id)+"'")
@@ -63,7 +65,7 @@ getEvent(event_id).addCallback(eventResult)
 
 
 def eventDayResult(result):
-	c = canvas.Canvas("pre_reservation_karlsruhe1.pdf")
+	c = canvas.Canvas("pre_reservation_"+event_title+"_"+event_date_start+"_"+event_date_end+".pdf")
 	c.setPageSize((21*cm, 29.7*cm))
 	page = 1
 	

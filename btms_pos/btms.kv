@@ -364,7 +364,7 @@
 				font_size: self.height * .35
 				on_select: event_btn.text = '{}'.format(args[1])
 				#on_select: event_date = '{}'.format(args[1])
-                on_parent: self.dismiss()
+                #on_parent: self.dismiss()
 
 
 			Button:
@@ -384,7 +384,7 @@
 			DropDown:
 				id: event_date
 				font_size: self.height * .35
-				on_parent: self.dismiss()
+				#on_parent: self.dismiss()
 				on_select: event_date_btn.text = '{}'.format(args[1])
 				#on_select: root.set_event_day_times('{}'.format(args[1]))
 			
@@ -430,7 +430,7 @@
 			DropDown:
 				id: event_time
 				font_size: self.height * .35
-				on_parent: self.dismiss()
+				#on_parent: self.dismiss()
 				on_select: event_time_btn.text = '{}'.format(args[1])
 				
 				
@@ -1202,7 +1202,7 @@
                     DropDown:
                         id: venue_title
                         on_select: venue_btn.text = '{}'.format(args[1])
-                        on_parent: self.dismiss()
+                        #on_parent: self.dismiss()
 
 
 				    Label:
@@ -1296,7 +1296,7 @@
                         id: event_title_cf
                         font_size: self.height * .35
                         on_select: event_btn_cf.text = '{}'.format(args[1])
-                        on_parent: self.dismiss()
+                        #on_parent: self.dismiss()
 
 		    Button:
 				text: "Back"

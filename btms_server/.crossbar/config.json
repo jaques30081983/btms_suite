@@ -1,190 +1,271 @@
 {
-   "controller": {
-   },
-   "workers": [
-      {
-         "type": "router",
-         "options": {
-            "pythonpath": ["/home/jaques5/workspace/btms_suite/btms_server"]
-         },
-         "realms": [
-            {
-               "name": "btmsserver",
-               "roles": [
-                  {
-                     "name": "anonymous",
-                     "permissions": [
-                        {
-                           "uri": "io.crossbar.btms.report.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
-                        },
-                         {
-                           "uri": "io.crossbar.btms.events.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
-                        }
-                     ]
-                  }
-               ]
+    "version": 2,
+    "controller": {},
+    "workers": [
+        {
+            "type": "router",
+            "options": {
+                "pythonpath": [
+                    "/home/jaques/workspace/btms_suite/btms_server"
+                ]
             },
-            {
-               "name": "btmsserverauth",
-               "roles": [
-                  {
-                     "name": "authenticator",
-                     "permissions": [
+            "realms": [
+                {
+                    "name": "btmsserver",
+                    "roles": [
                         {
-                           "uri": "com.btms.authenticate",
-                           "register": true
+                            "name": "anonymous",
+                            "permissions": [
+                                {
+                                    "uri": "io.crossbar.btms.report.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                },
+                                {
+                                    "uri": "io.crossbar.btms.events.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
                         }
-                     ]
-                  },
-                  {
-                     "name": "backend",
-                     "permissions": [
+                    ]
+                },
+                {
+                    "name": "btmsserverauth",
+                    "roles": [
                         {
-                           "uri": "*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
-                        }
-                     ]
-                  },
-                  {
-                     "name": "admin",
-                     "permissions": [
-                        {
-                           "uri": "io.crossbar.admin.btms.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
+                            "name": "authenticator",
+                            "permissions": [
+                                {
+                                    "uri": "com.btms.authenticate",
+                                    "match": "exact",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": false
+                                }
+                            ]
                         },
                         {
-                           "uri": "io.crossbar.btms.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
+                            "name": "backend",
+                            "permissions": [
+                                {
+                                    "uri": "",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
                         },
                         {
-                           "uri": "io.crossbar.btms.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
-                        }
-                     ]
-                  },
-                  {
-                     "name": "user",
-                     "permissions": [
-                        {
-                           "uri": "io.crossbar.btms.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
-                        }
-                     ]
-                  },
-                  {
-                     "name": "valid",
-                     "permissions": [
-                        {
-                           "uri": "io.crossbar.btms.valid.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
+                            "name": "admin",
+                            "permissions": [
+                                {
+                                    "uri": "io.crossbar.admin.btms.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                },
+                                {
+                                    "uri": "io.crossbar.btms.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                },
+                                {
+                                    "uri": "io.crossbar.btms.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
                         },
                         {
-                           "uri": "io.crossbar.btms.users.get",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
+                            "name": "user",
+                            "permissions": [
+                                {
+                                    "uri": "io.crossbar.btms.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
                         },
                         {
-                           "uri": "io.crossbar.btms.report.*",
-                           "publish": true,
-                           "subscribe": true,
-                           "call": true,
-                           "register": true
+                            "name": "valid",
+                            "permissions": [
+                                {
+                                    "uri": "io.crossbar.btms.valid.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                },
+                                {
+                                    "uri": "io.crossbar.btms.users.get",
+                                    "match": "exact",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                },
+                                {
+                                    "uri": "io.crossbar.btms.report.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": false,
+                                        "publisher": false
+                                    },
+                                    "cache": true
+                                }
+                            ]
                         }
-                     ]
-                  }
-               ]
-            }
-         ],
-         "transports": [
-            {
-               "type": "web",
-               "endpoint": {
-                  "type": "tcp",
-                  "port": 8080
-               },
-               "paths": {
-                  "/": {
-                     "type": "static",
-                     "directory": "../web"
-                  },
-                  "ws": {
-                     "type": "websocket",
-                     "auth": {
-                        "wampcra": {
-                           "type": "dynamic",
-                           "authenticator": "com.btms.authenticate"
+                    ]
+                }
+            ],
+            "transports": [
+                {
+                    "type": "web",
+                    "endpoint": {
+                        "type": "tcp",
+                        "port": 8080
+                    },
+                    "paths": {
+                        "/": {
+                            "type": "static",
+                            "directory": "../web"
+                        },
+                        "ws": {
+                            "type": "websocket",
+                            "auth": {
+                                "wampcra": {
+                                    "type": "dynamic",
+                                    "authenticator": "com.btms.authenticate"
+                                }
+                            }
+                        },
+                        "ws1": {
+                            "type": "websocket"
+                        },
+                        "lp": {
+                            "type": "longpoll"
                         }
-                     }
-                  },
-                  "ws1": {
-                     "type": "websocket"
-                  },
-                  "lp": {
-                     "type": "longpoll"
-                  }
-               },
-                  "options": {
-				  "enable_webstatus": false,
-				  "max_frame_size": 1048576,
-				  "max_message_size": 1048576,
-				  "auto_fragment_size": 65536,
-				  "fail_by_drop": true,
-				  "open_handshake_timeout": 2500,
-				  "close_handshake_timeout": 1000,
-				  "auto_ping_interval": 10000,
-				  "auto_ping_timeout": 5000,
-				  "auto_ping_size": 4
-			   }
-            }
-         ],
-         "components": [
-            {
-               "type": "class",
-               "classname": "authenticator.MyAuthenticator",
-               "realm": "btmsserverauth",
-               "role": "authenticator"
-            },
-            {
-               "type": "class",
-               "classname": "server.BtmsBackend",
-               "realm": "btmsserverauth",
-               "role": "backend"
-            },
-            {
-               "type": "class",
-               "classname": "server.BtmsBackend",
-               "realm": "btmsserver",
-               "role": "anonymous"
-            }
-         ]
-      }
-   ]
+                    }
+                }
+            ],
+            "components": [
+                {
+                    "type": "class",
+                    "classname": "authenticator.MyAuthenticator",
+                    "realm": "btmsserverauth",
+                    "role": "authenticator"
+                },
+                {
+                    "type": "class",
+                    "classname": "server.BtmsBackend",
+                    "realm": "btmsserverauth",
+                    "role": "backend"
+                },
+                {
+                    "type": "class",
+                    "classname": "server.BtmsBackend",
+                    "realm": "btmsserver",
+                    "role": "anonymous"
+                }
+            ]
+        }
+    ]
 }
